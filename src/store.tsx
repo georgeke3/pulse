@@ -5,7 +5,7 @@ import { format, subDays, startOfDay } from 'date-fns';
 const DEFAULT_CONFIG: Config = {
   categories: {
     training: ["Work", "Nucleus", "Family", "Friends", "Chaos", "Baseline", "Finances"],
-    recovery: ["Walk", "Nap", "Meditation", "Presence check", "Family", "Friends", "Creative", "Nucleus", "Fun"]
+    recovery: ["Walk", "Nap", "Meditation", "Presence check", "Family", "Friends", "Creative", "Nucleus", "Fun", "Journaling"]
   },
   scales: {
     training: {
@@ -243,6 +243,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let fitness = 0;
     let fatigue = 0;
 
+    const durationMultipliers: Record<string, number> = {
+      '<1h': 0.5,
+      'couple hours': 1.0,
+      'half day': 2.0,
+      'whole day': 4.0
+    };
+
     for (let i = 0; i < windowDays; i++) {
       const d = subDays(end, i);
       const dateStr = format(d, 'yyyy-MM-dd');
@@ -250,7 +257,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       if (dayData) {
         dayData.events.forEach(e => {
-          const val = Number(e.objectiveIntensity || e.intensity || 0);
+          const baseVal = Number(e.objectiveIntensity || e.intensity || 0);
+          const multiplier = durationMultipliers[e.duration] || 1.0;
+          const val = baseVal * multiplier;
+          
           if (e.type === 'recovery') {
             fitness += val;
           } else {
@@ -260,7 +270,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    return fitness - fatigue;
+    return Math.round(fitness - fatigue);
   };
 
   return (

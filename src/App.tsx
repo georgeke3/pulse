@@ -218,26 +218,35 @@ const DailyLedger = ({ date, onBack }: { date: Date, onBack: () => void }) => {
                 <button 
                   key={event.id} 
                   onClick={() => setModalMode({ open: true, event })}
-                  className="w-full group flex items-center justify-between p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-all text-left"
+                  className="w-full group p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-all text-left space-y-2"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center font-black text-base",
+                        event.type === 'recovery' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+                      )}>
+                        {event.category[0]}
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-gray-900">{event.category}</div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                          {event.duration} • obj {event.objectiveIntensity} • sub {event.intensity}
+                        </div>
+                      </div>
+                    </div>
                     <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center font-black text-base",
-                      event.type === 'recovery' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+                      "text-lg font-black",
+                      event.type === 'recovery' ? "text-green-600" : "text-red-600"
                     )}>
-                      {event.category[0]}
-                    </div>
-                    <div>
-                      <div className="text-xs font-black text-gray-900">{event.category}</div>
-                      <div className="text-[9px] font-black uppercase tracking-widest text-gray-400">{event.duration} • {event.type}</div>
+                      {event.type === 'recovery' ? `+${Math.round(event.objectiveIntensity * ({ '<1h': 0.5, 'couple hours': 1.0, 'half day': 2.0, 'whole day': 4.0 }[event.duration] || 1))}` : `-${Math.round(event.objectiveIntensity * ({ '<1h': 0.5, 'couple hours': 1.0, 'half day': 2.0, 'whole day': 4.0 }[event.duration] || 1))}`}
                     </div>
                   </div>
-                  <div className={cn(
-                    "text-lg font-black",
-                    event.type === 'recovery' ? "text-green-600" : "text-red-600"
-                  )}>
-                    {event.type === 'recovery' ? `+${event.objectiveIntensity}` : `-${event.objectiveIntensity}`}
-                  </div>
+                  {event.notes && (
+                    <div className="pl-13">
+                      <p className="text-[10px] text-gray-500 font-medium line-clamp-2 italic">"{event.notes}"</p>
+                    </div>
+                  )}
                 </button>
               ))
             )}
@@ -303,8 +312,8 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
 
   return (
     <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md">
-      <div className="bg-white w-full max-w-md rounded-[2.5rem] p-7 space-y-5 animate-in slide-in-from-bottom duration-500 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center">
+      <div className="bg-white w-full max-w-md rounded-[2.5rem] p-7 space-y-5 animate-in slide-in-from-bottom duration-500 max-h-[90vh] overflow-y-auto relative">
+        <div className="flex justify-between items-center sticky top-0 bg-white z-10 pb-2">
           <h2 className="text-xl font-black tracking-tight">{existingEvent ? 'Edit Event' : 'Log Event'}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-400"><X size={16} strokeWidth={3}/></button>
         </div>
