@@ -82,7 +82,7 @@ const DEFAULT_CONFIG: Config = {
     },
     {
       id: "outlook",
-      prompt: "4. Joy & Outlook (Mindset)",
+      prompt: "4. Joy & Outlook (Capacity & The \"Where\")",
       options: [
         { value: 1, label: "Cynical" },
         { value: 2, label: "Numb" },
@@ -92,7 +92,7 @@ const DEFAULT_CONFIG: Config = {
     },
     {
       id: "relational",
-      prompt: "5. Relational & Connection (People)",
+      prompt: "5. Relational & Connection (The \"Who Else\")",
       options: [
         { value: 1, label: "Transactional" },
         { value: 2, label: "Duty-Bound" },
@@ -102,7 +102,7 @@ const DEFAULT_CONFIG: Config = {
     },
     {
       id: "ram",
-      prompt: "6. Mind Bandwidth (Computing Power)",
+      prompt: "6. Cognitive RAM (Computing Power)",
       options: [
         { value: 1, label: "Fried" },
         { value: 2, label: "Sluggish" },
@@ -117,7 +117,7 @@ const DEFAULT_CONFIG: Config = {
         { value: 1, label: "Resentful" },
         { value: 2, label: "Entitled" },
         { value: 3, label: "Appreciative" },
-        { value: 4, label: "Profound / Rebirth" }
+        { value: 4, label: "Profound" }
       ]
     }
   ]
