@@ -297,8 +297,9 @@ const DailyLedger = ({ date, onBack }: { date: Date, onBack: () => void }) => {
                         "text-lg font-black",
                         event.type === 'recovery' ? "text-green-600" : "text-red-600"
                       )}>
-                        {event.type === 'recovery' ? `+${Math.round(event.objectiveIntensity * ({ '<1h': 0.5, 'couple hours': 1.0, 'half day': 2.0, 'whole day': 4.0 }[event.duration] || 1))}` : `-${Math.round(event.objectiveIntensity * ({ '<1h': 0.5, 'couple hours': 1.0, 'half day': 2.0, 'whole day': 4.0 }[event.duration] || 1))}`}
+                        {event.type === 'recovery' ? `+${event.objectiveIntensity}` : `-${event.objectiveIntensity}`}
                       </div>
+
                     </div>
                     {event.notes && (
                       <div className="pl-13">
