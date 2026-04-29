@@ -371,163 +371,169 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   const selectedSubjective = scales.subjective.find(o => o.value === intensity);
 
   return (
-    <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md">
-      <div className="bg-white w-full max-w-md rounded-[2.5rem] p-7 space-y-5 animate-in slide-in-from-bottom duration-500 max-h-[90vh] overflow-y-auto relative">
-        <div className="flex justify-between items-center sticky top-0 bg-white z-10 -mx-7 px-7 -mt-7 pt-7 pb-4 rounded-t-[2.5rem]">
+    <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md text-gray-900">
+      <div className="bg-white w-full max-w-md rounded-[2.5rem] flex flex-col max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-500 relative">
+        {/* Fixed Header */}
+        <div className="flex justify-between items-center p-7 pb-4 bg-white z-10 border-b border-gray-50">
           <h2 className="text-xl font-black tracking-tight">{existingEvent ? 'Edit Event' : 'Log Event'}</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-400"><X size={16} strokeWidth={3}/></button>
-        </div>
-
-        <div className="flex p-1 bg-gray-100 rounded-2xl">
-          <button
-            onClick={() => { setType('training'); setCategory(state.config.categories.training[0]); }}
-            className={cn("flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", type === 'training' ? "bg-white text-red-600 shadow-sm" : "text-gray-400")}
-          >
-            Training
-          </button>
-          <button
-            onClick={() => { setType('recovery'); setCategory(state.config.categories.recovery[0]); }}
-            className={cn("flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", type === 'recovery' ? "bg-white text-green-600 shadow-sm" : "text-gray-400")}
-          >
-            Recovery
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 active:scale-90 transition-transform">
+            <X size={16} strokeWidth={3}/>
           </button>
         </div>
 
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Category</label>
-            <div className="flex flex-wrap gap-1.5">
-              {categories.map(c => {
-                const Icon = getIcon(c);
-                return (
-                  <button
-                    key={c}
-                    onClick={() => setCategory(c)}
-                    className={cn(
-                      "flex items-center gap-2 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all",
-                      category === c ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-400 border-gray-50 hover:border-gray-200"
-                    )}
-                  >
-                    <Icon size={12} strokeWidth={3} />
-                    {c}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Duration</label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {DURATION_OPTS.map(d => (
-                <button
-                  key={d.val}
-                  onClick={() => setDuration(d.val)}
-                  className={cn(
-                    "py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all",
-                    duration === d.val ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-400 border-gray-50"
-                  )}
-                >
-                  {d.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-4 bg-gray-50 p-4 rounded-3xl border border-gray-100">
-            <div className="space-y-3">
-              <div className="flex justify-between items-end">
-                <div>
-                  <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 italic">Objective Complexity</label>
-                  <div className="text-sm font-black text-gray-900 mt-1">{selectedObjective?.label}</div>
-                </div>
-                <span className="text-lg font-black text-gray-900">{objIntensity}</span>
-              </div>
-              <div className="grid grid-cols-5 gap-1">
-                {scales.objective.map(o => (
-                  <button
-                    key={o.value}
-                    onClick={() => setObjIntensity(o.value)}
-                    className={cn(
-                      "py-2 rounded-lg font-black text-xs border-2 transition-all",
-                      objIntensity === o.value ? "bg-gray-900 border-gray-900 text-white" : "bg-white border-transparent text-gray-300"
-                    )}
-                  >
-                    {o.value}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[2em]">
-                {selectedObjective?.description}
-              </p>
-            </div>
-
-            <div className="space-y-3 border-t border-gray-200 pt-4">
-              <div className="flex justify-between items-end">
-                <div>
-                  <label className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-400 italic">
-                    {type === 'training' ? 'Subjective RPE' : 'Subjective Yield'}
-                  </label>
-                  <div className={cn("text-sm font-black mt-1", type === 'training' ? "text-red-600" : "text-green-600")}>
-                    {selectedSubjective?.label}
-                  </div>
-                </div>
-                <span className={cn("text-lg font-black", type === 'training' ? "text-red-600" : "text-green-600")}>{intensity}</span>
-              </div>
-              <div className="grid grid-cols-4 gap-1">
-                {scales.subjective.map(o => (
-                  <button
-                    key={o.value}
-                    onClick={() => setIntensity(o.value)}
-                    className={cn(
-                      "py-3 rounded-xl font-black text-xs border-2 transition-all",
-                      intensity === o.value 
-                        ? (type === 'training' ? "bg-red-600 border-red-600 text-white" : "bg-green-600 border-green-600 text-white")
-                        : "bg-white border-transparent text-gray-300"
-                    )}
-                  >
-                    {o.value}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[2em]">
-                {selectedSubjective?.description}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Context Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full p-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-gray-900 font-bold h-20 resize-none text-xs"
-              placeholder="..."
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-3 pt-2">
-          {existingEvent && (
-            <div className="relative flex flex-1">
-              {showDeleteConfirm ? (
-                <div className="flex w-full gap-2 animate-in fade-in zoom-in duration-200">
-                  <button onClick={() => onDelete(existingEvent.id)} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest">Confirm Delete</button>
-                  <button onClick={() => setShowDeleteConfirm(false)} className="px-4 bg-gray-100 text-gray-400 rounded-2xl font-black text-xs uppercase">Cancel</button>
-                </div>
-              ) : (
-                <button onClick={() => setShowDeleteConfirm(true)} className="w-16 h-full bg-red-50 text-red-600 rounded-2xl font-black flex items-center justify-center"><X/></button>
-              )}
-            </div>
-          )}
-          {!showDeleteConfirm && (
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-7 pt-4 space-y-6">
+          <div className="flex p-1 bg-gray-100 rounded-2xl">
             <button
-              onClick={() => onSubmit({ type, category, intensity, objectiveIntensity: objIntensity, duration, custom_data: {}, notes, date: dateStr })}
-              className="flex-1 py-4 bg-gray-900 text-white rounded-2xl font-black text-base active:scale-95 transition-all shadow-lg shadow-gray-200"
+              onClick={() => { setType('training'); setCategory(state.config.categories.training[0]); }}
+              className={cn("flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", type === 'training' ? "bg-white text-red-600 shadow-sm" : "text-gray-400")}
             >
-              {existingEvent ? 'Update Instance' : 'Save Instance'}
+              Training
             </button>
-          )}
+            <button
+              onClick={() => { setType('recovery'); setCategory(state.config.categories.recovery[0]); }}
+              className={cn("flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", type === 'recovery' ? "bg-white text-green-600 shadow-sm" : "text-gray-400")}
+            >
+              Recovery
+            </button>
+          </div>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Category</label>
+              <div className="flex flex-wrap gap-1.5">
+                {categories.map(c => {
+                  const Icon = getIcon(c);
+                  return (
+                    <button
+                      key={c}
+                      onClick={() => setCategory(c)}
+                      className={cn(
+                        "flex items-center gap-2 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all",
+                        category === c ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-400 border-gray-50 hover:border-gray-200"
+                      )}
+                    >
+                      <Icon size={12} strokeWidth={3} />
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Duration</label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {DURATION_OPTS.map(d => (
+                  <button
+                    key={d.val}
+                    onClick={() => setDuration(d.val)}
+                    className={cn(
+                      "py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all",
+                      duration === d.val ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-400 border-gray-50"
+                    )}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4 bg-gray-50 p-4 rounded-3xl border border-gray-100">
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <div>
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 italic">Objective Complexity</label>
+                    <div className="text-sm font-black text-gray-900 mt-1">{selectedObjective?.label}</div>
+                  </div>
+                  <span className="text-lg font-black text-gray-900">{objIntensity}</span>
+                </div>
+                <div className="grid grid-cols-5 gap-1">
+                  {scales.objective.map(o => (
+                    <button
+                      key={o.value}
+                      onClick={() => setObjIntensity(o.value)}
+                      className={cn(
+                        "py-2 rounded-lg font-black text-xs border-2 transition-all",
+                        objIntensity === o.value ? "bg-gray-900 border-gray-900 text-white" : "bg-white border-transparent text-gray-300"
+                      )}
+                    >
+                      {o.value}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[2em]">
+                  {selectedObjective?.description}
+                </p>
+              </div>
+
+              <div className="space-y-3 border-t border-gray-200 pt-4">
+                <div className="flex justify-between items-end">
+                  <div>
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-400 italic">
+                      {type === 'training' ? 'Subjective RPE' : 'Subjective Yield'}
+                    </label>
+                    <div className={cn("text-sm font-black mt-1", type === 'training' ? "text-red-600" : "text-green-600")}>
+                      {selectedSubjective?.label}
+                    </div>
+                  </div>
+                  <span className={cn("text-lg font-black", type === 'training' ? "text-red-600" : "text-green-600")}>{intensity}</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1">
+                  {scales.subjective.map(o => (
+                    <button
+                      key={o.value}
+                      onClick={() => setIntensity(o.value)}
+                      className={cn(
+                        "py-3 rounded-xl font-black text-xs border-2 transition-all",
+                        intensity === o.value 
+                          ? (type === 'training' ? "bg-red-600 border-red-600 text-white" : "bg-green-600 border-green-600 text-white")
+                          : "bg-white border-transparent text-gray-300"
+                      )}
+                    >
+                      {o.value}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[2em]">
+                  {selectedSubjective?.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Context Notes</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full p-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-gray-900 font-bold h-20 resize-none text-xs"
+                placeholder="..."
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            {existingEvent && (
+              <div className="relative flex flex-1">
+                {showDeleteConfirm ? (
+                  <div className="flex w-full gap-2 animate-in fade-in zoom-in duration-200">
+                    <button onClick={() => onDelete(existingEvent.id)} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest">Confirm Delete</button>
+                    <button onClick={() => setShowDeleteConfirm(false)} className="px-4 bg-gray-100 text-gray-400 rounded-2xl font-black text-xs uppercase">Cancel</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setShowDeleteConfirm(true)} className="w-16 h-full bg-red-50 text-red-600 rounded-2xl font-black flex items-center justify-center active:scale-95 transition-transform"><X/></button>
+                )}
+              </div>
+            )}
+            {!showDeleteConfirm && (
+              <button
+                onClick={() => onSubmit({ type, category, intensity, objectiveIntensity: objIntensity, duration, custom_data: {}, notes, date: dateStr })}
+                className="flex-1 py-4 bg-gray-900 text-white rounded-2xl font-black text-base active:scale-95 transition-all shadow-lg shadow-gray-200"
+              >
+                {existingEvent ? 'Update Instance' : 'Save Instance'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
