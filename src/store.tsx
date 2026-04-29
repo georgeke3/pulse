@@ -52,7 +52,7 @@ const DEFAULT_CONFIG: Config = {
   daily_questions: [
     {
       id: "driver",
-      prompt: "1. Driver of Action (Motivation)",
+      prompt: "1. Driver of Action (Motivation & The \"Why\")",
       options: [
         { value: 1, label: "Defensive" },
         { value: 2, label: "Grinding" },
@@ -62,7 +62,7 @@ const DEFAULT_CONFIG: Config = {
     },
     {
       id: "frame",
-      prompt: "2. Frame & Composure (Execution)",
+      prompt: "2. Frame & Composure (Execution & The \"How\")",
       options: [
         { value: 1, label: "Erratic" },
         { value: 2, label: "Rushed" },
@@ -72,7 +72,7 @@ const DEFAULT_CONFIG: Config = {
     },
     {
       id: "ego",
-      prompt: "3. Ego & Stability (Identity)",
+      prompt: "3. Ego & Stability (Identity & The \"Who\")",
       options: [
         { value: 1, label: "Unstable" },
         { value: 2, label: "Drifting" },
@@ -82,7 +82,7 @@ const DEFAULT_CONFIG: Config = {
     },
     {
       id: "outlook",
-      prompt: "4. Joy & Outlook (Capacity)",
+      prompt: "4. Joy & Outlook (Mindset)",
       options: [
         { value: 1, label: "Cynical" },
         { value: 2, label: "Numb" },
@@ -92,7 +92,7 @@ const DEFAULT_CONFIG: Config = {
     },
     {
       id: "relational",
-      prompt: "5. Relational & Connection",
+      prompt: "5. Relational & Connection (People)",
       options: [
         { value: 1, label: "Transactional" },
         { value: 2, label: "Duty-Bound" },
@@ -102,12 +102,22 @@ const DEFAULT_CONFIG: Config = {
     },
     {
       id: "ram",
-      prompt: "6. Cognitive RAM (Computing)",
+      prompt: "6. Mind Bandwidth (Computing Power)",
       options: [
         { value: 1, label: "Fried" },
         { value: 2, label: "Sluggish" },
         { value: 3, label: "Clear" },
         { value: 4, label: "Razor Sharp" }
+      ]
+    },
+    {
+      id: "gratitude",
+      prompt: "7. Perspective & Gratitude (The \"Lens\")",
+      options: [
+        { value: 1, label: "Resentful" },
+        { value: 2, label: "Entitled" },
+        { value: 3, label: "Appreciative" },
+        { value: 4, label: "Profound / Rebirth" }
       ]
     }
   ]

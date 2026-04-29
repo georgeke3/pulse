@@ -1,6 +1,12 @@
-import { useState } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths } from 'date-fns';
-import { Calendar as CalendarIcon, ClipboardList, Plus, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { 
+  format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths 
+} from 'date-fns';
+import { 
+  Calendar as CalendarIcon, ClipboardList, Plus, ChevronLeft, ChevronRight, X,
+  Briefcase, Heart, Users, UsersRound, Zap, CheckSquare, Wallet, 
+  Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen
+} from 'lucide-react';
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -9,6 +15,31 @@ import type { Event, Duration } from './types';
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+const CATEGORY_ICONS: Record<string, any> = {
+  // Training
+  "Work": Briefcase,
+  "Nucleus": Heart,
+  "Family": Users,
+  "Friends": UsersRound,
+  "Chaos": Zap,
+  "Baseline": CheckSquare,
+  "Finances": Wallet,
+  // Recovery
+  "Walk": Footprints,
+  "Nap": Moon,
+  "Meditation": Brain,
+  "Presence check": Eye,
+  "Creative": Palette,
+  "Fun": Gamepad2,
+  "Journaling": BookOpen,
+};
+
+const getIcon = (category: string) => {
+  return CATEGORY_ICONS[category] || HelpCircle;
+};
+
+import { HelpCircle } from 'lucide-react';
 
 // --- Components ---
 
@@ -109,6 +140,22 @@ const DailyLedger = ({ date, onBack }: { date: Date, onBack: () => void }) => {
     return localStorage.getItem('note_collapsed') === 'true';
   });
 
+  const touchStart = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const touchEnd = e.changedTouches[0].clientX;
+    const distance = touchEnd - touchStart.current;
+    if (distance > 100) {
+      onBack();
+    }
+    touchStart.current = null;
+  };
+
   const togglePulse = () => {
     const newState = !isPulseCollapsed;
     setIsPulseCollapsed(newState);
@@ -122,7 +169,11 @@ const DailyLedger = ({ date, onBack }: { date: Date, onBack: () => void }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white min-h-screen">
+    <div 
+      className="flex flex-col h-full bg-white min-h-screen"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <header className="px-6 pt-8 pb-4 flex justify-between items-start bg-white">
         <div>
           <button onClick={onBack} className="text-xs font-black uppercase tracking-widest text-purple-600 mb-2 block">← Back</button>
@@ -170,6 +221,11 @@ const DailyLedger = ({ date, onBack }: { date: Date, onBack: () => void }) => {
                         </button>
                       ))}
                     </div>
+                    {currentValue > 0 && q.options.find(o => o.value === currentValue)?.description && (
+                      <p className="text-[8px] font-bold text-gray-500 leading-tight italic">
+                        "{q.options.find(o => o.value === currentValue)?.description}"
+                      </p>
+                    )}
                   </div>
                 );
               })}
@@ -208,47 +264,50 @@ const DailyLedger = ({ date, onBack }: { date: Date, onBack: () => void }) => {
               <Plus size={18} strokeWidth={3} />
             </button>
           </div>
-          <div className="space-y-2">
+          <div className="grid gap-3">
             {dayData.events.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-300">No data logged</p>
               </div>
             ) : (
-              dayData.events.map(event => (
-                <button 
-                  key={event.id} 
-                  onClick={() => setModalMode({ open: true, event })}
-                  className="w-full group p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-all text-left space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-10 h-10 rounded-xl flex items-center justify-center font-black text-base",
-                        event.type === 'recovery' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-                      )}>
-                        {event.category[0]}
-                      </div>
-                      <div>
-                        <div className="text-xs font-black text-gray-900">{event.category}</div>
-                        <div className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                          {event.duration} • obj {event.objectiveIntensity} • sub {event.intensity}
+              dayData.events.map(event => {
+                const Icon = getIcon(event.category);
+                return (
+                  <button 
+                    key={event.id} 
+                    onClick={() => setModalMode({ open: true, event })}
+                    className="w-full group p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-all text-left space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center",
+                          event.type === 'recovery' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+                        )}>
+                          <Icon size={20} strokeWidth={3} />
+                        </div>
+                        <div>
+                          <div className="text-xs font-black text-gray-900">{event.category}</div>
+                          <div className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                            {event.duration} • obj {event.objectiveIntensity} • sub {event.intensity}
+                          </div>
                         </div>
                       </div>
+                      <div className={cn(
+                        "text-lg font-black",
+                        event.type === 'recovery' ? "text-green-600" : "text-red-600"
+                      )}>
+                        {event.type === 'recovery' ? `+${Math.round(event.objectiveIntensity * ({ '<1h': 0.5, 'couple hours': 1.0, 'half day': 2.0, 'whole day': 4.0 }[event.duration] || 1))}` : `-${Math.round(event.objectiveIntensity * ({ '<1h': 0.5, 'couple hours': 1.0, 'half day': 2.0, 'whole day': 4.0 }[event.duration] || 1))}`}
+                      </div>
                     </div>
-                    <div className={cn(
-                      "text-lg font-black",
-                      event.type === 'recovery' ? "text-green-600" : "text-red-600"
-                    )}>
-                      {event.type === 'recovery' ? `+${Math.round(event.objectiveIntensity * ({ '<1h': 0.5, 'couple hours': 1.0, 'half day': 2.0, 'whole day': 4.0 }[event.duration] || 1))}` : `-${Math.round(event.objectiveIntensity * ({ '<1h': 0.5, 'couple hours': 1.0, 'half day': 2.0, 'whole day': 4.0 }[event.duration] || 1))}`}
-                    </div>
-                  </div>
-                  {event.notes && (
-                    <div className="pl-13">
-                      <p className="text-[10px] text-gray-500 font-medium line-clamp-2 italic">"{event.notes}"</p>
-                    </div>
-                  )}
-                </button>
-              ))
+                    {event.notes && (
+                      <div className="pl-13">
+                        <p className="text-[10px] text-gray-500 font-medium line-clamp-2 italic">"{event.notes}"</p>
+                      </div>
+                    )}
+                  </button>
+                );
+              })
             )}
           </div>
         </section>
@@ -313,7 +372,7 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   return (
     <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md">
       <div className="bg-white w-full max-w-md rounded-[2.5rem] p-7 space-y-5 animate-in slide-in-from-bottom duration-500 max-h-[90vh] overflow-y-auto relative">
-        <div className="flex justify-between items-center sticky top-0 bg-white z-10 pb-2">
+        <div className="flex justify-between items-center sticky top-0 bg-white z-10 -mx-7 px-7 -mt-7 pt-7 pb-4 rounded-t-[2.5rem]">
           <h2 className="text-xl font-black tracking-tight">{existingEvent ? 'Edit Event' : 'Log Event'}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-400"><X size={16} strokeWidth={3}/></button>
         </div>
@@ -337,18 +396,22 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
           <div className="space-y-2">
             <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Category</label>
             <div className="flex flex-wrap gap-1.5">
-              {categories.map(c => (
-                <button
-                  key={c}
-                  onClick={() => setCategory(c)}
-                  className={cn(
-                    "px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all",
-                    category === c ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-400 border-gray-50 hover:border-gray-200"
-                  )}
-                >
-                  {c}
-                </button>
-              ))}
+              {categories.map(c => {
+                const Icon = getIcon(c);
+                return (
+                  <button
+                    key={c}
+                    onClick={() => setCategory(c)}
+                    className={cn(
+                      "flex items-center gap-2 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all",
+                      category === c ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-400 border-gray-50 hover:border-gray-200"
+                    )}
+                  >
+                    <Icon size={12} strokeWidth={3} />
+                    {c}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

@@ -10,6 +10,7 @@ export interface ScaleAnchor {
 export interface QuestionOption {
   value: number;
   label: string;
+  description?: string;
 }
 
 export interface DailyQuestion {
