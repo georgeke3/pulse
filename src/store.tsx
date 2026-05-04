@@ -125,7 +125,8 @@ const DEFAULT_CONFIG: Config = {
 
 const INITIAL_STATE: AppState = {
   config: DEFAULT_CONFIG,
-  days: {}
+  days: {},
+  mottos: []
 };
 
 interface AppContextType {
@@ -135,6 +136,9 @@ interface AppContextType {
   deleteEvent: (date: string, eventId: string) => void;
   updateAnswers: (date: string, answers: Record<string, number>) => void;
   updateDayNote: (date: string, note: string) => void;
+  updateDayMotto: (date: string, motto: string) => void;
+  addMotto: (motto: string) => void;
+  deleteMotto: (motto: string) => void;
   getBanisterScore: (date: Date) => number;
 }
 
@@ -147,7 +151,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const parsed = JSON.parse(saved);
         return { 
-          days: parsed.days || {}, 
+          days: parsed.days || {},
+          mottos: parsed.mottos || [], 
           config: DEFAULT_CONFIG 
         };
       } catch (e) {
@@ -246,6 +251,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+
+  const updateDayMotto = (date: string, motto: string) => {
+    setState(prev => {
+      const dayData = prev.days[date] || { events: [], answers: {}, note: '' };
+      return {
+        ...prev,
+        days: {
+          ...prev.days,
+          [date]: { ...dayData, motto }
+        }
+      };
+    });
+  };
+
+  const addMotto = (motto: string) => {
+    setState(prev => {
+      if (!motto || prev.mottos.includes(motto)) return prev;
+      return { ...prev, mottos: [...prev.mottos, motto] };
+    });
+  };
+
+  const deleteMotto = (motto: string) => {
+    setState(prev => ({
+      ...prev,
+      mottos: prev.mottos.filter(m => m !== motto)
+    }));
+  };
+
   const getBanisterScore = (targetDate: Date) => {
     const windowDays = 7;
     const end = startOfDay(targetDate);
@@ -260,7 +293,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       if (dayData) {
         dayData.events.forEach(e => {
-          const val = Number(e.objectiveIntensity || e.intensity || 0);
+          const val = Number(e.intensity || e.objectiveIntensity || 0); // Changed to subjective
           
           if (e.type === 'recovery') {
             fitness += val;
@@ -282,6 +315,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteEvent, 
       updateAnswers, 
       updateDayNote, 
+      updateDayMotto, 
+      addMotto, 
+      deleteMotto, 
       getBanisterScore 
     }}>
       {children}

@@ -35,6 +35,7 @@ export interface DayData {
   events: Event[];
   answers: Record<string, number>;
   note?: string;
+  motto?: string;
 }
 
 export interface Config {
@@ -58,4 +59,5 @@ export interface Config {
 export interface AppState {
   config: Config;
   days: Record<string, DayData>;
+  mottos: string[];
 }

@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react';
 import { 
-  format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths 
+  format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, addDays, subDays 
 } from 'date-fns';
 import { 
   Calendar as CalendarIcon, ClipboardList, Plus, ChevronLeft, ChevronRight, X,
   Briefcase, Heart, Users, UsersRound, Zap, CheckSquare, Wallet, 
-  Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen
+  Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen, HelpCircle
 } from 'lucide-react';
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
@@ -39,13 +39,24 @@ const getIcon = (category: string) => {
   return CATEGORY_ICONS[category] || HelpCircle;
 };
 
-import { HelpCircle } from 'lucide-react';
-
 // --- Components ---
 
 const CalendarView = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
   const { getBanisterScore } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const touchStart = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const distance = e.changedTouches[0].clientX - touchStart.current;
+    if (distance > 100) setCurrentMonth(subMonths(currentMonth, 1));
+    if (distance < -100) setCurrentMonth(addMonths(currentMonth, 1));
+    touchStart.current = null;
+  };
   
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -58,7 +69,11 @@ const CalendarView = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) 
   };
 
   return (
-    <div className="p-6 bg-white min-h-screen">
+    <div 
+      className="p-6 bg-white min-h-screen"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <header className="mb-8 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pulse</h1>
@@ -126,10 +141,10 @@ const CalendarView = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) 
   );
 };
 
-const DailyLedger = ({ date, onBack }: { date: Date, onBack: () => void }) => {
-  const { state, updateAnswers, addEvent, updateEvent, deleteEvent, updateDayNote, getBanisterScore } = useApp();
+const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () => void, onSelectDate: (d: Date) => void }) => {
+  const { state, updateAnswers, addEvent, updateEvent, deleteEvent, updateDayNote, updateDayMotto, addMotto, deleteMotto, getBanisterScore } = useApp();
   const dateStr = format(date, 'yyyy-MM-dd');
-  const dayData = state.days[dateStr] || { events: [], answers: {}, note: '' };
+  const dayData = state.days[dateStr] || { events: [], answers: {}, note: '', motto: '' };
   const score = getBanisterScore(date);
   const [modalMode, setModalMode] = useState<{ open: boolean, event?: Event }>({ open: false });
   
@@ -177,8 +192,18 @@ const DailyLedger = ({ date, onBack }: { date: Date, onBack: () => void }) => {
       <header className="px-6 pt-8 pb-4 flex justify-between items-start bg-white">
         <div>
           <button onClick={onBack} className="text-xs font-black uppercase tracking-widest text-purple-600 mb-2 block">← Back</button>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">{format(date, 'MMM d')}</h1>
-          <p className="text-gray-500 font-bold">{format(date, 'EEEE')}</p>
+          <div className="flex items-center gap-3">
+            <button onClick={() => onSelectDate(subDays(date, 1))} className="text-gray-300 active:text-purple-600 transition-colors">
+              <ChevronLeft size={24} strokeWidth={3}/>
+            </button>
+            <div>
+              <h1 className="text-3xl font-black text-gray-900 tracking-tight">{format(date, 'MMM d')}</h1>
+              <p className="text-gray-500 font-bold">{format(date, 'EEEE')}</p>
+            </div>
+            <button onClick={() => onSelectDate(addDays(date, 1))} className="text-gray-300 active:text-purple-600 transition-colors">
+              <ChevronRight size={24} strokeWidth={3}/>
+            </button>
+          </div>
         </div>
         <div className={cn(
           "text-4xl font-black rounded-3xl p-4 min-w-[80px] text-center",
@@ -189,6 +214,38 @@ const DailyLedger = ({ date, onBack }: { date: Date, onBack: () => void }) => {
       </header>
 
       <main className="flex-1 px-6 space-y-6 pb-32">
+        {/* Daily Motto */}
+        <section className="space-y-4">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Daily Motto</h2>
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={dayData.motto || ''}
+              onChange={(e) => updateDayMotto(dateStr, e.target.value)}
+              onBlur={() => addMotto(dayData.motto || '')}
+              placeholder="What is the focus today?"
+              className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
+            />
+            {state.mottos.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {state.mottos.map(m => (
+                  <div key={m} className="flex items-center bg-gray-100 rounded-full pl-3 pr-1 py-1 gap-1">
+                    <button 
+                      onClick={() => updateDayMotto(dateStr, m)}
+                      className="text-[10px] font-bold text-gray-600"
+                    >
+                      {m}
+                    </button>
+                    <button onClick={() => deleteMotto(m)} className="p-1 hover:text-red-500 text-gray-400">
+                      <X size={10}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Pulse Metrics */}
         <section className="space-y-3">
           <button 
@@ -297,9 +354,8 @@ const DailyLedger = ({ date, onBack }: { date: Date, onBack: () => void }) => {
                         "text-lg font-black",
                         event.type === 'recovery' ? "text-green-600" : "text-red-600"
                       )}>
-                        {event.type === 'recovery' ? `+${event.objectiveIntensity}` : `-${event.objectiveIntensity}`}
+                        {event.type === 'recovery' ? `+${event.intensity}` : `-${event.intensity}`}
                       </div>
-
                     </div>
                     {event.notes && (
                       <div className="pl-13">
@@ -372,7 +428,7 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
 
   return (
     <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md text-gray-900">
-      <div className="bg-white w-full max-w-md rounded-[2.5rem] flex flex-col max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-500 relative">
+      <div className="bg-white w-full max-w-md rounded-[2.5rem] flex flex-col max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-500 relative text-left">
         {/* Fixed Header */}
         <div className="flex justify-between items-center p-7 pb-4 bg-white z-10 border-b border-gray-50">
           <h2 className="text-xl font-black tracking-tight">{existingEvent ? 'Edit Event' : 'Log Event'}</h2>
@@ -555,7 +611,7 @@ export default function App() {
         {view === 'calendar' ? (
           <CalendarView onSelectDate={navigateToLedger} />
         ) : (
-          <DailyLedger date={selectedDate} onBack={() => setView('calendar')} />
+          <DailyLedger date={selectedDate} onBack={() => setView('calendar')} onSelectDate={navigateToLedger} />
         )}
       </div>
 
