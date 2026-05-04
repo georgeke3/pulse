@@ -65,6 +65,8 @@ const CoachingHistoryModal = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 const AICoach = () => {
   const { state, saveCoachingReport } = useApp();
   const [loading, setLoading] = useState(false);
@@ -120,22 +122,20 @@ const AICoach = () => {
     `;
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${state.geminiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
+      const genAI = new GoogleGenerativeAI(state.geminiKey);
+      // Using gemini-1.5-flash which is the fastest/cheapest for this task
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-      const result = await response.json();
-      if (result.error) throw new Error(result.error.message);
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
       
-      const text = result.candidates[0].content.parts[0].text;
+      if (!text) throw new Error("No response from AI.");
+      
       setInsight(text);
       saveCoachingReport(text, contextData);
     } catch (e: any) {
-      setError(e.message || "Failed to connect to Gemini API.");
+      console.error(e);
+      setError(e.message || "Failed to connect to Gemini API. Check your key and internet.");
     } finally {
       setLoading(false);
     }
