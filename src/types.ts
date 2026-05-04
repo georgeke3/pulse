@@ -56,9 +56,17 @@ export interface Config {
   daily_questions: DailyQuestion[];
 }
 
+export interface CoachingReport {
+  id: string;
+  date: string; // ISO string of when it was generated
+  content: string;
+  dataSnapshot: any; // The data it analyzed
+}
+
 export interface AppState {
   config: Config;
   days: Record<string, DayData>;
   mottos: string[];
   geminiKey?: string;
+  coachingHistory: CoachingReport[];
 }

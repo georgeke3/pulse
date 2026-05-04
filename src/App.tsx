@@ -6,7 +6,7 @@ import {
   Calendar as CalendarIcon, ClipboardList, Plus, ChevronLeft, ChevronRight, X,
   Briefcase, Heart, Users, UsersRound, Zap, CheckSquare, Wallet, 
   Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen, HelpCircle, 
-  Library, Edit2, Check, Settings
+  Library, Edit2, Check, Settings, Download, Upload
 } from 'lucide-react';
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
@@ -484,12 +484,36 @@ const MottoLibraryModal = ({ onClose, onSelect }: { onClose: () => void, onSelec
 };
 
 const SettingsModal = ({ onClose }: { onClose: () => void }) => {
-  const { state, updateGeminiKey } = useApp();
+  const { state, updateGeminiKey, importState } = useApp();
   const [key, setKey] = useState(state.geminiKey || '');
 
   const save = () => {
     updateGeminiKey(key);
     onClose();
+  };
+
+  const exportData = () => {
+    const dataStr = JSON.stringify(state, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `pulse-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const json = event.target?.result as string;
+      if (confirm('Importing will overwrite your current data. Continue?')) {
+        importState(json);
+        onClose();
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -502,7 +526,7 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Gemini API Key</label>
             <input 
@@ -513,8 +537,26 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
               className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
             />
             <p className="text-[9px] font-bold text-gray-400 leading-relaxed px-2">
-              Your key is stored locally on this device. It is only used to call Google's Gemini API for AI Coaching features.
+              Your key is stored locally on this device.
             </p>
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Data Sovereignty</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={exportData}
+                className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-50 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-100 active:scale-95 transition-all"
+              >
+                <Download size={14} />
+                Export JSON
+              </button>
+              <label className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-50 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-100 active:scale-95 transition-all cursor-pointer">
+                <Upload size={14} />
+                Import
+                <input type="file" accept=".json" onChange={handleImport} className="hidden" />
+              </label>
+            </div>
           </div>
         </div>
 

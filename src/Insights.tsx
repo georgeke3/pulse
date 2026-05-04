@@ -8,7 +8,7 @@ import {
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { Sparkles, Loader2, AlertCircle } from 'lucide-react';
+import { Sparkles, Loader2, AlertCircle, History, Clock, X, Trash2 } from 'lucide-react';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -16,11 +16,61 @@ function cn(...inputs: ClassValue[]) {
 
 type TimeRange = 'W' | 'M' | 'Y' | 'All';
 
+const CoachingHistoryModal = ({ onClose }: { onClose: () => void }) => {
+  const { state, deleteCoachingReport } = useApp();
+  
+  return (
+    <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md text-gray-900 text-left">
+      <div className="bg-white w-full max-w-md rounded-[2.5rem] flex flex-col max-h-[80vh] overflow-hidden animate-in slide-in-from-bottom duration-500 relative">
+        <div className="flex justify-between items-center p-7 pb-4 bg-white z-10 border-b border-gray-50">
+          <h2 className="text-xl font-black tracking-tight">Coaching History</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 active:scale-90 transition-transform">
+            <X size={16} strokeWidth={3}/>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-7 pt-4 space-y-6">
+          {state.coachingHistory.length === 0 ? (
+            <div className="text-center py-12">
+              <Clock className="mx-auto text-gray-200 mb-4" size={48} />
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No history yet</p>
+            </div>
+          ) : (
+            state.coachingHistory.map(report => (
+              <div key={report.id} className="p-6 rounded-3xl bg-gray-50 border border-gray-100 space-y-4 group">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">
+                    {format(parseISO(report.date), 'MMM d, h:mm a')}
+                  </span>
+                  <button 
+                    onClick={() => deleteCoachingReport(report.id)}
+                    className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {report.content.split('\n').filter(p => p.trim()).map((p, i) => (
+                    <p key={i} className="text-gray-700 text-xs font-medium leading-relaxed italic">
+                      {p}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AICoach = () => {
-  const { state } = useApp();
+  const { state, saveCoachingReport } = useApp();
   const [loading, setLoading] = useState(false);
   const [insight, setInsight] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const generateInsight = async () => {
     if (!state.geminiKey) {
@@ -31,7 +81,6 @@ const AICoach = () => {
     setLoading(true);
     setError(null);
 
-    // Prepare data: Last 14 days for context
     const end = new Date();
     const start = subDays(end, 13);
     const daysInRange = eachDayOfInterval({ start, end });
@@ -58,7 +107,7 @@ const AICoach = () => {
 
     const prompt = `
       You are an elite, objective performance coach. Analyze the following CNS load and resilience data from the past 14 days.
-      Your goal is to identify patterns where boundaries are failing, CNS is redlining, or recovery is insufficient.
+      Data includes objective/subjective logs, daily notes, and mottos.
       
       DATA:
       ${JSON.stringify(contextData, null, 2)}
@@ -66,9 +115,8 @@ const AICoach = () => {
       INSTRUCTIONS:
       1. Be brutal, objective, and concise. 
       2. Provide exactly 2 paragraphs.
-      3. Paragraph 1: Identify the primary "friction point" or failure in the process right now.
+      3. Paragraph 1: Identify the primary "friction point" or failure in the process right now. Mention specific text notes or mottos if they show a trend of burnout or boundary failure.
       4. Paragraph 2: Provide a specific, actionable adjustment to the "Training" or "Recovery" protocol for the next 48 hours.
-      5. Do not use flowery language. Focus on raw CNS readiness and boundary management.
     `;
 
     try {
@@ -85,6 +133,7 @@ const AICoach = () => {
       
       const text = result.candidates[0].content.parts[0].text;
       setInsight(text);
+      saveCoachingReport(text, contextData);
     } catch (e: any) {
       setError(e.message || "Failed to connect to Gemini API.");
     } finally {
@@ -96,20 +145,26 @@ const AICoach = () => {
     <section className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">AI Performance Coach</h2>
-        <Sparkles className="text-purple-500" size={16} />
+        <button 
+          onClick={() => setIsHistoryOpen(true)}
+          className="p-2 text-gray-400 hover:text-purple-600 transition-colors"
+        >
+          <History size={16} />
+        </button>
       </div>
 
       <div className="bg-gray-900 rounded-[2.5rem] p-8 space-y-6 shadow-2xl border border-gray-800">
         {!insight && !loading && (
           <div className="space-y-4 text-center">
             <p className="text-xs font-bold text-gray-400 leading-relaxed">
-              Gemini will analyze your matrix scores, logged instances, and notes to find the hidden failure points in your current process.
+              Analyze the last 14 days of CNS load, patterns, and notes.
             </p>
             <button
               onClick={generateInsight}
-              className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg shadow-purple-900/20"
+              className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg"
             >
-              Generate Coaching Report
+              <Sparkles size={14} className="inline mr-2" />
+              Analyze Week
             </button>
           </div>
         )}
@@ -117,7 +172,7 @@ const AICoach = () => {
         {loading && (
           <div className="flex flex-col items-center justify-center py-12 space-y-4">
             <Loader2 className="text-purple-500 animate-spin" size={32} />
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Analyzing CNS Data...</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 text-center">Reading text entries & patterns...</p>
           </div>
         )}
 
@@ -146,6 +201,8 @@ const AICoach = () => {
           </div>
         )}
       </div>
+
+      {isHistoryOpen && <CoachingHistoryModal onClose={() => setIsHistoryOpen(false)} />}
     </section>
   );
 };

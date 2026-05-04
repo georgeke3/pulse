@@ -157,7 +157,8 @@ const INITIAL_STATE: AppState = {
   config: DEFAULT_CONFIG,
   days: {},
   mottos: [],
-  geminiKey: ''
+  geminiKey: '',
+  coachingHistory: []
 };
 
 interface AppContextType {
@@ -173,6 +174,9 @@ interface AppContextType {
   updateGeminiKey: (key: string) => void;
   updateMotto: (oldMotto: string, newMotto: string) => void;
   getBanisterScore: (date: Date) => number;
+  saveCoachingReport: (content: string, dataSnapshot: any) => void;
+  deleteCoachingReport: (id: string) => void;
+  importState: (json: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -186,7 +190,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return { 
           days: parsed.days || {},
           mottos: parsed.mottos || [],
-          geminiKey: parsed.geminiKey || '', 
+          geminiKey: parsed.geminiKey || '',
+          coachingHistory: parsed.coachingHistory || [], 
           config: DEFAULT_CONFIG 
         };
       } catch (e) {
@@ -327,6 +332,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+
+  const saveCoachingReport = (content: string, dataSnapshot: any) => {
+    setState(prev => ({
+      ...prev,
+      coachingHistory: [
+        { id: crypto.randomUUID(), date: new Date().toISOString(), content, dataSnapshot },
+        ...prev.coachingHistory
+      ]
+    }));
+  };
+
+  const deleteCoachingReport = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      coachingHistory: prev.coachingHistory.filter(r => r.id !== id)
+    }));
+  };
+
+  const importState = (json: string) => {
+    try {
+      const parsed = JSON.parse(json);
+      if (parsed.days && parsed.config) {
+        setState(parsed);
+      }
+    } catch (e) {
+      console.error('Import failed', e);
+    }
+  };
+
   const getBanisterScore = (targetDate: Date) => {
     const windowDays = 7;
     const end = startOfDay(targetDate);
@@ -368,6 +402,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteMotto, 
       updateGeminiKey, 
       updateMotto, 
+      saveCoachingReport, 
+      deleteCoachingReport, 
+      importState, 
       getBanisterScore 
     }}>
       {children}
