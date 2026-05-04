@@ -123,8 +123,11 @@ const AICoach = () => {
 
     try {
       const genAI = new GoogleGenerativeAI(state.geminiKey);
-      // Using gemini-1.5-flash which is the fastest/cheapest for this task
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      // Explicitly request v1 API and use the correct model name
+      const model = genAI.getGenerativeModel(
+        { model: "gemini-1.5-flash" },
+        { apiVersion: 'v1' }
+      );
 
       const result = await model.generateContent(prompt);
       const text = result.response.text();
