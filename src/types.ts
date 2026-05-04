@@ -60,4 +60,5 @@ export interface AppState {
   config: Config;
   days: Record<string, DayData>;
   mottos: string[];
+  geminiKey?: string;
 }

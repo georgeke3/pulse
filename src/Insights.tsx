@@ -8,12 +8,147 @@ import {
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { Sparkles, Loader2, AlertCircle } from 'lucide-react';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 type TimeRange = 'W' | 'M' | 'Y' | 'All';
+
+const AICoach = () => {
+  const { state } = useApp();
+  const [loading, setLoading] = useState(false);
+  const [insight, setInsight] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const generateInsight = async () => {
+    if (!state.geminiKey) {
+      setError("Please add your Gemini API Key in Settings (Calendar tab) first.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    // Prepare data: Last 14 days for context
+    const end = new Date();
+    const start = subDays(end, 13);
+    const daysInRange = eachDayOfInterval({ start, end });
+    
+    const contextData = daysInRange.map(d => {
+      const dStr = format(d, 'yyyy-MM-dd');
+      const data = state.days[dStr];
+      if (!data) return null;
+      return {
+        date: dStr,
+        motto: data.motto,
+        notes: data.note,
+        scores: data.answers,
+        events: data.events.map(e => ({
+          type: e.type,
+          cat: e.category,
+          obj: e.objectiveIntensity,
+          sub: e.intensity,
+          dur: e.duration,
+          note: e.notes
+        }))
+      };
+    }).filter(d => d !== null);
+
+    const prompt = `
+      You are an elite, objective performance coach. Analyze the following CNS load and resilience data from the past 14 days.
+      Your goal is to identify patterns where boundaries are failing, CNS is redlining, or recovery is insufficient.
+      
+      DATA:
+      ${JSON.stringify(contextData, null, 2)}
+      
+      INSTRUCTIONS:
+      1. Be brutal, objective, and concise. 
+      2. Provide exactly 2 paragraphs.
+      3. Paragraph 1: Identify the primary "friction point" or failure in the process right now.
+      4. Paragraph 2: Provide a specific, actionable adjustment to the "Training" or "Recovery" protocol for the next 48 hours.
+      5. Do not use flowery language. Focus on raw CNS readiness and boundary management.
+    `;
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${state.geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+
+      const result = await response.json();
+      if (result.error) throw new Error(result.error.message);
+      
+      const text = result.candidates[0].content.parts[0].text;
+      setInsight(text);
+    } catch (e: any) {
+      setError(e.message || "Failed to connect to Gemini API.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">AI Performance Coach</h2>
+        <Sparkles className="text-purple-500" size={16} />
+      </div>
+
+      <div className="bg-gray-900 rounded-[2.5rem] p-8 space-y-6 shadow-2xl border border-gray-800">
+        {!insight && !loading && (
+          <div className="space-y-4 text-center">
+            <p className="text-xs font-bold text-gray-400 leading-relaxed">
+              Gemini will analyze your matrix scores, logged instances, and notes to find the hidden failure points in your current process.
+            </p>
+            <button
+              onClick={generateInsight}
+              className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg shadow-purple-900/20"
+            >
+              Generate Coaching Report
+            </button>
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <Loader2 className="text-purple-500 animate-spin" size={32} />
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Analyzing CNS Data...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-start gap-3 bg-red-950/30 p-4 rounded-2xl border border-red-900/50">
+            <AlertCircle className="text-red-500 shrink-0" size={16} />
+            <p className="text-[10px] font-bold text-red-200 leading-relaxed">{error}</p>
+          </div>
+        )}
+
+        {insight && !loading && (
+          <div className="space-y-6 animate-in fade-in duration-700">
+            <div className="space-y-4 text-left">
+              {insight.split('\n').filter(p => p.trim()).map((p, i) => (
+                <p key={i} className="text-gray-200 text-sm font-medium leading-relaxed">
+                  {p}
+                </p>
+              ))}
+            </div>
+            <button
+              onClick={() => setInsight(null)}
+              className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-colors"
+            >
+              Reset Report
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
 
 export const InsightsView = () => {
   const { state } = useApp();
@@ -113,11 +248,13 @@ export const InsightsView = () => {
         </div>
       </header>
 
+      <AICoach />
+
       {/* Section 1: Daily Pillars */}
       <section className="space-y-6">
         <div className="space-y-1">
           <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Daily Matrix Trends</h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 text-left">
             {state.config.daily_questions.map(q => (
               <button
                 key={q.id}
@@ -181,7 +318,7 @@ export const InsightsView = () => {
       </section>
 
       {/* Section 2: Obj vs Sub Gap */}
-      <section className="space-y-6">
+      <section className="space-y-6 text-left">
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Perception Gap</h2>
@@ -209,7 +346,7 @@ export const InsightsView = () => {
 
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-black uppercase text-gray-400 mr-2">Filter Obj:</span>
-            {[1, 2, 3, 4].map(v => (
+            {[1, 2, 3, 4, 5].map(v => (
               <button
                 key={v}
                 onClick={() => setObjFilter(objFilter === v ? null : v)}

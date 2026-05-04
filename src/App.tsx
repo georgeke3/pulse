@@ -6,7 +6,7 @@ import {
   Calendar as CalendarIcon, ClipboardList, Plus, ChevronLeft, ChevronRight, X,
   Briefcase, Heart, Users, UsersRound, Zap, CheckSquare, Wallet, 
   Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen, HelpCircle, 
-  Library, Edit2, Check
+  Library, Edit2, Check, Settings
 } from 'lucide-react';
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
@@ -42,7 +42,7 @@ const getIcon = (category: string) => {
 
 // --- Components ---
 
-const CalendarView = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
+const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: Date) => void, onOpenSettings: () => void }) => {
   const { getBanisterScore } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const touchStart = useRef<number | null>(null);
@@ -77,7 +77,12 @@ const CalendarView = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) 
     >
       <header className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pulse</h1>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pulse</h1>
+            <button onClick={onOpenSettings} className="p-2 text-gray-300 hover:text-purple-600 transition-colors">
+              <Settings size={20} strokeWidth={3} />
+            </button>
+          </div>
           <div className="flex items-center gap-2">
             <p className="text-gray-500 font-medium">{format(currentMonth, 'MMMM yyyy')}</p>
             {!isSameMonth(currentMonth, new Date()) && (
@@ -478,6 +483,52 @@ const MottoLibraryModal = ({ onClose, onSelect }: { onClose: () => void, onSelec
   );
 };
 
+const SettingsModal = ({ onClose }: { onClose: () => void }) => {
+  const { state, updateGeminiKey } = useApp();
+  const [key, setKey] = useState(state.geminiKey || '');
+
+  const save = () => {
+    updateGeminiKey(key);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md text-gray-900">
+      <div className="bg-white w-full max-w-md rounded-[2.5rem] flex flex-col p-7 space-y-6 animate-in slide-in-from-bottom duration-500 relative text-left">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-black tracking-tight">Settings</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 active:scale-90 transition-transform">
+            <X size={16} strokeWidth={3}/>
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Gemini API Key</label>
+            <input 
+              type="password"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="paste key here..."
+              className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
+            />
+            <p className="text-[9px] font-bold text-gray-400 leading-relaxed px-2">
+              Your key is stored locally on this device. It is only used to call Google's Gemini API for AI Coaching features.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={save}
+          className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-base active:scale-95 transition-all shadow-lg"
+        >
+          Save Settings
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: { 
   dateStr: string, 
   existingEvent?: Event, 
@@ -681,6 +732,7 @@ import { InsightsView } from './Insights';
 import { BarChart3 } from 'lucide-react';
 
 export default function App() {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [view, setView] = useState<'calendar' | 'ledger' | 'insights'>('calendar');
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -693,7 +745,7 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 flex flex-col max-w-md mx-auto relative shadow-2xl">
       <div className="flex-1 overflow-y-auto bg-white pb-20">
         {view === 'calendar' ? (
-          <CalendarView onSelectDate={navigateToLedger} />
+          <CalendarView onSelectDate={navigateToLedger} onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : view === 'ledger' ? (
           <DailyLedger date={selectedDate} onBack={() => setView('calendar')} onSelectDate={navigateToLedger} />
         ) : (
@@ -724,6 +776,8 @@ export default function App() {
           <span className="text-[8px] font-black uppercase tracking-[0.2em]">Insights</span>
         </button>
       </nav>
+
+      {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
     </div>
   );
 }

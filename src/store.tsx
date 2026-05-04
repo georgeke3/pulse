@@ -156,7 +156,8 @@ const DEFAULT_CONFIG: Config = {
 const INITIAL_STATE: AppState = {
   config: DEFAULT_CONFIG,
   days: {},
-  mottos: []
+  mottos: [],
+  geminiKey: ''
 };
 
 interface AppContextType {
@@ -169,6 +170,7 @@ interface AppContextType {
   updateDayMotto: (date: string, motto: string) => void;
   addMotto: (motto: string) => void;
   deleteMotto: (motto: string) => void;
+  updateGeminiKey: (key: string) => void;
   updateMotto: (oldMotto: string, newMotto: string) => void;
   getBanisterScore: (date: Date) => number;
 }
@@ -183,7 +185,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const parsed = JSON.parse(saved);
         return { 
           days: parsed.days || {},
-          mottos: parsed.mottos || [], 
+          mottos: parsed.mottos || [],
+          geminiKey: parsed.geminiKey || '', 
           config: DEFAULT_CONFIG 
         };
       } catch (e) {
@@ -283,6 +286,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
 
+
+  const updateGeminiKey = (geminiKey: string) => {
+    setState(prev => ({ ...prev, geminiKey }));
+  };
+
   const updateDayMotto = (date: string, motto: string) => {
     setState(prev => {
       const dayData = prev.days[date] || { events: [], answers: {}, note: '' };
@@ -358,6 +366,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateDayMotto, 
       addMotto, 
       deleteMotto, 
+      updateGeminiKey, 
       updateMotto, 
       getBanisterScore 
     }}>
