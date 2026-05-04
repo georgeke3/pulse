@@ -123,10 +123,10 @@ const AICoach = () => {
 
     try {
       const genAI = new GoogleGenerativeAI(state.geminiKey);
-      // Explicitly request v1 API and use the correct model name
+      // 'gemini-1.5-flash-latest' is the most robust alias for the flash model
       const model = genAI.getGenerativeModel(
-        { model: "gemini-1.5-flash" },
-        { apiVersion: 'v1' }
+        { model: "gemini-1.5-flash-latest" },
+        { apiVersion: 'v1beta' }
       );
 
       const result = await model.generateContent(prompt);
