@@ -279,9 +279,11 @@ const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () =>
                       ))}
                     </div>
                     {currentValue > 0 && q.options.find(o => o.value === currentValue)?.description && (
-                      <p className="text-[8px] font-bold text-gray-500 leading-tight italic">
-                        "{q.options.find(o => o.value === currentValue)?.description}"
-                      </p>
+                      <div className="bg-purple-100/50 p-3 rounded-2xl animate-in fade-in slide-in-from-top-1 duration-300">
+                        <p className="text-[9px] font-bold text-purple-700 leading-relaxed">
+                          {q.options.find(o => o.value === currentValue)?.description}
+                        </p>
+                      </div>
                     )}
                   </div>
                 );

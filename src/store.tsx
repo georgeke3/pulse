@@ -52,72 +52,102 @@ const DEFAULT_CONFIG: Config = {
   daily_questions: [
     {
       id: "driver",
-      prompt: "1. Driver of Action (Motivation & The \"Why\")",
+      prompt: "1. Motivation (Driver)",
       options: [
-        { value: 1, label: "Defensive" },
-        { value: 2, label: "Grinding" },
-        { value: 3, label: "Proactive" },
-        { value: 4, label: "Inspired" }
+        { value: 1, label: "Defensive", description: "Anxiety blinders up; acting to prevent failure." },
+        { value: 2, label: "Grinding", description: "Pushing through friction out of raw discipline." },
+        { value: 3, label: "Proactive", description: "Steady execution with clear, calm purpose." },
+        { value: 4, label: "Inspired", description: "Acting purely from excitement; work feels like play." }
       ]
     },
     {
       id: "frame",
-      prompt: "2. Frame & Composure (Execution & The \"How\")",
+      prompt: "2. Execution (Frame)",
       options: [
-        { value: 1, label: "Erratic" },
-        { value: 2, label: "Rushed" },
-        { value: 3, label: "Composed" },
-        { value: 4, label: "Poised" }
+        { value: 1, label: "Erratic", description: "Tunnel vision, jerky movements, hijacked by inputs." },
+        { value: 2, label: "Rushed", description: "Operating slightly too fast with physical tension." },
+        { value: 3, label: "Composed", description: "Standard execution; handling friction smoothly." },
+        { value: 4, label: "Poised", description: "Absolute control; dictating the pace of the chaos." }
       ]
     },
     {
       id: "ego",
-      prompt: "3. Ego & Stability (Identity & The \"Who\")",
+      prompt: "3. Identity (Ego)",
       options: [
-        { value: 1, label: "Unstable" },
-        { value: 2, label: "Drifting" },
-        { value: 3, label: "Grounded" },
-        { value: 4, label: "Sweet Spot" }
+        { value: 1, label: "Unstable", description: "Wildly overconfident/loud or deeply insecure." },
+        { value: 2, label: "Drifting", description: "Catching minor swings in ego or self-doubt." },
+        { value: 3, label: "Grounded", description: "Stable sense of self; doing the work without ego." },
+        { value: 4, label: "Centered", description: "Supreme confidence paired with deep humility." }
       ]
     },
     {
       id: "outlook",
-      prompt: "4. Joy & Outlook (Capacity & The \"Where\")",
+      prompt: "4. Capacity (Outlook)",
       options: [
-        { value: 1, label: "Cynical" },
-        { value: 2, label: "Numb" },
-        { value: 3, label: "Present" },
-        { value: 4, label: "Expansive" }
+        { value: 1, label: "Cynical", description: "Goals feel impossible; even fun things are draining." },
+        { value: 2, label: "Numb", description: "Flatly going through the motions to survive." },
+        { value: 3, label: "Present", description: "Reasonably optimistic and enjoying the downtime." },
+        { value: 4, label: "Expansive", description: "Deeply joyful; the future feels bright and reachable." }
       ]
     },
     {
       id: "relational",
-      prompt: "5. Relational & Connection (The \"Who Else\")",
+      prompt: "5. Relational (Connection)",
       options: [
-        { value: 1, label: "Transactional" },
-        { value: 2, label: "Duty-Bound" },
-        { value: 3, label: "Engaged" },
-        { value: 4, label: "Deeply Connected" }
+        { value: 1, label: "Transactional", description: "Viewing other people as obstacles or resources." },
+        { value: 2, label: "Obligated", description: "Engaging out of duty, but mentally checked out." },
+        { value: 3, label: "Engaged", description: "Present, listening, and maintaining standard social baseline." },
+        { value: 4, label: "Connected", description: "Highly empathetic; drawing actual energy from interactions." }
       ]
     },
     {
       id: "ram",
-      prompt: "6. Cognitive RAM (Computing Power)",
+      prompt: "6. Cognition (RAM)",
       options: [
-        { value: 1, label: "Fried" },
-        { value: 2, label: "Sluggish" },
-        { value: 3, label: "Clear" },
-        { value: 4, label: "Razor Sharp" }
+        { value: 1, label: "Fried", description: "Heavy brain fog; cannot hold variables in working memory." },
+        { value: 2, label: "Sluggish", description: "Requiring heavy willpower or caffeine to stay locked in." },
+        { value: 3, label: "Clear", description: "Standard computing power and normal baseline focus." },
+        { value: 4, label: "Sharp", description: "Total lucidity; effortless pattern recognition and flow." }
       ]
     },
     {
       id: "gratitude",
-      prompt: "7. Perspective & Gratitude (The \"Lens\")",
+      prompt: "7. Perspective (Gratitude)",
       options: [
-        { value: 1, label: "Resentful" },
-        { value: 2, label: "Entitled" },
-        { value: 3, label: "Appreciative" },
-        { value: 4, label: "Profound" }
+        { value: 1, label: "Resentful", description: "Angry victim mindset; feeling the world is unfair." },
+        { value: 2, label: "Entitled", description: "Taking the baseline for granted; hyper-focused on flaws." },
+        { value: 3, label: "Appreciative", description: "Solid recognition of the good (health, family, job)." },
+        { value: 4, label: "Reborn", description: "Near-death level gratitude simply to be alive and breathing." }
+      ]
+    },
+    {
+      id: "boundary",
+      prompt: "8. Boundary (Self vs. Others)",
+      options: [
+        { value: 1, label: "Polarized", description: "Extreme martyrdom (abandoning self) or extreme selfishness." },
+        { value: 2, label: "Tilted", description: "Noticeably over-giving or shutting people out entirely." },
+        { value: 3, label: "Managed", description: "Holding boundaries, but it requires uncomfortable effort." },
+        { value: 4, label: "Integrated", description: "Effortless balance of deep empathy and ironclad boundaries." }
+      ]
+    },
+    {
+      id: "responsibility",
+      prompt: "9. Responsibility (Burden)",
+      options: [
+        { value: 1, label: "Dysregulated", description: "Crushed by uncontrollable weight, or entirely careless." },
+        { value: 2, label: "Slipping", description: "Feeling anxiety spike, or catching urges to drop the ball." },
+        { value: 3, label: "Grounded", description: "Carrying a standard, manageable daily load." },
+        { value: 4, label: "Calibrated", description: "Taking absolute ownership of the controllable; releasing the rest." }
+      ]
+    },
+    {
+      id: "agency",
+      prompt: "10. Agency (Control)",
+      options: [
+        { value: 1, label: "Delusional", description: "Helpless victim (NPC) or frantic micromanager (Tyrant)." },
+        { value: 2, label: "Rigid", description: "Easily frustrated when the world doesn't execute your exact plan." },
+        { value: 3, label: "Active", description: "Taking healthy initiative and adjusting to standard obstacles." },
+        { value: 4, label: "Fluid", description: "Shaping reality where leveraged; flowing like water around the rest." }
       ]
     }
   ]
