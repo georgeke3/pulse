@@ -677,8 +677,11 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   );
 };
 
+import { InsightsView } from './Insights';
+import { BarChart3 } from 'lucide-react';
+
 export default function App() {
-  const [view, setView] = useState<'calendar' | 'ledger'>('calendar');
+  const [view, setView] = useState<'calendar' | 'ledger' | 'insights'>('calendar');
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const navigateToLedger = (date: Date) => {
@@ -691,8 +694,10 @@ export default function App() {
       <div className="flex-1 overflow-y-auto bg-white pb-20">
         {view === 'calendar' ? (
           <CalendarView onSelectDate={navigateToLedger} />
-        ) : (
+        ) : view === 'ledger' ? (
           <DailyLedger date={selectedDate} onBack={() => setView('calendar')} onSelectDate={navigateToLedger} />
+        ) : (
+          <InsightsView />
         )}
       </div>
 
@@ -701,15 +706,22 @@ export default function App() {
           onClick={() => setView('calendar')}
           className={cn("flex flex-col items-center gap-1 transition-all", view === 'calendar' ? "text-purple-600 scale-110" : "text-gray-300")}
         >
-          <CalendarIcon size={24} strokeWidth={3} />
+          <CalendarIcon size={22} strokeWidth={3} />
           <span className="text-[8px] font-black uppercase tracking-[0.2em]">Calendar</span>
         </button>
         <button
           onClick={() => navigateToLedger(new Date())}
           className={cn("flex flex-col items-center gap-1 transition-all", view === 'ledger' ? "text-purple-600 scale-110" : "text-gray-300")}
         >
-          <ClipboardList size={24} strokeWidth={3} />
+          <ClipboardList size={22} strokeWidth={3} />
           <span className="text-[8px] font-black uppercase tracking-[0.2em]">Daily</span>
+        </button>
+        <button
+          onClick={() => setView('insights')}
+          className={cn("flex flex-col items-center gap-1 transition-all", view === 'insights' ? "text-purple-600 scale-110" : "text-gray-300")}
+        >
+          <BarChart3 size={22} strokeWidth={3} />
+          <span className="text-[8px] font-black uppercase tracking-[0.2em]">Insights</span>
         </button>
       </nav>
     </div>
