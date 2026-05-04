@@ -5,7 +5,8 @@ import {
 import { 
   Calendar as CalendarIcon, ClipboardList, Plus, ChevronLeft, ChevronRight, X,
   Briefcase, Heart, Users, UsersRound, Zap, CheckSquare, Wallet, 
-  Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen, HelpCircle
+  Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen, HelpCircle, 
+  Library, Edit2, Check
 } from 'lucide-react';
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
@@ -142,11 +143,12 @@ const CalendarView = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) 
 };
 
 const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () => void, onSelectDate: (d: Date) => void }) => {
-  const { state, updateAnswers, addEvent, updateEvent, deleteEvent, updateDayNote, updateDayMotto, addMotto, deleteMotto, getBanisterScore } = useApp();
+  const { state, updateAnswers, addEvent, updateEvent, deleteEvent, updateDayNote, updateDayMotto, addMotto, getBanisterScore } = useApp();
   const dateStr = format(date, 'yyyy-MM-dd');
   const dayData = state.days[dateStr] || { events: [], answers: {}, note: '', motto: '' };
   const score = getBanisterScore(date);
   const [modalMode, setModalMode] = useState<{ open: boolean, event?: Event }>({ open: false });
+  const [isMottoLibraryOpen, setIsMottoLibraryOpen] = useState(false);
   
   const [isPulseCollapsed, setIsPulseCollapsed] = useState(() => {
     return localStorage.getItem('pulse_collapsed') === 'true';
@@ -216,33 +218,27 @@ const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () =>
       <main className="flex-1 px-6 space-y-6 pb-32">
         {/* Daily Motto */}
         <section className="space-y-4">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Daily Motto</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Daily Motto</h2>
+            <button 
+              onClick={() => setIsMottoLibraryOpen(true)}
+              className="text-[10px] font-black uppercase tracking-widest text-purple-600 flex items-center gap-1 bg-purple-50 px-2 py-1 rounded-md active:scale-95 transition-all"
+            >
+              <Library size={10}/>
+              Library
+            </button>
+          </div>
           <div className="space-y-3">
             <input
               type="text"
               value={dayData.motto || ''}
               onChange={(e) => updateDayMotto(dateStr, e.target.value)}
-              onBlur={() => addMotto(dayData.motto || '')}
-              placeholder="What is the focus today?"
-              className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
+              onBlur={() => {
+                if (dayData.motto) addMotto(dayData.motto);
+              }}
+              placeholder="Focus of the day..."
+              className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm transition-all"
             />
-            {state.mottos.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {state.mottos.map(m => (
-                  <div key={m} className="flex items-center bg-gray-100 rounded-full pl-3 pr-1 py-1 gap-1">
-                    <button 
-                      onClick={() => updateDayMotto(dateStr, m)}
-                      className="text-[10px] font-bold text-gray-600"
-                    >
-                      {m}
-                    </button>
-                    <button onClick={() => deleteMotto(m)} className="p-1 hover:text-red-500 text-gray-400">
-                      <X size={10}/>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </section>
 
@@ -395,6 +391,89 @@ const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () =>
           }}
         />
       )}
+
+      {isMottoLibraryOpen && (
+        <MottoLibraryModal 
+          onClose={() => setIsMottoLibraryOpen(false)}
+          onSelect={(m) => {
+            updateDayMotto(dateStr, m);
+            setIsMottoLibraryOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+const MottoLibraryModal = ({ onClose, onSelect }: { onClose: () => void, onSelect: (m: string) => void }) => {
+  const { state, deleteMotto, updateMotto } = useApp();
+  const [editingMotto, setEditingMotto] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const startEdit = (m: string) => {
+    setEditingMotto(m);
+    setEditValue(m);
+  };
+
+  const saveEdit = () => {
+    if (editingMotto && editValue) {
+      updateMotto(editingMotto, editValue);
+      setEditingMotto(null);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md text-gray-900">
+      <div className="bg-white w-full max-w-md rounded-[2.5rem] flex flex-col max-h-[80vh] overflow-hidden animate-in slide-in-from-bottom duration-500 relative text-left">
+        <div className="flex justify-between items-center p-7 pb-4 bg-white z-10 border-b border-gray-50">
+          <h2 className="text-xl font-black tracking-tight text-gray-900">Motto Library</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 active:scale-90 transition-transform">
+            <X size={16} strokeWidth={3}/>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-7 pt-4 space-y-4">
+          {state.mottos.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200">
+              <p className="text-xs font-bold text-gray-400">Library is empty.</p>
+              <p className="text-[10px] text-gray-300 mt-1">Mottos save automatically when typed in daily view.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {state.mottos.map(m => (
+                <div key={m} className="group flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-transparent hover:border-purple-200 transition-all">
+                  {editingMotto === m ? (
+                    <div className="flex-1 flex items-center gap-2">
+                      <input 
+                        autoFocus
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={saveEdit}
+                        onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                        className="flex-1 bg-white px-3 py-1.5 rounded-lg border-2 border-purple-200 font-bold text-sm focus:outline-none"
+                      />
+                      <button onClick={saveEdit} className="text-green-600"><Check size={20}/></button>
+                    </div>
+                  ) : (
+                    <>
+                      <button 
+                        onClick={() => onSelect(m)}
+                        className="flex-1 text-sm font-black text-gray-900 text-left pr-4"
+                      >
+                        {m}
+                      </button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => startEdit(m)} className="p-2 text-gray-400 hover:text-purple-600"><Edit2 size={16}/></button>
+                        <button onClick={() => deleteMotto(m)} className="p-2 text-gray-400 hover:text-red-500"><X size={16}/></button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

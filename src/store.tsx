@@ -169,6 +169,7 @@ interface AppContextType {
   updateDayMotto: (date: string, motto: string) => void;
   addMotto: (motto: string) => void;
   deleteMotto: (motto: string) => void;
+  updateMotto: (oldMotto: string, newMotto: string) => void;
   getBanisterScore: (date: Date) => number;
 }
 
@@ -309,6 +310,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+
+  const updateMotto = (oldMotto: string, newMotto: string) => {
+    if (!newMotto) return;
+    setState(prev => ({
+      ...prev,
+      mottos: prev.mottos.map(m => m === oldMotto ? newMotto : m)
+    }));
+  };
+
   const getBanisterScore = (targetDate: Date) => {
     const windowDays = 7;
     const end = startOfDay(targetDate);
@@ -348,6 +358,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateDayMotto, 
       addMotto, 
       deleteMotto, 
+      updateMotto, 
       getBanisterScore 
     }}>
       {children}
