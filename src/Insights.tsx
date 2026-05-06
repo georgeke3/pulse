@@ -123,9 +123,9 @@ const AICoach = () => {
 
     try {
       const genAI = new GoogleGenerativeAI(state.geminiKey);
-      // 'gemini-1.5-flash-latest' is the most robust alias for the flash model
+      // 'gemini-flash-latest' is the verified working model for this key
       const model = genAI.getGenerativeModel(
-        { model: "gemini-1.5-flash-latest" },
+        { model: "gemini-flash-latest" },
         { apiVersion: 'v1beta' }
       );
 
