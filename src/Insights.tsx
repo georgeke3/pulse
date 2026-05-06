@@ -236,14 +236,18 @@ export const InsightsView = () => {
 
   // --- DATA 1: Daily Questions ---
   const metricData = useMemo(() => {
+    const question = state.config.daily_questions.find(q => q.id === activeMetric);
     return dateRange.map(date => {
       const dStr = format(date, 'yyyy-MM-dd');
+      const val = state.days[dStr]?.answers[activeMetric] || null;
+      const label = question?.options.find(o => o.value === val)?.label || '';
       return {
         date: format(date, 'MMM d'),
-        value: state.days[dStr]?.answers[activeMetric] || null
+        value: val,
+        label: label
       };
     });
-  }, [dateRange, activeMetric, state.days]);
+  }, [dateRange, activeMetric, state.days, state.config.daily_questions]);
 
   const metricStats = useMemo(() => {
     const vals = metricData.map(d => d.value).filter((v): v is number => v !== null);
@@ -361,6 +365,9 @@ export const InsightsView = () => {
                 <YAxis domain={[1, 4]} hide />
                 <Tooltip 
                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontWeight: 900, fontSize: '12px' }}
+                  formatter={(value: any, _name: any, props: any) => {
+                    return [props.payload.label || value, 'State'];
+                  }}
                 />
                 <Line 
                   type="monotone" 
@@ -404,14 +411,14 @@ export const InsightsView = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase text-gray-400 mr-2">Filter Obj:</span>
-            {[1, 2, 3, 4, 5].map(v => (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-black uppercase text-gray-400 mr-1">Filter Obj:</span>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => (
               <button
                 key={v}
                 onClick={() => setObjFilter(objFilter === v ? null : v)}
                 className={cn(
-                  "w-8 h-8 rounded-lg text-xs font-black border-2 transition-all",
+                  "w-7 h-7 rounded-lg text-[10px] font-black border-2 transition-all",
                   objFilter === v ? "bg-gray-900 border-gray-900 text-white" : "bg-white border-gray-100 text-gray-400"
                 )}
               >

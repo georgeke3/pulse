@@ -234,15 +234,14 @@ const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () =>
             </button>
           </div>
           <div className="space-y-3">
-            <input
-              type="text"
+            <textarea
               value={dayData.motto || ''}
               onChange={(e) => updateDayMotto(dateStr, e.target.value)}
               onBlur={() => {
                 if (dayData.motto) addMotto(dayData.motto);
               }}
               placeholder="Focus of the day..."
-              className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm transition-all"
+              className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm transition-all h-24 resize-none"
             />
           </div>
         </section>
