@@ -56,11 +56,15 @@ export interface Config {
   daily_questions: DailyQuestion[];
 }
 
+export type TruthUtility = 'Bullseye' | 'Over-Indexed' | 'Hallucination' | 'Unrealistic';
+
 export interface CoachingReport {
   id: string;
   date: string; // ISO string of when it was generated
   content: string;
   dataSnapshot: any; // The data it analyzed
+  feedback?: string;
+  truthUtility?: TruthUtility;
 }
 
 export interface AppState {

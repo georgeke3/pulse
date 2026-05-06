@@ -9,12 +9,75 @@ import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Sparkles, Loader2, AlertCircle, History, Clock, X, Trash2 } from 'lucide-react';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { TruthUtility } from './types';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 type TimeRange = 'W' | 'M' | 'Y' | 'All';
+
+const TRUTH_UTILITY_OPTS: TruthUtility[] = ['Bullseye', 'Over-Indexed', 'Hallucination', 'Unrealistic'];
+
+const ReportFeedback = ({ reportId, initialFeedback, initialTruth }: { 
+  reportId: string, 
+  initialFeedback?: string, 
+  initialTruth?: TruthUtility 
+}) => {
+  const { updateCoachingReport } = useApp();
+  const [text, setText] = useState(initialFeedback || '');
+  const [truth, setTruth] = useState<TruthUtility | undefined>(initialTruth);
+  const [saved, setSaved] = useState(false);
+
+  const save = () => {
+    updateCoachingReport(reportId, { feedback: text, truthUtility: truth });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <div className="space-y-4 pt-4 border-t border-gray-800">
+      <div className="space-y-2 text-left">
+        <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Truth & Utility Scale</label>
+        <div className="grid grid-cols-2 gap-2">
+          {TRUTH_UTILITY_OPTS.map(opt => (
+            <button
+              key={opt}
+              onClick={() => { setTruth(opt); updateCoachingReport(reportId, { truthUtility: opt }); }}
+              className={cn(
+                "py-2 px-3 rounded-xl text-[8px] font-black uppercase tracking-widest border-2 transition-all",
+                truth === opt ? "bg-purple-600 border-purple-600 text-white" : "bg-transparent border-gray-800 text-gray-500 hover:border-gray-700"
+              )}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2 text-left">
+        <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Raw Thoughts</label>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="What did you think of this advice?"
+          className="w-full p-4 rounded-2xl bg-gray-800/50 border-none focus:ring-2 focus:ring-purple-600 font-bold text-[10px] text-gray-300 h-20 resize-none"
+        />
+      </div>
+
+      <button
+        onClick={save}
+        className={cn(
+          "w-full py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+          saved ? "bg-green-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"
+        )}
+      >
+        {saved ? 'Feedback Saved' : 'Save Feedback'}
+      </button>
+    </div>
+  );
+};
 
 const CoachingHistoryModal = ({ onClose }: { onClose: () => void }) => {
   const { state, deleteCoachingReport } = useApp();
@@ -29,7 +92,7 @@ const CoachingHistoryModal = ({ onClose }: { onClose: () => void }) => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-7 pt-4 space-y-6">
+        <div className="flex-1 overflow-y-auto p-7 pt-4 space-y-6 text-left">
           {state.coachingHistory.length === 0 ? (
             <div className="text-center py-12">
               <Clock className="mx-auto text-gray-200 mb-4" size={48} />
@@ -51,10 +114,19 @@ const CoachingHistoryModal = ({ onClose }: { onClose: () => void }) => {
                 </div>
                 <div className="space-y-3">
                   {report.content.split('\n').filter(p => p.trim()).map((p, i) => (
-                    <p key={i} className="text-gray-700 text-xs font-medium leading-relaxed italic">
+                    <p key={i} className="text-gray-700 text-[11px] font-medium leading-relaxed italic">
                       {p}
                     </p>
                   ))}
+                </div>
+                
+                <div className="bg-white/50 p-4 rounded-2xl space-y-4">
+                  <h4 className="text-[8px] font-black uppercase tracking-widest text-gray-400">Feedback</h4>
+                  <ReportFeedback 
+                    reportId={report.id} 
+                    initialFeedback={report.feedback} 
+                    initialTruth={report.truthUtility}
+                  />
                 </div>
               </div>
             ))
@@ -65,12 +137,11 @@ const CoachingHistoryModal = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 const AICoach = () => {
   const { state, saveCoachingReport } = useApp();
   const [loading, setLoading] = useState(false);
   const [insight, setInsight] = useState<string | null>(null);
+  const [currentReportId, setCurrentReportId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
@@ -107,23 +178,34 @@ const AICoach = () => {
       };
     }).filter(d => d !== null);
 
+    // Get past feedback to help Gemini learn
+    const pastReports = state.coachingHistory.slice(0, 3).map(r => ({
+      date: r.date,
+      coaching: r.content,
+      user_feedback: r.feedback,
+      rating: r.truthUtility
+    }));
+
     const prompt = `
       You are an elite, objective performance coach. Analyze the following CNS load and resilience data from the past 14 days.
       Data includes objective/subjective logs, daily notes, and mottos.
       
-      DATA:
+      CURRENT DATA:
       ${JSON.stringify(contextData, null, 2)}
+      
+      PAST COACHING & USER FEEDBACK (Use this to avoid hallucinations or unrealistic advice):
+      ${JSON.stringify(pastReports, null, 2)}
       
       INSTRUCTIONS:
       1. Be brutal, objective, and concise. 
       2. Provide exactly 2 paragraphs.
       3. Paragraph 1: Identify the primary "friction point" or failure in the process right now. Mention specific text notes or mottos if they show a trend of burnout or boundary failure.
       4. Paragraph 2: Provide a specific, actionable adjustment to the "Training" or "Recovery" protocol for the next 48 hours.
+      5. Adjust your tone and advice based on past user feedback (e.g., if the user said previous advice was "Unrealistic", try a more feasible protocol).
     `;
 
     try {
       const genAI = new GoogleGenerativeAI(state.geminiKey);
-      // 'gemini-flash-latest' is the verified working model for this key
       const model = genAI.getGenerativeModel(
         { model: "gemini-flash-latest" },
         { apiVersion: 'v1beta' }
@@ -134,8 +216,9 @@ const AICoach = () => {
       
       if (!text) throw new Error("No response from AI.");
       
+      const id = saveCoachingReport(text, contextData);
       setInsight(text);
-      saveCoachingReport(text, contextData);
+      setCurrentReportId(id);
     } catch (e: any) {
       console.error(e);
       setError(e.message || "Failed to connect to Gemini API. Check your key and internet.");
@@ -145,7 +228,7 @@ const AICoach = () => {
   };
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4 text-left">
       <div className="flex justify-between items-center">
         <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">AI Performance Coach</h2>
         <button 
@@ -180,7 +263,7 @@ const AICoach = () => {
         )}
 
         {error && (
-          <div className="flex items-start gap-3 bg-red-950/30 p-4 rounded-2xl border border-red-900/50">
+          <div className="flex items-start gap-3 bg-red-950/30 p-4 rounded-2xl border border-red-900/50 text-left">
             <AlertCircle className="text-red-500 shrink-0" size={16} />
             <p className="text-[10px] font-bold text-red-200 leading-relaxed">{error}</p>
           </div>
@@ -195,11 +278,19 @@ const AICoach = () => {
                 </p>
               ))}
             </div>
+
+            {currentReportId && (
+              <div className="space-y-4 border-t border-gray-800 pt-6">
+                <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-400">Your Evaluation</h3>
+                <ReportFeedback reportId={currentReportId} />
+              </div>
+            )}
+
             <button
-              onClick={() => setInsight(null)}
+              onClick={() => { setInsight(null); setCurrentReportId(null); }}
               className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-colors"
             >
-              Reset Report
+              Close Report
             </button>
           </div>
         )}

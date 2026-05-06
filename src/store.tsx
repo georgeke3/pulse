@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { AppState, Config, Event } from './types';
+import type { AppState, Config, Event, CoachingReport } from './types';
 import { format, subDays, startOfDay } from 'date-fns';
 
 const DEFAULT_CONFIG: Config = {
@@ -174,7 +174,8 @@ interface AppContextType {
   updateGeminiKey: (key: string) => void;
   updateMotto: (oldMotto: string, newMotto: string) => void;
   getBanisterScore: (date: Date) => number;
-  saveCoachingReport: (content: string, dataSnapshot: any) => void;
+  saveCoachingReport: (content: string, dataSnapshot: any) => string;
+  updateCoachingReport: (id: string, updates: Partial<Pick<CoachingReport, 'feedback' | 'truthUtility'>>) => void;
   deleteCoachingReport: (id: string) => void;
   importState: (json: string) => void;
 }
@@ -334,12 +335,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 
   const saveCoachingReport = (content: string, dataSnapshot: any) => {
+    const id = crypto.randomUUID();
     setState(prev => ({
       ...prev,
       coachingHistory: [
-        { id: crypto.randomUUID(), date: new Date().toISOString(), content, dataSnapshot },
+        { id, date: new Date().toISOString(), content, dataSnapshot },
         ...prev.coachingHistory
       ]
+    }));
+    return id;
+  };
+
+  const updateCoachingReport = (id: string, updates: Partial<Pick<CoachingReport, 'feedback' | 'truthUtility'>>) => {
+    setState(prev => ({
+      ...prev,
+      coachingHistory: prev.coachingHistory.map(r => r.id === id ? { ...r, ...updates } : r)
     }));
   };
 
@@ -408,6 +418,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateGeminiKey, 
       updateMotto, 
       saveCoachingReport, 
+      updateCoachingReport,
       deleteCoachingReport, 
       importState, 
       getBanisterScore 
