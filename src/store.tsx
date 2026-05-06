@@ -362,7 +362,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const getBanisterScore = (targetDate: Date) => {
-    const windowDays = 7;
+    const windowDays = 8; // 7 days of impact + 1 day to hit zero
     const end = startOfDay(targetDate);
 
     let fitness = 0;
@@ -373,20 +373,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const dateStr = format(d, 'yyyy-MM-dd');
       const dayData = state.days[dateStr];
       
+      // Linear weight: i=0 (today) is 1.0, i=7 is 0.125, i=8 is 0
+      const weight = (windowDays - i) / windowDays;
+
       if (dayData) {
         dayData.events.forEach(e => {
-          const val = Number(e.intensity || e.objectiveIntensity || 0); // Changed to subjective
+          const baseVal = Number(e.intensity || e.objectiveIntensity || 0);
+          const weightedVal = baseVal * weight;
           
           if (e.type === 'recovery') {
-            fitness += val;
+            fitness += weightedVal;
           } else {
-            fatigue += val;
+            fatigue += weightedVal;
           }
         });
       }
     }
 
-    return Math.round(fitness - fatigue);
+    // Round to 1 decimal place for more granular "anti-aliased" feel
+    return Math.round((fitness - fatigue) * 10) / 10;
   };
 
   return (
