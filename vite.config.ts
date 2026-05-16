@@ -11,7 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-group.svg'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icons.svg'],
       manifest: {
         name: 'Pulse Resilience',
         short_name: 'Pulse',

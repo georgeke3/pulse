@@ -10,42 +10,44 @@ const DEFAULT_CONFIG: Config = {
   scales: {
     training: {
       objective: [
-        { value: 1, label: "Administrative", description: "Routine annoyances, chores, emails." },
-        { value: 2, label: "Standard Execution", description: "Daily deep work, regular logistics." },
-        { value: 3, label: "Heavy Cognitive Load", description: "Architecture, intensive study, debugging." },
-        { value: 4, label: "The Heavyweight", description: "High-stakes, production outages, hard talks." },
-        { value: 5, label: "The 1-Rep Max", description: "Major pivot, acute crisis, technical risk." },
-        { value: 6, label: "Massive Setback", description: "Severe turbulence, failed major project." },
-        { value: 7, label: "One-Way Doors", description: "Major family disputes, financial crises." },
-        { value: 8, label: "Severe Volatility", description: "Sustained health/personal crisis in circle." },
-        { value: 9, label: "Profound Trauma", description: "System-shocking events, profound loss." },
-        { value: 10, label: "Absolute Limit", description: "Theoretical maximum human load." }
+        { value: 1, label: "Admin/Maintenance", description: "Routine errands, laundry, emails, basic house chores." },
+        { value: 2, label: "Execution", description: "Standard workday, grocery shopping, routine logistics." },
+        { value: 3, label: "Heavy Load", description: "Intense study, complex project, minor house repairs, deep focus." },
+        { value: 4, label: "The Heavyweight", description: "High-stakes meetings, production outages, moving house, hard conversations." },
+        { value: 5, label: "Peak Intensity", description: "Major life pivot, acute crisis, maximum professional/personal risk." },
+        { value: 6, label: "Massive Setback", description: "Project failure, severe financial turbulence, major social fallout." },
+        { value: 7, label: "One-Way Doors", description: "Major family disputes, significant life changes, financial crossroads." },
+        { value: 8, label: "Severe Volatility", description: "Sustained health or personal crisis in your immediate circle." },
+        { value: 9, label: "Profound Trauma", description: "System-shocking events, deep personal loss, life-altering shocks." },
+        { value: 10, label: "Theoretical Max", description: "The absolute limit of sustainable human load." }
       ],
       subjective: [
-        { value: 1, label: "Flow / Minimal Cost", description: "Zero internal resistance. Time vanished." },
-        { value: 2, label: "Smooth", description: "Noticeable fuel burn, but steady." },
-        { value: 3, label: "Grinding", description: "Heavy resistance, anxiety, or doubt." },
-        { value: 4, label: "Redlined", description: "Maximum toll. White-knuckled survival." }
+        { value: 1, label: "Flow / Minimal Cost", description: "Zero internal resistance. Activity felt restorative or effortless." },
+        { value: 2, label: "Steady Burn", description: "Noticeable fuel consumption, but sustainable and calm." },
+        { value: 3, label: "Grinding", description: "Heavy internal resistance, anxiety, or significant willpower required." },
+        { value: 4, label: "Redlined", description: "Maximum internal toll. White-knuckled survival or total exhaustion." }
       ]
     },
     recovery: {
       objective: [
-        { value: 1, label: "Micro-Reset", description: "5-min walk, physiological sigh." },
-        { value: 2, label: "Standard Unplug", description: "Lifting, reading fiction, evening offline." },
-        { value: 3, label: "Deep Down-Regulation", description: "20+ min meditation, perfect sleep." },
-        { value: 4, label: "The Payoff", description: "Celebrating milestone, restorative weekend." },
-        { value: 5, label: "Deep Connection", description: "Vulnerable talk, breakthrough perspective." },
-        { value: 6, label: "Sustained Immersion", description: "Multi-day retreat, no stressors." },
-        { value: 7, label: "Life-Altering", description: "Psychological breakthrough, upgraded baseline." },
-        { value: 8, label: "Deep Era Alignment", description: "Daily habits and goals in perfect harmony." },
-        { value: 9, label: "Generational Peace", description: "Extended family and legacy feel secure." },
-        { value: 10, label: "Total Alignment", description: "Complete synchronization on all axes." }
+        { value: 0, label: "Neutral", description: "No meaningful physiological or psychological change." },
+        { value: 1, label: "Micro-Reset", description: "5-min walk, physiological sigh, quick stretch." },
+        { value: 2, label: "Standard Unplug", description: "Reading fiction, light movement, evening offline, social connection." },
+        { value: 3, label: "Deep Down-Regulation", description: "20+ min meditation, perfect sleep, high-quality leisure." },
+        { value: 4, label: "The Payoff", description: "Restorative weekend, celebrating a major milestone, deep relaxation." },
+        { value: 5, label: "Profound Reset", description: "Deep connection with loved ones, breakthrough perspective, long rest." },
+        { value: 6, label: "Sustained Immersion", description: "Multi-day retreat, total removal from stressors." },
+        { value: 7, label: "Life-Altering", description: "Psychological breakthrough, fundamental upgrade in peace." },
+        { value: 8, label: "Era Alignment", description: "Daily habits, goals, and environment in total harmony." },
+        { value: 9, label: "Generational Peace", description: "Security and legacy for family and self feel firmly established." },
+        { value: 10, label: "Absolute Sync", description: "Complete, profound synchronization on all physiological and mental axes." }
       ],
       subjective: [
-        { value: 1, label: "Mild Yield", description: "Didn't refill, but stopped the bleeding." },
-        { value: 2, label: "Maintenance", description: "Solid baseline reset. Ready for next load." },
-        { value: 3, label: "Deeply Restored", description: "Noticeably lighter. Anxiety cleared." },
-        { value: 4, label: "Overflowing", description: "Deeply energized, highly optimistic." }
+        { value: 0, label: "Neutral", description: "Felt neither rested nor more drained." },
+        { value: 1, label: "Mild Yield", description: "Didn't fully refill, but stopped the energy leak." },
+        { value: 2, label: "Maintenance", description: "Solid baseline reset. Feeling ready for the next challenge." },
+        { value: 3, label: "Deeply Restored", description: "Noticeably lighter and more optimistic. Anxiety cleared." },
+        { value: 4, label: "Overflowing", description: "Radiating energy. Profoundly energized and ready for anything." }
       ]
     }
   },
@@ -174,6 +176,11 @@ interface AppContextType {
   updateGeminiKey: (key: string) => void;
   updateMotto: (oldMotto: string, newMotto: string) => void;
   getBanisterScore: (date: Date) => number;
+  getBanisterDetails: (date: Date) => { 
+    score: number; 
+    topContributors: Array<{ category: string, impact: number, type: 'training' | 'recovery' }>;
+    upcomingCliffs: Array<{ category: string, impact: number, daysRemaining: number, type: 'training' | 'recovery' }>;
+  };
   saveCoachingReport: (content: string, dataSnapshot: any) => string;
   updateCoachingReport: (id: string, updates: Partial<Pick<CoachingReport, 'feedback' | 'truthUtility'>>) => void;
   deleteCoachingReport: (id: string) => void;
@@ -372,11 +379,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const getBanisterScore = (targetDate: Date) => {
+    return getBanisterDetails(targetDate).score;
+  };
+
+  const getBanisterDetails = (targetDate: Date) => {
     const windowDays = 8; // 7 days of impact + 1 day to hit zero
     const end = startOfDay(targetDate);
 
     let fitness = 0;
     let fatigue = 0;
+    const contributors: Array<{ category: string, impact: number, type: 'training' | 'recovery', date: string }> = [];
 
     for (let i = 0; i < windowDays; i++) {
       const d = subDays(end, i);
@@ -391,6 +403,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const baseVal = Number(e.intensity || e.objectiveIntensity || 0);
           const weightedVal = baseVal * weight;
           
+          if (weightedVal > 0) {
+            contributors.push({
+              category: e.category,
+              impact: weightedVal,
+              type: e.type,
+              date: dateStr
+            });
+          }
+
           if (e.type === 'recovery') {
             fitness += weightedVal;
           } else {
@@ -400,8 +421,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // Round to 1 decimal place for more granular "anti-aliased" feel
-    return Math.round((fitness - fatigue) * 10) / 10;
+    const score = Math.round((fitness - fatigue) * 10) / 10;
+
+    // Process contributors for the UI
+    const topContributors = [...contributors]
+      .sort((a, b) => b.impact - a.impact)
+      .slice(0, 3)
+      .map(c => ({ category: c.category, impact: Math.round(c.impact * 10) / 10, type: c.type }));
+
+    const upcomingCliffs = contributors
+      .filter(c => {
+        const diff = Math.floor((end.getTime() - startOfDay(new Date(c.date)).getTime()) / (1000 * 60 * 60 * 24));
+        return diff >= 6; // Days 6 and 7 are about to fall off
+      })
+      .sort((a, b) => b.impact - a.impact)
+      .slice(0, 2)
+      .map(c => {
+        const diff = Math.floor((end.getTime() - startOfDay(new Date(c.date)).getTime()) / (1000 * 60 * 60 * 24));
+        return {
+          category: c.category,
+          impact: Math.round(c.impact * 10) / 10,
+          daysRemaining: 8 - diff,
+          type: c.type
+        };
+      });
+
+    return { score, topContributors, upcomingCliffs };
   };
 
   return (
@@ -421,7 +466,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateCoachingReport,
       deleteCoachingReport, 
       importState, 
-      getBanisterScore 
+      getBanisterScore,
+      getBanisterDetails 
     }}>
       {children}
     </AppContext.Provider>

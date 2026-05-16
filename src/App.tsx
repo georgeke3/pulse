@@ -43,7 +43,7 @@ const getIcon = (category: string) => {
 // --- Components ---
 
 const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: Date) => void, onOpenSettings: () => void }) => {
-  const { getBanisterScore } = useApp();
+  const { getBanisterScore, getBanisterDetails } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const touchStart = useRef<number | null>(null);
 
@@ -131,17 +131,61 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
         })}
       </div>
 
-      <div className="mt-12 p-6 rounded-3xl bg-gray-50 border border-gray-100">
-        <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Mental Bank Readiness</h3>
-        <div className="flex justify-between items-end">
-          <div>
-            <div className="text-4xl font-black text-gray-900">{getBanisterScore(new Date())}</div>
-            <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-1">Status: {getBanisterScore(new Date()) >= 0 ? 'Resilient' : 'Brittle'}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-[10px] font-black text-purple-600 uppercase tracking-widest">7-Day Rolling</div>
+      <div className="mt-12 p-6 rounded-3xl bg-gray-50 border border-gray-100 space-y-6">
+        <div>
+          <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Mental Bank Readiness</h3>
+          <div className="flex justify-between items-end">
+            <div>
+              <div className="text-4xl font-black text-gray-900">{getBanisterScore(new Date())}</div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-1">Status: {getBanisterScore(new Date()) >= 0 ? 'Resilient' : 'Brittle'}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] font-black text-purple-600 uppercase tracking-widest">7-Day Rolling</div>
+            </div>
           </div>
         </div>
+
+        {(() => {
+          const details = getBanisterDetails(new Date());
+          return (
+            <div className="space-y-4 border-t border-gray-200 pt-6">
+              {details.topContributors.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Top Impact</h4>
+                  <div className="grid gap-2">
+                    {details.topContributors.map((c, i) => (
+                      <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-100">
+                        <span className="text-[10px] font-bold text-gray-700">{c.category}</span>
+                        <span className={cn("text-[10px] font-black", c.type === 'recovery' ? "text-green-600" : "text-red-600")}>
+                          {c.type === 'recovery' ? '+' : '-'}{c.impact}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {details.upcomingCliffs.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Upcoming Cliffs (Expiring)</h4>
+                  <div className="grid gap-2">
+                    {details.upcomingCliffs.map((c, i) => (
+                      <div key={i} className="flex justify-between items-center bg-gray-100/50 p-3 rounded-xl border border-dashed border-gray-200">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-gray-500">{c.category}</span>
+                          <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Expires in {c.daysRemaining}d</span>
+                        </div>
+                        <span className="text-[10px] font-black text-gray-400 opacity-50">
+                          {c.type === 'recovery' ? '+' : '-'}{c.impact}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
@@ -190,12 +234,27 @@ const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () =>
     localStorage.setItem('note_collapsed', String(newState));
   };
 
+  const isLateNight = isToday(date) && new Date().getHours() < 6;
+
   return (
     <div 
       className="flex flex-col h-full bg-white min-h-screen"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {isLateNight && (
+        <div className="bg-amber-50 px-6 py-3 border-b border-amber-100 flex items-center justify-between animate-in slide-in-from-top duration-300">
+          <p className="text-[10px] font-bold text-amber-700">
+            🌙 Past midnight. Logging for yesterday?
+          </p>
+          <button 
+            onClick={() => onSelectDate(subDays(date, 1))}
+            className="text-[10px] font-black uppercase tracking-widest text-amber-900 bg-amber-200/50 px-2 py-1 rounded-md active:scale-95 transition-all"
+          >
+            Switch to {format(subDays(date, 1), 'MMM d')}
+          </button>
+        </div>
+      )}
       <header className="px-6 pt-8 pb-4 flex justify-between items-start bg-white">
         <div>
           <button onClick={onBack} className="text-xs font-black uppercase tracking-widest text-purple-600 mb-2 block">← Back</button>
@@ -267,7 +326,7 @@ const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () =>
                       {q.options.map(opt => (
                         <button
                           key={opt.value}
-                          onClick={() => updateAnswers(dateStr, { [q.id]: opt.value })}
+                          onClick={() => updateAnswers(dateStr, { [q.id]: currentValue === opt.value ? 0 : opt.value })}
                           className={cn(
                             "flex flex-col items-center p-2 rounded-xl border-2 transition-all",
                             currentValue === opt.value ? "bg-purple-600 border-purple-600 text-white shadow-md" : "bg-white border-transparent text-gray-400"
@@ -597,7 +656,6 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   ];
 
   const selectedObjective = scales.objective.find(o => o.value === objIntensity);
-  const selectedSubjective = scales.subjective.find(o => o.value === intensity);
 
   return (
     <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md text-gray-900">
@@ -677,13 +735,13 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
                   </div>
                   <span className="text-lg font-black text-gray-900">{objIntensity}</span>
                 </div>
-                <div className="grid grid-cols-5 gap-1">
+                <div className="flex flex-wrap gap-1">
                   {scales.objective.map(o => (
                     <button
                       key={o.value}
                       onClick={() => setObjIntensity(o.value)}
                       className={cn(
-                        "py-2 rounded-lg font-black text-xs border-2 transition-all",
+                        "w-8 h-8 rounded-lg font-black text-xs border-2 transition-all",
                         objIntensity === o.value ? "bg-gray-900 border-gray-900 text-white" : "bg-white border-transparent text-gray-300"
                       )}
                     >
@@ -703,29 +761,29 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
                       {type === 'training' ? 'Subjective RPE' : 'Subjective Yield'}
                     </label>
                     <div className={cn("text-sm font-black mt-1", type === 'training' ? "text-red-600" : "text-green-600")}>
-                      {selectedSubjective?.label}
+                      {scales.subjective.find(s => s.value === Math.round(intensity))?.label}
                     </div>
                   </div>
                   <span className={cn("text-lg font-black", type === 'training' ? "text-red-600" : "text-green-600")}>{intensity}</span>
                 </div>
-                <div className="grid grid-cols-4 gap-1">
-                  {scales.subjective.map(o => (
-                    <button
-                      key={o.value}
-                      onClick={() => setIntensity(o.value)}
-                      className={cn(
-                        "py-3 rounded-xl font-black text-xs border-2 transition-all",
-                        intensity === o.value 
-                          ? (type === 'training' ? "bg-red-600 border-red-600 text-white" : "bg-green-600 border-green-600 text-white")
-                          : "bg-white border-transparent text-gray-300"
-                      )}
-                    >
-                      {o.value}
-                    </button>
-                  ))}
+                <div className="px-2 py-4">
+                  <input 
+                    type="range"
+                    min={scales.subjective[0].value}
+                    max={scales.subjective[scales.subjective.length - 1].value}
+                    step="0.5"
+                    value={intensity}
+                    onChange={(e) => setIntensity(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                  />
+                  <div className="flex justify-between mt-2 px-1">
+                    {scales.subjective.map(s => (
+                      <span key={s.value} className="text-[8px] font-black text-gray-300 uppercase">{s.value}</span>
+                    ))}
+                  </div>
                 </div>
                 <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[2em]">
-                  {selectedSubjective?.description}
+                  {scales.subjective.find(s => s.value === Math.round(intensity))?.description}
                 </p>
               </div>
             </div>
