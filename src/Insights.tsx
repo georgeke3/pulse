@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend
 } from 'recharts';
 import { 
-  format, subDays, startOfDay, eachDayOfInterval, parseISO 
+  format, subDays, addDays, startOfDay, eachDayOfInterval, parseISO 
 } from 'date-fns';
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
@@ -102,9 +102,14 @@ const CoachingHistoryModal = ({ onClose }: { onClose: () => void }) => {
             state.coachingHistory.map(report => (
               <div key={report.id} className="p-6 rounded-3xl bg-gray-50 border border-gray-100 space-y-4 group">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">
-                    {format(parseISO(report.date), 'MMM d, h:mm a')}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">
+                      {format(parseISO(report.date), 'MMM d, h:mm a')}
+                    </span>
+                    {report.mode && (
+                      <span className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mt-0.5">{report.mode} Analysis</span>
+                    )}
+                  </div>
                   <button 
                     onClick={() => deleteCoachingReport(report.id)}
                     className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
@@ -144,6 +149,7 @@ const AICoach = () => {
   const [currentReportId, setCurrentReportId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [mode, setMode] = useState<'Standard' | 'Action Plan' | 'Philosophical'>('Standard');
 
   const generateInsight = async () => {
     if (!state.geminiKey) {
@@ -173,7 +179,8 @@ const AICoach = () => {
           obj: e.objectiveIntensity,
           sub: e.intensity,
           dur: e.duration,
-          note: e.notes
+          note: e.notes,
+          isExpected: e.isExpected
         }))
       };
     }).filter(d => d !== null);
@@ -186,21 +193,48 @@ const AICoach = () => {
       rating: r.truthUtility
     }));
 
+    let modeInstructions = '';
+    if (mode === 'Standard') {
+      modeInstructions = `
+        1. Be brutal, objective, and concise. 
+        2. Provide exactly 2 paragraphs.
+        3. Paragraph 1: Identify the primary "friction point" or failure in the process right now. Mention specific text notes or mottos if they show a trend of burnout or boundary failure.
+        4. Paragraph 2: Provide a specific, actionable adjustment to the "Training" or "Recovery" protocol for the next 48 hours.
+      `;
+    } else if (mode === 'Action Plan') {
+      modeInstructions = `
+        1. Provide a tactical, step-by-step 48-hour action plan.
+        2. Focus on specific sequence and timing.
+        3. Use bullet points for the plan.
+        4. Be extremely directive.
+      `;
+    } else if (mode === 'Philosophical') {
+      modeInstructions = `
+        1. Provide a 3rd person grounding perspective and philosophical assessment.
+        2. Avoid adding strict regimens or "more work".
+        3. Focus on positivity, grounding arguments, and self-compassion.
+        4. Use an encouraging, wise, and calm tone.
+        5. Explain the "why" behind their current state from a biological and psychological perspective without being critical.
+      `;
+    }
+
     const prompt = `
       You are an elite, objective performance coach. Analyze the following CNS load and resilience data from the past 14 days.
       Data includes objective/subjective logs, daily notes, and mottos.
       
+      USER PROFILE (PERSONA):
+      ${state.systemPrompt || 'No specific profile provided.'}
+
       CURRENT DATA:
       ${JSON.stringify(contextData, null, 2)}
       
       PAST COACHING & USER FEEDBACK (Use this to avoid hallucinations or unrealistic advice):
       ${JSON.stringify(pastReports, null, 2)}
       
+      ANALYSIS MODE: ${mode}
+
       INSTRUCTIONS:
-      1. Be brutal, objective, and concise. 
-      2. Provide exactly 2 paragraphs.
-      3. Paragraph 1: Identify the primary "friction point" or failure in the process right now. Mention specific text notes or mottos if they show a trend of burnout or boundary failure.
-      4. Paragraph 2: Provide a specific, actionable adjustment to the "Training" or "Recovery" protocol for the next 48 hours.
+      ${modeInstructions}
       5. Adjust your tone and advice based on past user feedback (e.g., if the user said previous advice was "Unrealistic", try a more feasible protocol).
     `;
 
@@ -216,7 +250,7 @@ const AICoach = () => {
       
       if (!text) throw new Error("No response from AI.");
       
-      const id = saveCoachingReport(text, contextData);
+      const id = saveCoachingReport(text, contextData, mode);
       setInsight(text);
       setCurrentReportId(id);
     } catch (e: any) {
@@ -241,17 +275,39 @@ const AICoach = () => {
 
       <div className="bg-gray-900 rounded-[2.5rem] p-8 space-y-6 shadow-2xl border border-gray-800">
         {!insight && !loading && (
-          <div className="space-y-4 text-center">
-            <p className="text-xs font-bold text-gray-400 leading-relaxed">
-              Analyze the last 14 days of CNS load, patterns, and notes.
-            </p>
-            <button
-              onClick={generateInsight}
-              className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg"
-            >
-              <Sparkles size={14} className="inline mr-2" />
-              Analyze Week
-            </button>
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Analysis Mode</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['Standard', 'Action Plan', 'Philosophical'] as const).map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setMode(m)}
+                    className={cn(
+                      "py-2 px-1 rounded-xl text-[8px] font-black uppercase tracking-widest border-2 transition-all",
+                      mode === m ? "bg-purple-600 border-purple-600 text-white" : "bg-transparent border-gray-800 text-gray-500 hover:border-gray-700"
+                    )}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4 text-center">
+              <p className="text-xs font-bold text-gray-400 leading-relaxed">
+                {mode === 'Standard' && "Identify friction points and get a quick adjustment."}
+                {mode === 'Action Plan' && "Get a detailed 48-hour tactical roadmap."}
+                {mode === 'Philosophical' && "Perspective, grounding, and biological context."}
+              </p>
+              <button
+                onClick={generateInsight}
+                className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg"
+              >
+                <Sparkles size={14} className="inline mr-2" />
+                Analyze Week
+              </button>
+            </div>
           </div>
         )}
 
@@ -383,6 +439,25 @@ export const InsightsView = () => {
     return { avgObj: avgObj.toFixed(1), avgSub: avgSub.toFixed(1) };
   }, [gapData]);
 
+  // --- DATA 3: Readiness Timeline (-7 to +7) ---
+  const { getBanisterScore } = useApp();
+  const readinessTimeline = useMemo(() => {
+    const now = startOfDay(new Date());
+    const timelineStart = subDays(now, 7);
+    const timelineEnd = addDays(now, 7);
+    const timelineDays = eachDayOfInterval({ start: timelineStart, end: timelineEnd });
+
+    return timelineDays.map(date => {
+      const score = getBanisterScore(date);
+      return {
+        date: format(date, 'MMM d'),
+        isFuture: date > now,
+        isToday: format(date, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd'),
+        value: score
+      };
+    });
+  }, [state.days]);
+
   return (
     <div className="p-6 space-y-12 pb-32 bg-white min-h-screen text-gray-900">
       <header className="flex justify-between items-center">
@@ -404,6 +479,71 @@ export const InsightsView = () => {
       </header>
 
       <AICoach />
+
+      {/* Section 0: Readiness Projection */}
+      <section className="space-y-6">
+        <div className="space-y-1">
+          <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Readiness Timeline (±7 Days)</h2>
+          <p className="text-[10px] font-bold text-gray-400 italic">Visualize upcoming cliffs based on expected training.</p>
+        </div>
+        <div className="bg-gray-50 p-6 rounded-[2.5rem] border border-gray-100">
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={readinessTimeline}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 8, fontWeight: 900, fill: '#cbd5e1' }}
+                />
+                <YAxis hide domain={['dataMin - 1', 'dataMax + 1']} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontWeight: 900 }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white p-3 rounded-2xl shadow-xl border border-gray-50">
+                          <div className="text-[10px] font-black uppercase text-gray-400 mb-1">
+                            {data.date} {data.isFuture ? '(Projected)' : data.isToday ? '(Today)' : ''}
+                          </div>
+                          <div className={cn("text-lg font-black", data.value >= 0 ? "text-green-600" : "text-red-600")}>
+                            {data.value > 0 ? '+' : ''}{data.value}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                {/* Zero line */}
+                <Line 
+                  type="monotone" 
+                  data={readinessTimeline.map(d => ({ ...d, zero: 0 }))} 
+                  dataKey="zero" 
+                  stroke="#e2e8f0" 
+                  strokeDasharray="5 5" 
+                  dot={false} 
+                  activeDot={false}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#9333ea" 
+                  strokeWidth={4} 
+                  dot={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    if (payload.isToday) return <circle cx={cx} cy={cy} r={6} fill="#9333ea" stroke="white" strokeWidth={2} />;
+                    return <circle cx={cx} cy={cy} r={3} fill={payload.isFuture ? "#e9d5ff" : "#9333ea"} />;
+                  }}
+                  activeDot={{ r: 8, strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </section>
 
       {/* Section 1: Daily Pillars */}
       <section className="space-y-6">

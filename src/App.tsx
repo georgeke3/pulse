@@ -43,7 +43,7 @@ const getIcon = (category: string) => {
 // --- Components ---
 
 const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: Date) => void, onOpenSettings: () => void }) => {
-  const { getBanisterScore, getBanisterDetails } = useApp();
+  const { state, getBanisterScore, getBanisterDetails } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const touchStart = useRef<number | null>(null);
 
@@ -108,7 +108,24 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
         {days.map(day => {
           const score = getBanisterScore(day);
           const isCurrentMonth = isSameMonth(day, currentMonth);
+          const isTodayDay = isToday(day);
+          const dayStr = format(day, 'yyyy-MM-dd');
+          const hasExpected = state.days[dayStr]?.events.some(e => e.isExpected);
           
+          let bgColor = "bg-gray-50";
+          let textColor = "text-gray-900";
+          
+          if (isTodayDay) {
+            bgColor = "bg-purple-600 shadow-lg shadow-purple-200";
+            textColor = "text-white";
+          } else if (score > 0) {
+            if (score > 5) bgColor = "bg-green-100";
+            else if (score > 2) bgColor = "bg-green-50";
+          } else if (score < 0) {
+            if (score < -5) bgColor = "bg-red-100";
+            else if (score < -2) bgColor = "bg-red-50";
+          }
+
           return (
             <button
               key={day.toISOString()}
@@ -116,15 +133,19 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
               className={cn(
                 "aspect-square rounded-2xl flex flex-col items-center justify-center relative transition-all active:scale-90",
                 !isCurrentMonth && "opacity-20",
-                isToday(day) ? "bg-purple-600 text-white shadow-lg shadow-purple-200" : "bg-gray-50 text-gray-900"
+                bgColor,
+                textColor
               )}
             >
-              <span className={cn("text-sm font-bold", isToday(day) ? "text-white" : "text-gray-900")}>
+              {hasExpected && (
+                <div className="absolute top-1.5 right-1.5 w-1 h-1 bg-purple-400 rounded-full animate-pulse" />
+              )}
+              <span className={cn("text-sm font-bold")}>
                 {format(day, 'd')}
               </span>
               <div className={cn(
-                "w-1.5 h-1.5 rounded-full mt-1.5",
-                score > 0 ? "bg-green-400" : score < 0 ? "bg-red-400" : "bg-transparent"
+                "w-1 h-1 rounded-full mt-1",
+                score > 5 ? "bg-green-500" : score > 0 ? "bg-green-300" : score < -5 ? "bg-red-500" : score < 0 ? "bg-red-300" : "bg-transparent"
               )} />
             </button>
           );
@@ -391,13 +412,17 @@ const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () =>
               dayData.events.map(event => {
                 const Icon = getIcon(event.category);
                 return (
-                  <button 
-                    key={event.id} 
+                  <button
+                    key={event.id}
                     onClick={() => setModalMode({ open: true, event })}
-                    className="w-full group p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-all text-left space-y-2"
+                    className="w-full group p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-all text-left space-y-2 relative overflow-hidden"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                    {event.isExpected && (
+                      <div className="absolute top-0 right-0 bg-purple-100 text-purple-600 text-[7px] font-black px-2 py-0.5 rounded-bl-lg tracking-widest uppercase">
+                        Expected
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">                      <div className="flex items-center gap-3">
                         <div className={cn(
                           "w-10 h-10 rounded-xl flex items-center justify-center",
                           event.type === 'recovery' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
@@ -542,11 +567,13 @@ const MottoLibraryModal = ({ onClose, onSelect }: { onClose: () => void, onSelec
 };
 
 const SettingsModal = ({ onClose }: { onClose: () => void }) => {
-  const { state, updateGeminiKey, importState } = useApp();
+  const { state, updateGeminiKey, updateSystemPrompt, importState } = useApp();
   const [key, setKey] = useState(state.geminiKey || '');
+  const [prompt, setPrompt] = useState(state.systemPrompt || '');
 
   const save = () => {
     updateGeminiKey(key);
+    updateSystemPrompt(prompt);
     onClose();
   };
 
@@ -584,7 +611,7 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
           </button>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto max-h-[60vh] pr-2">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Gemini API Key</label>
             <input 
@@ -594,9 +621,16 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
               placeholder="paste key here..."
               className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
             />
-            <p className="text-[9px] font-bold text-gray-400 leading-relaxed px-2">
-              Your key is stored locally on this device.
-            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Personal System Prompt</label>
+            <textarea 
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Who are you? (e.g. 'I am a competitive triathlete...', 'I am a software engineer with high stress...') This personalizes your insights."
+              className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-bold text-xs h-32 resize-none"
+            />
           </div>
 
           <div className="space-y-3">
@@ -639,10 +673,11 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   const { state } = useApp();
   const [type, setType] = useState<'training' | 'recovery'>(existingEvent?.type || 'training');
   const [category, setCategory] = useState(existingEvent?.category || (type === 'training' ? state.config.categories.training[0] : state.config.categories.recovery[0]));
-  const [intensity, setIntensity] = useState(existingEvent?.intensity || 2); // Subjective (1-4)
-  const [objIntensity, setObjIntensity] = useState(existingEvent?.objectiveIntensity || 2); // Objective (1-10)
+  const [intensity, setIntensity] = useState(existingEvent?.intensity ?? 2); // Subjective (1-4)
+  const [objIntensity, setObjIntensity] = useState(existingEvent?.objectiveIntensity ?? 2); // Objective (1-10)
   const [duration, setDuration] = useState<Duration>(existingEvent?.duration || '<1h');
   const [notes, setNotes] = useState(existingEvent?.notes || '');
+  const [isExpected, setIsExpected] = useState(existingEvent?.isExpected ?? (new Date(dateStr) > new Date()));
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const categories = type === 'training' ? state.config.categories.training : state.config.categories.recovery;
@@ -686,6 +721,24 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
           </div>
 
           <div className="space-y-5">
+            <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">Expected Session</span>
+                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter italic">Mark as planned/upcoming</span>
+              </div>
+              <button 
+                onClick={() => setIsExpected(!isExpected)}
+                className={cn(
+                  "w-12 h-6 rounded-full relative transition-all",
+                  isExpected ? "bg-purple-600" : "bg-gray-200"
+                )}
+              >
+                <div className={cn(
+                  "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+                  isExpected ? "left-7" : "left-1"
+                )} />
+              </button>
+            </div>
             <div className="space-y-2">
               <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Category</label>
               <div className="flex flex-wrap gap-1.5">
@@ -814,7 +867,7 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
             )}
             {!showDeleteConfirm && (
               <button
-                onClick={() => onSubmit({ type, category, intensity, objectiveIntensity: objIntensity, duration, custom_data: {}, notes, date: dateStr })}
+                onClick={() => onSubmit({ type, category, intensity, objectiveIntensity: objIntensity, duration, custom_data: {}, notes, isExpected, date: dateStr })}
                 className="flex-1 py-4 bg-gray-900 text-white rounded-2xl font-black text-base active:scale-95 transition-all shadow-lg shadow-gray-200"
               >
                 {existingEvent ? 'Update Instance' : 'Save Instance'}

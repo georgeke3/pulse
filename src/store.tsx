@@ -160,6 +160,7 @@ const INITIAL_STATE: AppState = {
   days: {},
   mottos: [],
   geminiKey: '',
+  systemPrompt: '',
   coachingHistory: []
 };
 
@@ -174,6 +175,7 @@ interface AppContextType {
   addMotto: (motto: string) => void;
   deleteMotto: (motto: string) => void;
   updateGeminiKey: (key: string) => void;
+  updateSystemPrompt: (prompt: string) => void;
   updateMotto: (oldMotto: string, newMotto: string) => void;
   getBanisterScore: (date: Date) => number;
   getBanisterDetails: (date: Date) => { 
@@ -181,7 +183,7 @@ interface AppContextType {
     topContributors: Array<{ category: string, impact: number, type: 'training' | 'recovery' }>;
     upcomingCliffs: Array<{ category: string, impact: number, daysRemaining: number, type: 'training' | 'recovery' }>;
   };
-  saveCoachingReport: (content: string, dataSnapshot: any) => string;
+  saveCoachingReport: (content: string, dataSnapshot: any, mode: 'Standard' | 'Action Plan' | 'Philosophical') => string;
   updateCoachingReport: (id: string, updates: Partial<Pick<CoachingReport, 'feedback' | 'truthUtility'>>) => void;
   deleteCoachingReport: (id: string) => void;
   importState: (json: string) => void;
@@ -199,6 +201,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           days: parsed.days || {},
           mottos: parsed.mottos || [],
           geminiKey: parsed.geminiKey || '',
+          systemPrompt: parsed.systemPrompt || '',
           coachingHistory: parsed.coachingHistory || [], 
           config: DEFAULT_CONFIG 
         };
@@ -304,6 +307,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setState(prev => ({ ...prev, geminiKey }));
   };
 
+  const updateSystemPrompt = (systemPrompt: string) => {
+    setState(prev => ({ ...prev, systemPrompt }));
+  };
+
   const updateDayMotto = (date: string, motto: string) => {
     setState(prev => {
       const dayData = prev.days[date] || { events: [], answers: {}, note: '' };
@@ -341,12 +348,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
 
-  const saveCoachingReport = (content: string, dataSnapshot: any) => {
+  const saveCoachingReport = (content: string, dataSnapshot: any, mode: 'Standard' | 'Action Plan' | 'Philosophical') => {
     const id = crypto.randomUUID();
     setState(prev => ({
       ...prev,
       coachingHistory: [
-        { id, date: new Date().toISOString(), content, dataSnapshot },
+        { id, date: new Date().toISOString(), content, dataSnapshot, mode },
         ...prev.coachingHistory
       ]
     }));
@@ -400,7 +407,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (dayData) {
         dayData.events.forEach(e => {
-          const baseVal = Number(e.intensity || e.objectiveIntensity || 0);
+          const baseVal = Number(e.intensity ?? e.objectiveIntensity ?? 0);
           const weightedVal = baseVal * weight;
           
           if (weightedVal > 0) {
@@ -461,6 +468,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addMotto, 
       deleteMotto, 
       updateGeminiKey, 
+      updateSystemPrompt,
       updateMotto, 
       saveCoachingReport, 
       updateCoachingReport,

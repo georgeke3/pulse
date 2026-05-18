@@ -29,6 +29,7 @@ export interface Event {
   custom_data: Record<string, any>;
   notes?: string;
   date: string; 
+  isExpected?: boolean;
 }
 
 export interface DayData {
@@ -63,6 +64,7 @@ export interface CoachingReport {
   date: string; // ISO string of when it was generated
   content: string;
   dataSnapshot: any; // The data it analyzed
+  mode?: 'Standard' | 'Action Plan' | 'Philosophical';
   feedback?: string;
   truthUtility?: TruthUtility;
 }
@@ -72,5 +74,6 @@ export interface AppState {
   days: Record<string, DayData>;
   mottos: string[];
   geminiKey?: string;
+  systemPrompt?: string;
   coachingHistory: CoachingReport[];
 }
