@@ -180,8 +180,8 @@ interface AppContextType {
   getBanisterScore: (date: Date) => number;
   getBanisterDetails: (date: Date) => { 
     score: number; 
-    topContributors: Array<{ category: string, impact: number, type: 'training' | 'recovery' }>;
-    upcomingCliffs: Array<{ category: string, impact: number, daysRemaining: number, type: 'training' | 'recovery' }>;
+    topContributors: Array<{ category: string, impact: number, type: 'training' | 'recovery', event: Event }>;
+    upcomingCliffs: Array<{ category: string, impact: number, daysRemaining: number, type: 'training' | 'recovery', event: Event }>;
   };
   saveCoachingReport: (content: string, dataSnapshot: any, mode: 'Standard' | 'Action Plan' | 'Philosophical') => string;
   updateCoachingReport: (id: string, updates: Partial<Pick<CoachingReport, 'feedback' | 'truthUtility'>>) => void;
@@ -395,7 +395,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let fitness = 0;
     let fatigue = 0;
-    const contributors: Array<{ category: string, impact: number, type: 'training' | 'recovery', date: string }> = [];
+    const contributors: Array<{ category: string, impact: number, type: 'training' | 'recovery', date: string, event: Event }> = [];
 
     for (let i = 0; i < windowDays; i++) {
       const d = subDays(end, i);
@@ -415,7 +415,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               category: e.category,
               impact: weightedVal,
               type: e.type,
-              date: dateStr
+              date: dateStr,
+              event: e
             });
           }
 
@@ -434,7 +435,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const topContributors = [...contributors]
       .sort((a, b) => b.impact - a.impact)
       .slice(0, 3)
-      .map(c => ({ category: c.category, impact: Math.round(c.impact * 10) / 10, type: c.type }));
+      .map(c => ({ category: c.category, impact: Math.round(c.impact * 10) / 10, type: c.type, event: c.event }));
 
     const upcomingCliffs = contributors
       .filter(c => {
@@ -449,7 +450,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           category: c.category,
           impact: Math.round(c.impact * 10) / 10,
           daysRemaining: 8 - diff,
-          type: c.type
+          type: c.type,
+          event: c.event
         };
       });
 

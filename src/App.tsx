@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { 
-  format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, addDays, subDays, startOfDay 
+  format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, addDays, subDays, startOfDay, parseISO 
 } from 'date-fns';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -46,8 +46,9 @@ const getIcon = (category: string) => {
 // --- Components ---
 
 const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: Date) => void, onOpenSettings: () => void }) => {
-  const { state, getBanisterScore, getBanisterDetails } = useApp();
+  const { state, getBanisterScore, getBanisterDetails, updateEvent, deleteEvent } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [inspectedEvent, setInspectedEvent] = useState<{ event: Event, dateStr: string } | null>(null);
   const touchStart = useRef<number | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -248,12 +249,19 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
                     <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Top Impact</h4>
                     <div className="grid gap-2">
                       {details.topContributors.map((c, i) => (
-                        <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-100">
-                          <span className="text-[10px] font-bold text-gray-700">{c.category}</span>
+                        <button 
+                          key={i} 
+                          onClick={() => setInspectedEvent({ event: c.event, dateStr: c.event.date })}
+                          className="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:shadow-sm active:scale-[0.98] transition-all text-left group"
+                        >
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-gray-700 group-hover:text-purple-600 transition-colors">{c.category}</span>
+                            <span className="text-[7px] font-black text-gray-300 uppercase tracking-wider">{format(parseISO(c.event.date), 'MMM d')}</span>
+                          </div>
                           <span className={cn("text-[10px] font-black", c.type === 'recovery' ? "text-green-600" : "text-red-600")}>
                             {c.type === 'recovery' ? '+' : '-'}{c.impact}
                           </span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -264,15 +272,19 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
                     <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Upcoming Cliffs (Expiring)</h4>
                     <div className="grid gap-2">
                       {details.upcomingCliffs.map((c, i) => (
-                        <div key={i} className="flex justify-between items-center bg-gray-100/50 p-3 rounded-xl border border-dashed border-gray-200">
+                        <button 
+                          key={i} 
+                          onClick={() => setInspectedEvent({ event: c.event, dateStr: c.event.date })}
+                          className="flex justify-between items-center bg-gray-100/50 p-3 rounded-xl border border-dashed border-gray-200 hover:border-purple-200 active:scale-[0.98] transition-all text-left group"
+                        >
                           <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-gray-500">{c.category}</span>
+                            <span className="text-[10px] font-bold text-gray-500 group-hover:text-purple-600 transition-colors">{c.category}</span>
                             <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Expires in {c.daysRemaining}d</span>
                           </div>
                           <span className="text-[10px] font-black text-gray-400 opacity-50">
                             {c.type === 'recovery' ? '+' : '-'}{c.impact}
                           </span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -282,6 +294,22 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
           })()}
         </div>
       </div>
+
+      {inspectedEvent && (
+        <AddEventModal 
+          dateStr={inspectedEvent.dateStr}
+          existingEvent={inspectedEvent.event}
+          onClose={() => setInspectedEvent(null)}
+          onSubmit={(ev) => {
+            updateEvent(inspectedEvent.dateStr, { ...ev, id: inspectedEvent.event.id } as Event);
+            setInspectedEvent(null);
+          }}
+          onDelete={(id) => {
+            deleteEvent(inspectedEvent.dateStr, id);
+            setInspectedEvent(null);
+          }}
+        />
+      )}
     </div>
   );
 };
