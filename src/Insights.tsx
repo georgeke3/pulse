@@ -278,13 +278,13 @@ const AICoach = () => {
           <div className="space-y-6">
             <div className="space-y-2">
               <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Analysis Mode</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-wrap gap-2">
                 {(['Standard', 'Action Plan', 'Philosophical'] as const).map(m => (
                   <button
                     key={m}
                     onClick={() => setMode(m)}
                     className={cn(
-                      "py-2 px-1 rounded-xl text-[8px] font-black uppercase tracking-widest border-2 transition-all",
+                      "flex-1 py-2 px-3 rounded-xl text-[8px] font-black uppercase tracking-widest border-2 transition-all min-w-fit whitespace-nowrap",
                       mode === m ? "bg-purple-600 border-purple-600 text-white" : "bg-transparent border-gray-800 text-gray-500 hover:border-gray-700"
                     )}
                   >
