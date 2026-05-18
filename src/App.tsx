@@ -164,10 +164,6 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
               <span className={cn("text-sm font-bold")}>
                 {format(day, 'd')}
               </span>
-              <div className={cn(
-                "w-1 h-1 rounded-full mt-1",
-                score > 5 ? "bg-green-500" : score > 0 ? "bg-green-300" : score < -5 ? "bg-red-500" : score < 0 ? "bg-red-300" : "bg-transparent"
-              )} />
             </button>
           );
         })}
