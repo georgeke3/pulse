@@ -174,6 +174,13 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
 
       <div className="mt-12 space-y-6">
         <div className="p-6 rounded-3xl bg-gray-50 border border-gray-100">
+          <div className="mb-6 flex justify-between items-end">
+            <div>
+              <div className="text-2xl font-black text-gray-900">{getBanisterScore(new Date())}</div>
+              <div className="text-[8px] font-black uppercase tracking-widest text-gray-400">Mental Bank Readiness</div>
+            </div>
+            <div className="text-[8px] font-black text-purple-600 uppercase tracking-widest pb-1">±7 Day Projection</div>
+          </div>
           <div className="h-32 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={readinessTimeline}>
@@ -227,13 +234,6 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
                 />
               </LineChart>
             </ResponsiveContainer>
-          </div>
-          <div className="mt-4 flex justify-between items-end">
-            <div>
-              <div className="text-2xl font-black text-gray-900">{getBanisterScore(new Date())}</div>
-              <div className="text-[8px] font-black uppercase tracking-widest text-gray-400">Mental Bank Readiness</div>
-            </div>
-            <div className="text-[8px] font-black text-purple-600 uppercase tracking-widest pb-1">±7 Day Projection</div>
           </div>
         </div>
 
