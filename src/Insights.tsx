@@ -143,7 +143,7 @@ const CoachingHistoryModal = ({ onClose }: { onClose: () => void }) => {
 };
 
 const AICoach = () => {
-  const { state, saveCoachingReport } = useApp();
+  const { state, saveCoachingReport, deleteCoachingReport } = useApp();
   const [loading, setLoading] = useState(false);
   const [insight, setInsight] = useState<string | null>(null);
   const [currentReportId, setCurrentReportId] = useState<string | null>(null);
@@ -327,12 +327,29 @@ const AICoach = () => {
 
         {insight && !loading && (
           <div className="space-y-6 animate-in fade-in duration-700">
-            <div className="space-y-4 text-left">
-              {insight.split('\n').filter(p => p.trim()).map((p, i) => (
-                <p key={i} className="text-gray-200 text-sm font-medium leading-relaxed">
-                  {p}
-                </p>
-              ))}
+            <div className="flex justify-between items-start">
+              <div className="space-y-4 text-left flex-1">
+                {insight.split('\n').filter(p => p.trim()).map((p, i) => (
+                  <p key={i} className="text-gray-200 text-sm font-medium leading-relaxed">
+                    {p}
+                  </p>
+                ))}
+              </div>
+              {currentReportId && (
+                <button 
+                  onClick={() => {
+                    if (confirm('Delete this analysis?')) {
+                      deleteCoachingReport(currentReportId);
+                      setInsight(null);
+                      setCurrentReportId(null);
+                    }
+                  }}
+                  className="p-2 text-gray-700 hover:text-red-500 transition-colors ml-4"
+                  title="Delete this analysis"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             </div>
 
             {currentReportId && (
