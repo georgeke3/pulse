@@ -187,8 +187,15 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
                   axisLine={false} 
                   tickLine={false} 
                   tick={{ fontSize: 7, fontWeight: 900, fill: '#cbd5e1' }}
+                  interval={2}
                 />
-                <YAxis hide domain={['dataMin - 1', 'dataMax + 1']} />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 7, fontWeight: 900, fill: '#cbd5e1' }}
+                  width={20}
+                  domain={['dataMin - 1', 'dataMax + 1']} 
+                />
                 <Tooltip 
                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontWeight: 900 }}
                   content={({ active, payload }) => {
@@ -310,7 +317,7 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
   );
 };
 
-const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () => void, onSelectDate: (d: Date) => void }) => {
+const DailyLedger = ({ date, onSelectDate }: { date: Date, onSelectDate: (d: Date) => void }) => {
   const { state, updateAnswers, addEvent, updateEvent, deleteEvent, updateDayNote, updateDayMotto, addMotto, getBanisterScore } = useApp();
   const dateStr = format(date, 'yyyy-MM-dd');
   const dayData = state.days[dateStr] || { events: [], answers: {}, note: '', motto: '' };
@@ -336,7 +343,9 @@ const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () =>
     const touchEnd = e.changedTouches[0].clientX;
     const distance = touchEnd - touchStart.current;
     if (distance > 100) {
-      onBack();
+      onSelectDate(subDays(date, 1));
+    } else if (distance < -100) {
+      onSelectDate(addDays(date, 1));
     }
     touchStart.current = null;
   };
@@ -374,9 +383,8 @@ const DailyLedger = ({ date, onBack, onSelectDate }: { date: Date, onBack: () =>
           </button>
         </div>
       )}
-      <header className="px-6 pt-8 pb-4 flex justify-between items-start bg-white">
+      <header className="px-6 pt-12 pb-4 flex justify-between items-start bg-white">
         <div>
-          <button onClick={onBack} className="text-xs font-black uppercase tracking-widest text-purple-600 mb-2 block">← Back</button>
           <div className="flex items-center gap-3">
             <button onClick={() => onSelectDate(subDays(date, 1))} className="text-gray-300 active:text-purple-600 transition-colors">
               <ChevronLeft size={24} strokeWidth={3}/>
@@ -997,7 +1005,7 @@ export default function App() {
         {view === 'calendar' ? (
           <CalendarView onSelectDate={navigateToLedger} onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : view === 'ledger' ? (
-          <DailyLedger date={selectedDate} onBack={() => setView('calendar')} onSelectDate={navigateToLedger} />
+          <DailyLedger date={selectedDate} onSelectDate={navigateToLedger} />
         ) : (
           <InsightsView />
         )}

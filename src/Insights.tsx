@@ -111,8 +111,12 @@ const CoachingHistoryModal = ({ onClose }: { onClose: () => void }) => {
                     )}
                   </div>
                   <button 
-                    onClick={() => deleteCoachingReport(report.id)}
-                    className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                    onClick={() => {
+                      if (confirm('Delete this analysis from history?')) {
+                        deleteCoachingReport(report.id);
+                      }
+                    }}
+                    className="text-gray-300 hover:text-red-500 transition-colors"
                   >
                     <Trash2 size={14} />
                   </button>
