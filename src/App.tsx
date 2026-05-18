@@ -1,7 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { 
-  format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, addDays, subDays 
+  format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, addDays, subDays, startOfDay 
 } from 'date-fns';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
 import { 
   Calendar as CalendarIcon, ClipboardList, Plus, ChevronLeft, ChevronRight, X,
   Briefcase, Heart, Users, UsersRound, Zap, CheckSquare, Wallet, 
@@ -68,6 +71,23 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
   const goToToday = () => {
     setCurrentMonth(new Date());
   };
+
+  const readinessTimeline = useMemo(() => {
+    const now = startOfDay(new Date());
+    const timelineStart = subDays(now, 7);
+    const timelineEnd = addDays(now, 7);
+    const timelineDays = eachDayOfInterval({ start: timelineStart, end: timelineEnd });
+
+    return timelineDays.map(date => {
+      const score = getBanisterScore(date);
+      return {
+        date: format(date, 'MMM d'),
+        isFuture: date > now,
+        isToday: format(date, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd'),
+        value: score
+      };
+    });
+  }, [state.days]);
 
   return (
     <div 
@@ -152,61 +172,115 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
         })}
       </div>
 
-      <div className="mt-12 p-6 rounded-3xl bg-gray-50 border border-gray-100 space-y-6">
-        <div>
-          <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Mental Bank Readiness</h3>
-          <div className="flex justify-between items-end">
+      <div className="mt-12 space-y-6">
+        <div className="p-6 rounded-3xl bg-gray-50 border border-gray-100">
+          <div className="h-32 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={readinessTimeline}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 7, fontWeight: 900, fill: '#cbd5e1' }}
+                />
+                <YAxis hide domain={['dataMin - 1', 'dataMax + 1']} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontWeight: 900 }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white p-3 rounded-2xl shadow-xl border border-gray-50">
+                          <div className="text-[8px] font-black uppercase text-gray-400 mb-0.5">
+                            {data.date} {data.isFuture ? '(Projected)' : data.isToday ? '(Today)' : ''}
+                          </div>
+                          <div className={cn("text-sm font-black", data.value >= 0 ? "text-green-600" : "text-red-600")}>
+                            {data.value > 0 ? '+' : ''}{data.value}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Line 
+                  type="monotone" 
+                  data={readinessTimeline.map(d => ({ ...d, zero: 0 }))} 
+                  dataKey="zero" 
+                  stroke="#e2e8f0" 
+                  strokeDasharray="5 5" 
+                  dot={false} 
+                  activeDot={false}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#9333ea" 
+                  strokeWidth={3} 
+                  dot={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    if (payload.isToday) return <circle cx={cx} cy={cy} r={5} fill="#9333ea" stroke="white" strokeWidth={2} />;
+                    return <circle cx={cx} cy={cy} r={2} fill={payload.isFuture ? "#e9d5ff" : "#9333ea"} />;
+                  }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-4 flex justify-between items-end">
             <div>
-              <div className="text-4xl font-black text-gray-900">{getBanisterScore(new Date())}</div>
-              <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-1">Status: {getBanisterScore(new Date()) >= 0 ? 'Resilient' : 'Brittle'}</div>
+              <div className="text-2xl font-black text-gray-900">{getBanisterScore(new Date())}</div>
+              <div className="text-[8px] font-black uppercase tracking-widest text-gray-400">Mental Bank Readiness</div>
             </div>
-            <div className="text-right">
-              <div className="text-[10px] font-black text-purple-600 uppercase tracking-widest">7-Day Rolling</div>
-            </div>
+            <div className="text-[8px] font-black text-purple-600 uppercase tracking-widest pb-1">±7 Day Projection</div>
           </div>
         </div>
 
-        {(() => {
-          const details = getBanisterDetails(new Date());
-          return (
-            <div className="space-y-4 border-t border-gray-200 pt-6">
-              {details.topContributors.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Top Impact</h4>
-                  <div className="grid gap-2">
-                    {details.topContributors.map((c, i) => (
-                      <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-100">
-                        <span className="text-[10px] font-bold text-gray-700">{c.category}</span>
-                        <span className={cn("text-[10px] font-black", c.type === 'recovery' ? "text-green-600" : "text-red-600")}>
-                          {c.type === 'recovery' ? '+' : '-'}{c.impact}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {details.upcomingCliffs.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Upcoming Cliffs (Expiring)</h4>
-                  <div className="grid gap-2">
-                    {details.upcomingCliffs.map((c, i) => (
-                      <div key={i} className="flex justify-between items-center bg-gray-100/50 p-3 rounded-xl border border-dashed border-gray-200">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-bold text-gray-500">{c.category}</span>
-                          <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Expires in {c.daysRemaining}d</span>
+        <div className="p-6 rounded-3xl bg-gray-50 border border-gray-100">
+          <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Readiness Insights</h3>
+          {(() => {
+            const details = getBanisterDetails(new Date());
+            return (
+              <div className="space-y-4">
+                {details.topContributors.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Top Impact</h4>
+                    <div className="grid gap-2">
+                      {details.topContributors.map((c, i) => (
+                        <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-100">
+                          <span className="text-[10px] font-bold text-gray-700">{c.category}</span>
+                          <span className={cn("text-[10px] font-black", c.type === 'recovery' ? "text-green-600" : "text-red-600")}>
+                            {c.type === 'recovery' ? '+' : '-'}{c.impact}
+                          </span>
                         </div>
-                        <span className="text-[10px] font-black text-gray-400 opacity-50">
-                          {c.type === 'recovery' ? '+' : '-'}{c.impact}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
+                )}
+                
+                {details.upcomingCliffs.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Upcoming Cliffs (Expiring)</h4>
+                    <div className="grid gap-2">
+                      {details.upcomingCliffs.map((c, i) => (
+                        <div key={i} className="flex justify-between items-center bg-gray-100/50 p-3 rounded-xl border border-dashed border-gray-200">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-gray-500">{c.category}</span>
+                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Expires in {c.daysRemaining}d</span>
+                          </div>
+                          <span className="text-[10px] font-black text-gray-400 opacity-50">
+                            {c.type === 'recovery' ? '+' : '-'}{c.impact}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
       </div>
     </div>
   );

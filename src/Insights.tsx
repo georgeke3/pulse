@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend
 } from 'recharts';
 import { 
-  format, subDays, addDays, startOfDay, eachDayOfInterval, parseISO 
+  format, subDays, startOfDay, eachDayOfInterval, parseISO 
 } from 'date-fns';
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
@@ -456,25 +456,6 @@ export const InsightsView = () => {
     return { avgObj: avgObj.toFixed(1), avgSub: avgSub.toFixed(1) };
   }, [gapData]);
 
-  // --- DATA 3: Readiness Timeline (-7 to +7) ---
-  const { getBanisterScore } = useApp();
-  const readinessTimeline = useMemo(() => {
-    const now = startOfDay(new Date());
-    const timelineStart = subDays(now, 7);
-    const timelineEnd = addDays(now, 7);
-    const timelineDays = eachDayOfInterval({ start: timelineStart, end: timelineEnd });
-
-    return timelineDays.map(date => {
-      const score = getBanisterScore(date);
-      return {
-        date: format(date, 'MMM d'),
-        isFuture: date > now,
-        isToday: format(date, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd'),
-        value: score
-      };
-    });
-  }, [state.days]);
-
   return (
     <div className="p-6 space-y-12 pb-32 bg-white min-h-screen text-gray-900">
       <header className="flex justify-between items-center">
@@ -496,71 +477,6 @@ export const InsightsView = () => {
       </header>
 
       <AICoach />
-
-      {/* Section 0: Readiness Projection */}
-      <section className="space-y-6">
-        <div className="space-y-1">
-          <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Readiness Timeline (±7 Days)</h2>
-          <p className="text-[10px] font-bold text-gray-400 italic">Visualize upcoming cliffs based on expected training.</p>
-        </div>
-        <div className="bg-gray-50 p-6 rounded-[2.5rem] border border-gray-100">
-          <div className="h-48 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={readinessTimeline}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="date" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 8, fontWeight: 900, fill: '#cbd5e1' }}
-                />
-                <YAxis hide domain={['dataMin - 1', 'dataMax + 1']} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontWeight: 900 }}
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      return (
-                        <div className="bg-white p-3 rounded-2xl shadow-xl border border-gray-50">
-                          <div className="text-[10px] font-black uppercase text-gray-400 mb-1">
-                            {data.date} {data.isFuture ? '(Projected)' : data.isToday ? '(Today)' : ''}
-                          </div>
-                          <div className={cn("text-lg font-black", data.value >= 0 ? "text-green-600" : "text-red-600")}>
-                            {data.value > 0 ? '+' : ''}{data.value}
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                {/* Zero line */}
-                <Line 
-                  type="monotone" 
-                  data={readinessTimeline.map(d => ({ ...d, zero: 0 }))} 
-                  dataKey="zero" 
-                  stroke="#e2e8f0" 
-                  strokeDasharray="5 5" 
-                  dot={false} 
-                  activeDot={false}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="#9333ea" 
-                  strokeWidth={4} 
-                  dot={(props: any) => {
-                    const { cx, cy, payload } = props;
-                    if (payload.isToday) return <circle cx={cx} cy={cy} r={6} fill="#9333ea" stroke="white" strokeWidth={2} />;
-                    return <circle cx={cx} cy={cy} r={3} fill={payload.isFuture ? "#e9d5ff" : "#9333ea"} />;
-                  }}
-                  activeDot={{ r: 8, strokeWidth: 0 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </section>
 
       {/* Section 1: Daily Pillars */}
       <section className="space-y-6">
