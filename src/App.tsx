@@ -141,18 +141,19 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
             return e.type === 'recovery' ? acc + val : acc - val;
           }, 0) || 0;
 
-          let bgColor = "bg-gray-50";
+          let bgColor = undefined;
           let textColor = "text-gray-900";
+          let style: React.CSSProperties = {};
           
           if (isTodayDay) {
             bgColor = "bg-purple-600 shadow-lg shadow-purple-200";
             textColor = "text-white";
-          } else if (score > 0) {
-            if (score > 5) bgColor = "bg-green-100";
-            else bgColor = "bg-green-50";
-          } else if (score < 0) {
-            if (score < -5) bgColor = "bg-red-100";
-            else bgColor = "bg-red-50";
+          } else if (score !== 0) {
+            const alpha = Math.min(Math.abs(score) / 15, 0.35); // Max 35% opacity at score of 15
+            const color = score > 0 ? '34, 197, 94' : '239, 68, 68'; // green-500 or red-500
+            style = { backgroundColor: `rgba(${color}, ${alpha})` };
+          } else {
+            bgColor = "bg-gray-50";
           }
 
           return (
@@ -165,6 +166,7 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
                 bgColor,
                 textColor
               )}
+              style={style}
             >
               {hasExpected && (
                 <div className="absolute top-1.5 right-1.5 w-1 h-1 bg-purple-400 rounded-full animate-pulse" />
