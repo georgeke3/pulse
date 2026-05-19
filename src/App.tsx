@@ -3,18 +3,18 @@ import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, addDays, subDays, startOfDay, parseISO 
 } from 'date-fns';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar
 } from 'recharts';
 import { 
   Calendar as CalendarIcon, ClipboardList, Plus, ChevronLeft, ChevronRight, X,
   Briefcase, Heart, Users, UsersRound, Zap, CheckSquare, Wallet, 
   Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen, HelpCircle, 
-  Library, Edit2, Check, Settings, Download, Upload, Coffee, BarChart3
+  Library, Edit2, Check, Settings, Download, Upload, Coffee, BarChart3, Trophy
 } from 'lucide-react';
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import type { Event, Duration } from './types';
+import type { Event, Duration, EventType } from './types';
 import { MorningView } from './Morning';
 import { InsightsView } from './Insights';
 
@@ -39,6 +39,8 @@ const CATEGORY_ICONS: Record<string, any> = {
   "Creative": Palette,
   "Fun": Gamepad2,
   "Journaling": BookOpen,
+  // Wins
+  "Win": Trophy,
 };
 
 const getIcon = (category: string) => {
@@ -51,6 +53,8 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
   const { state, getBanisterScore, getBanisterDetails, updateEvent, deleteEvent } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [inspectedEvent, setInspectedEvent] = useState<{ event: Event, dateStr: string } | null>(null);
+  const [calendarMode, setCalendarMode] = useState<'readiness' | 'streaks'>('readiness');
+  const [activeStreak, setActiveStreak] = useState<string>(state.streakCategories[0] || '');
   const touchStart = useRef<number | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -74,6 +78,70 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
   const goToToday = () => {
     setCurrentMonth(new Date());
   };
+
+  const streakStats = useMemo(() => {
+    if (!activeStreak || calendarMode !== 'streaks') return null;
+    
+    const now = new Date();
+    let current = 0;
+    let daysWithEvent30 = 0;
+    let broken = false;
+    let currentGap = 0;
+
+    // Current Streak & 30d stats
+    for (let i = 0; i < 365; i++) {
+      const d = subDays(now, i);
+      const dStr = format(d, 'yyyy-MM-dd');
+      const hasEvent = state.days[dStr]?.events.some(e => e.streakCategory === activeStreak);
+      
+      if (i < 30 && hasEvent) daysWithEvent30++;
+
+      if (!broken) {
+        if (hasEvent) {
+          current++;
+          currentGap = 0;
+        } else if (i > 0) { // Allow today to be empty if it's still early
+          currentGap++;
+          if (currentGap > 0) broken = true; 
+        }
+      }
+    }
+
+    // Bounce back check (last 30 days)
+    let tempGap = 0;
+    let resilient = true;
+    for (let i = 0; i < 30; i++) {
+      const d = subDays(now, i);
+      const dStr = format(d, 'yyyy-MM-dd');
+      const hasEvent = state.days[dStr]?.events.some(e => e.streakCategory === activeStreak);
+      if (hasEvent) {
+        tempGap = 0;
+      } else {
+        tempGap++;
+        if (tempGap > 2) resilient = false;
+      }
+    }
+
+    return {
+      current,
+      completion30d: Math.round((daysWithEvent30 / 30) * 100),
+      resilient
+    };
+  }, [activeStreak, state.days, calendarMode]);
+
+  const winData = useMemo(() => {
+    const end = new Date();
+    const start = subDays(end, 14);
+    const interval = eachDayOfInterval({ start, end });
+    return interval.map(d => {
+      const dStr = format(d, 'yyyy-MM-dd');
+      const wins = state.days[dStr]?.events.filter(e => e.type === 'win').length || 0;
+      return {
+        date: format(d, 'MMM d'),
+        wins
+      };
+    });
+  }, [state.days]);
 
   const readinessTimeline = useMemo(() => {
     const now = startOfDay(new Date());
@@ -100,29 +168,55 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <header className="mb-8 flex justify-between items-center">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pulse</h1>
-            <button onClick={onOpenSettings} className="p-2 text-gray-300 hover:text-purple-600 transition-colors">
-              <Settings size={20} strokeWidth={3} />
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <p className="text-gray-500 font-medium">{format(currentMonth, 'MMMM yyyy')}</p>
-            {!isSameMonth(currentMonth, new Date()) && (
-              <button 
-                onClick={goToToday}
-                className="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-2 py-1 rounded-md"
-              >
-                Today
+      <header className="mb-8 space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pulse</h1>
+              <button onClick={onOpenSettings} className="p-2 text-gray-300 hover:text-purple-600 transition-colors">
+                <Settings size={20} strokeWidth={3} />
               </button>
-            )}
+            </div>
+            <div className="flex items-center gap-2">
+              <p className="text-gray-500 font-medium">{format(currentMonth, 'MMMM yyyy')}</p>
+              {!isSameMonth(currentMonth, new Date()) && (
+                <button 
+                  onClick={goToToday}
+                  className="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-2 py-1 rounded-md"
+                >
+                  Today
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 bg-gray-50 rounded-xl active:scale-90 transition-all"><ChevronLeft size={20}/></button>
+            <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 bg-gray-50 rounded-xl active:scale-90 transition-all"><ChevronRight size={20}/></button>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 bg-gray-50 rounded-xl active:scale-90 transition-all"><ChevronLeft size={20}/></button>
-          <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 bg-gray-50 rounded-xl active:scale-90 transition-all"><ChevronRight size={20}/></button>
+
+        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+          <button 
+            onClick={() => setCalendarMode('readiness')}
+            className={cn(
+              "px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border-2 transition-all whitespace-nowrap",
+              calendarMode === 'readiness' ? "bg-gray-900 border-gray-900 text-white shadow-md" : "bg-white text-gray-400 border-gray-50"
+            )}
+          >
+            Readiness
+          </button>
+          {state.streakCategories.map(sc => (
+            <button
+              key={sc}
+              onClick={() => { setCalendarMode('streaks'); setActiveStreak(sc); }}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border-2 transition-all whitespace-nowrap",
+                calendarMode === 'streaks' && activeStreak === sc ? "bg-purple-600 border-purple-600 text-white shadow-md" : "bg-white text-gray-400 border-gray-50"
+              )}
+            >
+              {sc}
+            </button>
+          ))}
         </div>
       </header>
 
@@ -143,6 +237,8 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
             return e.type === 'recovery' ? acc + val : acc - val;
           }, 0) || 0;
 
+          const hasStreakInstance = calendarMode === 'streaks' && dayData?.events.some(e => e.streakCategory === activeStreak);
+
           let bgColor = undefined;
           let textColor = "text-gray-900";
           let style: React.CSSProperties = {};
@@ -150,6 +246,13 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
           if (isTodayDay) {
             bgColor = "bg-purple-600 shadow-lg shadow-purple-200";
             textColor = "text-white";
+          } else if (calendarMode === 'streaks') {
+            if (hasStreakInstance) {
+              bgColor = "bg-purple-100";
+              textColor = "text-purple-900";
+            } else {
+              bgColor = "bg-gray-50";
+            }
           } else if (score !== 0) {
             const alpha = Math.min(Math.abs(score) / 15, 0.35); // Max 35% opacity at score of 15
             const color = score > 0 ? '34, 197, 94' : '239, 68, 68'; // green-500 or red-500
@@ -173,7 +276,7 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
               {hasExpected && (
                 <div className="absolute top-1.5 right-1.5 w-1 h-1 bg-purple-400 rounded-full animate-pulse" />
               )}
-              {dailyDelta !== 0 && (
+              {dailyDelta !== 0 && calendarMode === 'readiness' && (
                 <div className={cn(
                   "absolute bottom-1 right-2 text-[7px] font-black",
                   dailyDelta > 0 ? "text-green-600" : "text-red-600",
@@ -181,6 +284,9 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
                 )}>
                   {dailyDelta > 0 ? `+${dailyDelta}` : dailyDelta}
                 </div>
+              )}
+              {hasStreakInstance && (
+                <div className="absolute bottom-1.5 w-1 h-1 bg-purple-600 rounded-full" />
               )}
               <span className={cn("text-sm font-bold")}>
                 {format(day, 'd')}
@@ -323,6 +429,55 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
             );
           })()}
         </div>
+
+        <div className="p-6 rounded-3xl bg-gray-50 border border-gray-100">
+          <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Wins & Gratitude</h3>
+          <div className="h-24 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={winData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 6, fontWeight: 900, fill: '#cbd5e1' }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis hide />
+                <Tooltip 
+                  cursor={{ fill: 'rgba(147, 51, 234, 0.05)' }}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 900 }}
+                />
+                <Bar dataKey="wins" fill="#9333ea" radius={[4, 4, 0, 0]} barSize={12} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {streakStats && (
+          <div className="p-6 rounded-3xl bg-gray-900 text-white shadow-xl space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">{activeStreak} Streak</h3>
+              <div className="flex justify-between items-end">
+                <div className="text-4xl font-black">{streakStats.current} <span className="text-xs opacity-60 uppercase">Days</span></div>
+                <div className="text-right">
+                  <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Daily Unbroken</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
+              <div className="space-y-1">
+                <div className="text-[8px] font-black uppercase tracking-widest opacity-60">30D Completion</div>
+                <div className="text-lg font-black text-purple-400">{streakStats.completion30d}%</div>
+              </div>
+              <div className="space-y-1 text-right">
+                <div className="text-[8px] font-black uppercase tracking-widest opacity-60">Bounce Back</div>
+                <div className="text-lg font-black text-purple-400">{streakStats.resilient ? 'Solid' : 'Low'}</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {inspectedEvent && (
@@ -700,9 +855,10 @@ const MottoLibraryModal = ({ onClose, onSelect }: { onClose: () => void, onSelec
 };
 
 const SettingsModal = ({ onClose }: { onClose: () => void }) => {
-  const { state, updateGeminiKey, updateSystemPrompt, importState } = useApp();
+  const { state, updateGeminiKey, updateSystemPrompt, addStreakCategory, deleteStreakCategory, importState } = useApp();
   const [key, setKey] = useState(state.geminiKey || '');
   const [prompt, setPrompt] = useState(state.systemPrompt || '');
+  const [newStreakCat, setNewStreakCategory] = useState('');
 
   const save = () => {
     updateGeminiKey(key);
@@ -766,6 +922,34 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
             />
           </div>
 
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-400">Streak Categories</label>
+            <div className="flex gap-2">
+              <input 
+                value={newStreakCat}
+                onChange={(e) => setNewStreakCategory(e.target.value)}
+                placeholder="New streak (e.g. 'No Sugar')"
+                className="flex-1 p-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-bold text-xs"
+              />
+              <button 
+                onClick={() => { if (newStreakCat) { addStreakCategory(newStreakCat); setNewStreakCategory(''); } }}
+                className="px-4 bg-gray-900 text-white rounded-xl font-black text-[10px] uppercase active:scale-95"
+              >
+                Add
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {state.streakCategories.map(sc => (
+                <div key={sc} className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg border border-purple-100">
+                  <span className="text-[10px] font-black uppercase tracking-wider">{sc}</span>
+                  <button onClick={() => deleteStreakCategory(sc)} className="text-purple-300 hover:text-red-500">
+                    <X size={12} strokeWidth={3} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-3">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Data Sovereignty</label>
             <div className="grid grid-cols-2 gap-3">
@@ -804,15 +988,16 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   onDelete: (id: string) => void
 }) => {
   const { state } = useApp();
-  const [type, setType] = useState<'training' | 'recovery'>(existingEvent?.type || 'training');
-  const [category, setCategory] = useState(existingEvent?.category || (type === 'training' ? state.config.categories.training[0] : state.config.categories.recovery[0]));
+  const [type, setType] = useState<EventType>(existingEvent?.type || 'training');
+  const [category, setCategory] = useState(existingEvent?.category || (type === 'training' ? state.config.categories.training[0] : type === 'recovery' ? state.config.categories.recovery[0] : 'Win'));
   const [intensity, setIntensity] = useState(existingEvent?.intensity ?? 2); // Subjective (1-4)
   const [objIntensity, setObjIntensity] = useState(existingEvent?.objectiveIntensity ?? 2); // Objective (1-10)
   const [duration, setDuration] = useState<Duration>(existingEvent?.duration || '<1h');
   const [notes, setNotes] = useState(existingEvent?.notes || '');
+  const [streakCategory, setStreakCategory] = useState(existingEvent?.streakCategory || '');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const categories = type === 'training' ? state.config.categories.training : state.config.categories.recovery;
+  const categories = type === 'training' ? state.config.categories.training : type === 'recovery' ? state.config.categories.recovery : ['Win'];
   const scales = type === 'training' ? state.config.scales.training : state.config.scales.recovery;
 
   const DURATION_OPTS: { val: Duration, label: string }[] = [
@@ -822,14 +1007,14 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
     { val: 'whole day', label: 'Day' }
   ];
 
-  const selectedObjective = scales.objective.find(o => o.value === objIntensity);
+  const selectedObjective = type !== 'win' ? scales.objective.find(o => o.value === objIntensity) : null;
 
   return (
     <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md text-gray-900">
       <div className="bg-white w-full max-w-md rounded-[2.5rem] flex flex-col max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-500 relative text-left">
         {/* Fixed Header */}
         <div className="flex justify-between items-center p-7 pb-4 bg-white z-10 border-b border-gray-50">
-          <h2 className="text-xl font-black tracking-tight">{existingEvent ? 'Edit Event' : 'Log Event'}</h2>
+          <h2 className="text-xl font-black tracking-tight">{existingEvent ? 'Edit Instance' : 'Log Instance'}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 active:scale-90 transition-transform">
             <X size={16} strokeWidth={3}/>
           </button>
@@ -840,40 +1025,77 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
           <div className="flex p-1 bg-gray-100 rounded-2xl">
             <button
               onClick={() => { setType('training'); setCategory(state.config.categories.training[0]); }}
-              className={cn("flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", type === 'training' ? "bg-white text-red-600 shadow-sm" : "text-gray-400")}
+              className={cn("flex-1 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all", type === 'training' ? "bg-white text-red-600 shadow-sm" : "text-gray-400")}
             >
               Training
             </button>
             <button
               onClick={() => { setType('recovery'); setCategory(state.config.categories.recovery[0]); }}
-              className={cn("flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all", type === 'recovery' ? "bg-white text-green-600 shadow-sm" : "text-gray-400")}
+              className={cn("flex-1 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all", type === 'recovery' ? "bg-white text-green-600 shadow-sm" : "text-gray-400")}
             >
               Recovery
+            </button>
+            <button
+              onClick={() => { setType('win'); setCategory('Win'); }}
+              className={cn("flex-1 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all", type === 'win' ? "bg-white text-purple-600 shadow-sm" : "text-gray-400")}
+            >
+              Win
             </button>
           </div>
 
           <div className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Category</label>
-              <div className="flex flex-wrap gap-1.5">
-                {categories.map(c => {
-                  const Icon = getIcon(c);
-                  return (
+            {type !== 'win' && (
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Category</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {categories.map(c => {
+                    const Icon = getIcon(c);
+                    return (
+                      <button
+                        key={c}
+                        onClick={() => setCategory(c)}
+                        className={cn(
+                          "flex items-center gap-2 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all",
+                          category === c ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-400 border-gray-50 hover:border-gray-200"
+                        )}
+                      >
+                        <Icon size={12} strokeWidth={3} />
+                        {c}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {state.streakCategories.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-400">Assign to Streak</label>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => setStreakCategory('')}
+                    className={cn(
+                      "px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all",
+                      streakCategory === '' ? "bg-purple-600 text-white border-purple-600 shadow-md" : "bg-white text-gray-400 border-gray-50"
+                    )}
+                  >
+                    None
+                  </button>
+                  {state.streakCategories.map(sc => (
                     <button
-                      key={c}
-                      onClick={() => setCategory(c)}
+                      key={sc}
+                      onClick={() => setStreakCategory(sc)}
                       className={cn(
-                        "flex items-center gap-2 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all",
-                        category === c ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-400 border-gray-50 hover:border-gray-200"
+                        "px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all",
+                        streakCategory === sc ? "bg-purple-600 text-white border-purple-600 shadow-md" : "bg-white text-gray-400 border-gray-50"
                       )}
                     >
-                      <Icon size={12} strokeWidth={3} />
-                      {c}
+                      {sc}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Duration</label>
@@ -893,75 +1115,77 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
               </div>
             </div>
 
-            <div className="space-y-4 bg-gray-50 p-4 rounded-3xl border border-gray-100">
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <div>
-                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 italic">Objective Complexity</label>
-                    <div className="text-sm font-black text-gray-900 mt-1">{selectedObjective?.label}</div>
-                  </div>
-                  <span className="text-lg font-black text-gray-900">{objIntensity}</span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {scales.objective.map(o => (
-                    <button
-                      key={o.value}
-                      onClick={() => setObjIntensity(o.value)}
-                      className={cn(
-                        "w-8 h-8 rounded-lg font-black text-xs border-2 transition-all",
-                        objIntensity === o.value ? "bg-gray-900 border-gray-900 text-white" : "bg-white border-transparent text-gray-300"
-                      )}
-                    >
-                      {o.value}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[2em]">
-                  {selectedObjective?.description}
-                </p>
-              </div>
-
-              <div className="space-y-3 border-t border-gray-200 pt-4">
-                <div className="flex justify-between items-end">
-                  <div>
-                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-400 italic">
-                      {type === 'training' ? 'Subjective RPE' : 'Subjective Yield'}
-                    </label>
-                    <div className={cn("text-sm font-black mt-1", type === 'training' ? "text-red-600" : "text-green-600")}>
-                      {scales.subjective.find(s => s.value === Math.round(intensity))?.label}
+            {type !== 'win' && (
+              <div className="space-y-4 bg-gray-50 p-4 rounded-3xl border border-gray-100">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 italic">Objective Complexity</label>
+                      <div className="text-sm font-black text-gray-900 mt-1">{selectedObjective?.label}</div>
                     </div>
+                    <span className="text-lg font-black text-gray-900">{objIntensity}</span>
                   </div>
-                  <span className={cn("text-lg font-black", type === 'training' ? "text-red-600" : "text-green-600")}>{intensity}</span>
-                </div>
-                <div className="px-2 py-4">
-                  <input 
-                    type="range"
-                    min={scales.subjective[0].value}
-                    max={scales.subjective[scales.subjective.length - 1].value}
-                    step="0.5"
-                    value={intensity}
-                    onChange={(e) => setIntensity(parseFloat(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                  />
-                  <div className="flex justify-between mt-2 px-1">
-                    {scales.subjective.map(s => (
-                      <span key={s.value} className="text-[8px] font-black text-gray-300 uppercase">{s.value}</span>
+                  <div className="flex flex-wrap gap-1">
+                    {scales.objective.map(o => (
+                      <button
+                        key={o.value}
+                        onClick={() => setObjIntensity(o.value)}
+                        className={cn(
+                          "w-8 h-8 rounded-lg font-black text-xs border-2 transition-all",
+                          objIntensity === o.value ? "bg-gray-900 border-gray-900 text-white" : "bg-white border-transparent text-gray-300"
+                        )}
+                      >
+                        {o.value}
+                      </button>
                     ))}
                   </div>
+                  <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[2em]">
+                    {selectedObjective?.description}
+                  </p>
                 </div>
-                <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[2em]">
-                  {scales.subjective.find(s => s.value === Math.round(intensity))?.description}
-                </p>
+
+                <div className="space-y-3 border-t border-gray-200 pt-4">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-400 italic">
+                        {type === 'training' ? 'Subjective RPE' : 'Subjective Yield'}
+                      </label>
+                      <div className={cn("text-sm font-black mt-1", type === 'training' ? "text-red-600" : "text-green-600")}>
+                        {scales.subjective.find(s => s.value === Math.round(intensity))?.label}
+                      </div>
+                    </div>
+                    <span className={cn("text-lg font-black", type === 'training' ? "text-red-600" : "text-green-600")}>{intensity}</span>
+                  </div>
+                  <div className="px-2 py-4">
+                    <input 
+                      type="range"
+                      min={scales.subjective[0].value}
+                      max={scales.subjective[scales.subjective.length - 1].value}
+                      step="0.5"
+                      value={intensity}
+                      onChange={(e) => setIntensity(parseFloat(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                    />
+                    <div className="flex justify-between mt-2 px-1">
+                      {scales.subjective.map(s => (
+                        <span key={s.value} className="text-[8px] font-black text-gray-300 uppercase">{s.value}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[2em]">
+                    {scales.subjective.find(s => s.value === Math.round(intensity))?.description}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Context Notes</label>
+              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">{type === 'win' ? 'The Win / Gratitude' : 'Context Notes'}</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-gray-900 font-bold h-20 resize-none text-xs"
-                placeholder="..."
+                className="w-full p-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-gray-900 font-bold h-24 resize-none text-xs"
+                placeholder={type === 'win' ? "What went well? What are you grateful for?" : "..."}
               />
             </div>
           </div>
@@ -983,7 +1207,18 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
               <button
                 onClick={() => {
                   const automatedIsExpected = parseISO(dateStr) > startOfDay(new Date());
-                  onSubmit({ type, category, intensity, objectiveIntensity: objIntensity, duration, custom_data: {}, notes, isExpected: automatedIsExpected, date: dateStr });
+                  onSubmit({ 
+                    type, 
+                    category, 
+                    intensity: type === 'win' ? 0 : intensity, 
+                    objectiveIntensity: type === 'win' ? 0 : objIntensity, 
+                    duration, 
+                    custom_data: {}, 
+                    notes, 
+                    isExpected: automatedIsExpected, 
+                    date: dateStr,
+                    streakCategory: streakCategory || undefined
+                  });
                 }}
                 className="flex-1 py-4 bg-gray-900 text-white rounded-2xl font-black text-base active:scale-95 transition-all shadow-lg shadow-gray-200"
               >

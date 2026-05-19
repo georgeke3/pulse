@@ -1,4 +1,4 @@
-export type EventType = 'training' | 'recovery';
+export type EventType = 'training' | 'recovery' | 'win';
 export type Duration = '<1h' | 'couple hours' | 'half day' | 'whole day';
 
 export interface ScaleAnchor {
@@ -30,6 +30,7 @@ export interface Event {
   notes?: string;
   date: string; 
   isExpected?: boolean;
+  streakCategory?: string;
 }
 
 export interface DayData {
@@ -73,6 +74,7 @@ export interface AppState {
   config: Config;
   days: Record<string, DayData>;
   mottos: string[];
+  streakCategories: string[];
   geminiKey?: string;
   systemPrompt?: string;
   coachingHistory: CoachingReport[];

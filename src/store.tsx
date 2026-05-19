@@ -159,6 +159,7 @@ const INITIAL_STATE: AppState = {
   config: DEFAULT_CONFIG,
   days: {},
   mottos: [],
+  streakCategories: [],
   geminiKey: '',
   systemPrompt: '',
   coachingHistory: []
@@ -174,14 +175,16 @@ interface AppContextType {
   updateDayMotto: (date: string, motto: string) => void;
   addMotto: (motto: string) => void;
   deleteMotto: (motto: string) => void;
+  addStreakCategory: (category: string) => void;
+  deleteStreakCategory: (category: string) => void;
   updateGeminiKey: (key: string) => void;
   updateSystemPrompt: (prompt: string) => void;
   updateMotto: (oldMotto: string, newMotto: string) => void;
   getBanisterScore: (date: Date) => number;
   getBanisterDetails: (date: Date) => { 
     score: number; 
-    topContributors: Array<{ category: string, impact: number, type: 'training' | 'recovery', event: Event }>;
-    upcomingCliffs: Array<{ category: string, impact: number, daysRemaining: number, type: 'training' | 'recovery', event: Event }>;
+    topContributors: Array<{ category: string, impact: number, type: 'training' | 'recovery' | 'win', event: Event }>;
+    upcomingCliffs: Array<{ category: string, impact: number, daysRemaining: number, type: 'training' | 'recovery' | 'win', event: Event }>;
   };
   saveCoachingReport: (content: string, dataSnapshot: any, mode: 'Standard' | 'Action Plan' | 'Philosophical') => string;
   updateCoachingReport: (id: string, updates: Partial<Pick<CoachingReport, 'feedback' | 'truthUtility'>>) => void;
@@ -200,6 +203,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return { 
           days: parsed.days || {},
           mottos: parsed.mottos || [],
+          streakCategories: parsed.streakCategories || [],
           geminiKey: parsed.geminiKey || '',
           systemPrompt: parsed.systemPrompt || '',
           coachingHistory: parsed.coachingHistory || [], 
@@ -338,6 +342,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const addStreakCategory = (category: string) => {
+    setState(prev => {
+      if (!category || prev.streakCategories.includes(category)) return prev;
+      return { ...prev, streakCategories: [...prev.streakCategories, category] };
+    });
+  };
+
+  const deleteStreakCategory = (category: string) => {
+    setState(prev => ({
+      ...prev,
+      streakCategories: prev.streakCategories.filter(c => c !== category)
+    }));
+  };
+
 
   const updateMotto = (oldMotto: string, newMotto: string) => {
     if (!newMotto) return;
@@ -395,7 +413,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let fitness = 0;
     let fatigue = 0;
-    const contributors: Array<{ category: string, impact: number, type: 'training' | 'recovery', date: string, event: Event }> = [];
+    const contributors: Array<{ category: string, impact: number, type: 'training' | 'recovery' | 'win', date: string, event: Event }> = [];
 
     for (let i = 0; i < windowDays; i++) {
       const d = subDays(end, i);
@@ -407,6 +425,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (dayData) {
         dayData.events.forEach(e => {
+          if (e.type === 'win') return; // Wins don't count towards readiness scores
+          
           const baseVal = Number(e.intensity ?? e.objectiveIntensity ?? 0);
           const weightedVal = baseVal * weight;
           
@@ -469,6 +489,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateDayMotto, 
       addMotto, 
       deleteMotto, 
+      addStreakCategory,
+      deleteStreakCategory,
       updateGeminiKey, 
       updateSystemPrompt,
       updateMotto, 
