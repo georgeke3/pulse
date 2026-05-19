@@ -6,10 +6,10 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar
 } from 'recharts';
 import { 
-  Calendar as CalendarIcon, ClipboardList, Plus, ChevronLeft, ChevronRight, X,
+  ClipboardList, Plus, ChevronLeft, ChevronRight, X, Sparkles,
   Briefcase, Heart, Users, UsersRound, Zap, CheckSquare, Wallet, 
   Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen, HelpCircle, 
-  Library, Edit2, Check, Settings, Download, Upload, Coffee, BarChart3, Trophy
+  Library, Edit2, Check, Settings as SettingsIcon, Download, Upload, Coffee, Trophy, Home, Activity
 } from 'lucide-react';
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
@@ -47,9 +47,37 @@ const getIcon = (category: string) => {
   return CATEGORY_ICONS[category] || HelpCircle;
 };
 
+const MorningLaunchPad = ({ onTrigger }: { onTrigger: () => void }) => {
+  return (
+    <div className="bg-gray-900 rounded-[2.5rem] p-6 shadow-2xl border border-gray-800 space-y-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Sparkles size={16} className="text-purple-400" />
+        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Morning Launch Pad</h2>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button 
+          onClick={onTrigger}
+          className="flex flex-col items-center justify-center p-4 bg-gray-800 rounded-3xl border border-gray-700 active:scale-95 transition-all group"
+        >
+          <div className="w-10 h-10 rounded-2xl bg-purple-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <Coffee size={20} className="text-white" strokeWidth={3} />
+          </div>
+          <span className="text-[10px] font-black text-gray-100 uppercase tracking-widest">Ritual</span>
+        </button>
+        <button className="flex flex-col items-center justify-center p-4 bg-gray-800 rounded-3xl border border-gray-700 opacity-30 cursor-not-allowed">
+          <div className="w-10 h-10 rounded-2xl bg-gray-700 flex items-center justify-center mb-3">
+            <Zap size={20} className="text-gray-500" />
+          </div>
+          <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Focus</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // --- Components ---
 
-const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: Date) => void, onOpenSettings: () => void }) => {
+const CalendarView = ({ onSelectDate, onOpenMorning }: { onSelectDate: (date: Date) => void, onOpenMorning: () => void }) => {
   const { state, getBanisterScore, getBanisterDetails, updateEvent, deleteEvent } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [inspectedEvent, setInspectedEvent] = useState<{ event: Event, dateStr: string } | null>(null);
@@ -168,31 +196,29 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <header className="mb-8 space-y-4">
+      <header className="mb-8 space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pulse</h1>
-              <button onClick={onOpenSettings} className="p-2 text-gray-300 hover:text-purple-600 transition-colors">
-                <Settings size={20} strokeWidth={3} />
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="text-gray-500 font-medium">{format(currentMonth, 'MMMM yyyy')}</p>
-              {!isSameMonth(currentMonth, new Date()) && (
-                <button 
-                  onClick={goToToday}
-                  className="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-2 py-1 rounded-md"
-                >
-                  Today
-                </button>
-              )}
-            </div>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pulse</h1>
+            <p className="text-gray-500 font-medium">{format(currentMonth, 'MMMM yyyy')}</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 bg-gray-50 rounded-xl active:scale-90 transition-all"><ChevronLeft size={20}/></button>
             <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 bg-gray-50 rounded-xl active:scale-90 transition-all"><ChevronRight size={20}/></button>
           </div>
+        </div>
+
+        <MorningLaunchPad onTrigger={onOpenMorning} />
+
+        <div className="flex justify-between items-center">
+          {!isSameMonth(currentMonth, new Date()) && (
+            <button 
+              onClick={goToToday}
+              className="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-2 py-1 rounded-md"
+            >
+              Today
+            </button>
+          )}
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
@@ -854,7 +880,7 @@ const MottoLibraryModal = ({ onClose, onSelect }: { onClose: () => void, onSelec
   );
 };
 
-const SettingsModal = ({ onClose }: { onClose: () => void }) => {
+const SettingsView = () => {
   const { state, updateGeminiKey, updateSystemPrompt, addStreakCategory, deleteStreakCategory, importState } = useApp();
   const [key, setKey] = useState(state.geminiKey || '');
   const [prompt, setPrompt] = useState(state.systemPrompt || '');
@@ -863,7 +889,7 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
   const save = () => {
     updateGeminiKey(key);
     updateSystemPrompt(prompt);
-    onClose();
+    alert('Settings saved locally.');
   };
 
   const exportData = () => {
@@ -884,97 +910,94 @@ const SettingsModal = ({ onClose }: { onClose: () => void }) => {
       const json = event.target?.result as string;
       if (confirm('Importing will overwrite your current data. Continue?')) {
         importState(json);
-        onClose();
       }
     };
     reader.readAsText(file);
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md text-gray-900">
-      <div className="bg-white w-full max-w-md rounded-[2.5rem] flex flex-col p-7 space-y-6 animate-in slide-in-from-bottom duration-500 relative text-left">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-black tracking-tight">Settings</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 active:scale-90 transition-transform">
-            <X size={16} strokeWidth={3}/>
-          </button>
+    <div className="p-8 bg-white min-h-screen text-gray-900 pb-32">
+      <header className="mb-12">
+        <h1 className="text-3xl font-black tracking-tight mb-1">Settings</h1>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Environment Control</p>
+      </header>
+
+      <div className="space-y-10 text-left">
+        <div className="space-y-3">
+          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Gemini API Key</label>
+          <input 
+            type="password"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder="paste key here..."
+            className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
+          />
         </div>
 
-        <div className="space-y-6 overflow-y-auto max-h-[60vh] pr-2">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Gemini API Key</label>
+        <div className="space-y-3">
+          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Personal System Prompt</label>
+          <textarea 
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Who are you? Personalizes insights."
+            className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-bold text-xs h-32 resize-none"
+          />
+        </div>
+
+        <div className="space-y-4">
+          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-400">Streak Categories</label>
+          <div className="flex gap-2">
             <input 
-              type="password"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder="paste key here..."
-              className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
+              value={newStreakCat}
+              onChange={(e) => setNewStreakCategory(e.target.value)}
+              placeholder="New streak (e.g. 'No Sugar')"
+              className="flex-1 p-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-bold text-xs"
             />
+            <button 
+              onClick={() => { if (newStreakCat) { addStreakCategory(newStreakCat); setNewStreakCategory(''); } }}
+              className="px-4 bg-gray-900 text-white rounded-xl font-black text-[10px] uppercase active:scale-95"
+            >
+              Add
+            </button>
           </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Personal System Prompt</label>
-            <textarea 
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Who are you? (e.g. 'I am a competitive triathlete...', 'I am a software engineer with high stress...') This personalizes your insights."
-              className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-bold text-xs h-32 resize-none"
-            />
-          </div>
-
-          <div className="space-y-4">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-400">Streak Categories</label>
-            <div className="flex gap-2">
-              <input 
-                value={newStreakCat}
-                onChange={(e) => setNewStreakCategory(e.target.value)}
-                placeholder="New streak (e.g. 'No Sugar')"
-                className="flex-1 p-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-bold text-xs"
-              />
-              <button 
-                onClick={() => { if (newStreakCat) { addStreakCategory(newStreakCat); setNewStreakCategory(''); } }}
-                className="px-4 bg-gray-900 text-white rounded-xl font-black text-[10px] uppercase active:scale-95"
-              >
-                Add
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {state.streakCategories.map(sc => (
-                <div key={sc} className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg border border-purple-100">
-                  <span className="text-[10px] font-black uppercase tracking-wider">{sc}</span>
-                  <button onClick={() => deleteStreakCategory(sc)} className="text-purple-300 hover:text-red-500">
-                    <X size={12} strokeWidth={3} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Data Sovereignty</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={exportData}
-                className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-50 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-100 active:scale-95 transition-all"
-              >
-                <Download size={14} />
-                Export JSON
-              </button>
-              <label className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-50 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-100 active:scale-95 transition-all cursor-pointer">
-                <Upload size={14} />
-                Import
-                <input type="file" accept=".json" onChange={handleImport} className="hidden" />
-              </label>
-            </div>
+          <div className="flex flex-wrap gap-2">
+            {state.streakCategories.map(sc => (
+              <div key={sc} className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg border border-purple-100">
+                <span className="text-[10px] font-black uppercase tracking-wider">{sc}</span>
+                <button 
+                  onClick={() => { if (confirm(`Delete streak category "${sc}"?`)) deleteStreakCategory(sc); }} 
+                  className="text-purple-300 hover:text-red-500"
+                >
+                  <X size={12} strokeWidth={3} />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
 
-        <button
-          onClick={save}
-          className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-base active:scale-95 transition-all shadow-lg"
-        >
-          Save Settings
-        </button>
+        <div className="space-y-6 pt-6 border-t border-gray-100">
+          <button
+            onClick={save}
+            className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-base active:scale-95 transition-all shadow-lg"
+          >
+            Save All Settings
+          </button>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button 
+              onClick={exportData}
+              className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-50 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-100 active:scale-95 transition-all"
+            >
+              <Download size={14} />
+              Export
+            </button>
+            <label className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-50 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-100 active:scale-95 transition-all cursor-pointer">
+              <Upload size={14} />
+              Import
+              <input type="file" accept=".json" onChange={handleImport} className="hidden" />
+            </label>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1233,9 +1256,11 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
 };
 
 export default function App() {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [view, setView] = useState<'morning' | 'calendar' | 'ledger' | 'insights'>('morning');
+  const [view, setView] = useState<'home' | 'morning' | 'ledger' | 'insights' | 'settings'>('home');
   const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // Handle scroll locking for modals (e.g. AddEventModal, though it's technically handled by 'fixed')
+  // We'll manage it more explicitly if we have overflow issues.
 
   const navigateToLedger = (date: Date) => {
     setSelectedDate(date);
@@ -1243,33 +1268,28 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col max-w-md mx-auto relative shadow-2xl">
-      <div className="flex-1 overflow-y-auto bg-white pb-20">
-        {view === 'morning' ? (
-          <MorningView />
-        ) : view === 'calendar' ? (
-          <CalendarView onSelectDate={navigateToLedger} onOpenSettings={() => setIsSettingsOpen(true)} />
+    <div className="min-h-screen bg-gray-50 flex flex-col max-w-md mx-auto relative shadow-2xl overflow-hidden">
+      <div className="flex-1 overflow-y-auto bg-white pb-20 no-scrollbar">
+        {view === 'home' ? (
+          <CalendarView onSelectDate={navigateToLedger} onOpenMorning={() => setView('morning')} />
+        ) : view === 'morning' ? (
+          <MorningView onBack={() => setView('home')} />
         ) : view === 'ledger' ? (
           <DailyLedger date={selectedDate} onSelectDate={navigateToLedger} />
-        ) : (
+        ) : view === 'insights' ? (
           <InsightsView />
+        ) : (
+          <SettingsView />
         )}
       </div>
 
       <nav className="h-20 bg-white/80 backdrop-blur-md border-t border-gray-100 fixed bottom-0 w-full max-w-md flex items-center justify-around z-10 px-6">
         <button
-          onClick={() => setView('morning')}
-          className={cn("flex flex-col items-center gap-1 transition-all", view === 'morning' ? "text-purple-600 scale-110" : "text-gray-300")}
+          onClick={() => setView('home')}
+          className={cn("flex flex-col items-center gap-1 transition-all", (view === 'home' || view === 'morning') ? "text-purple-600 scale-110" : "text-gray-300")}
         >
-          <Coffee size={22} strokeWidth={3} />
-          <span className="text-[8px] font-black uppercase tracking-[0.2em]">Morning</span>
-        </button>
-        <button
-          onClick={() => setView('calendar')}
-          className={cn("flex flex-col items-center gap-1 transition-all", view === 'calendar' ? "text-purple-600 scale-110" : "text-gray-300")}
-        >
-          <CalendarIcon size={22} strokeWidth={3} />
-          <span className="text-[8px] font-black uppercase tracking-[0.2em]">Calendar</span>
+          <Home size={22} strokeWidth={3} />
+          <span className="text-[8px] font-black uppercase tracking-[0.2em]">Pulse</span>
         </button>
         <button
           onClick={() => navigateToLedger(new Date())}
@@ -1282,12 +1302,17 @@ export default function App() {
           onClick={() => setView('insights')}
           className={cn("flex flex-col items-center gap-1 transition-all", view === 'insights' ? "text-purple-600 scale-110" : "text-gray-300")}
         >
-          <BarChart3 size={22} strokeWidth={3} />
+          <Activity size={22} strokeWidth={3} />
           <span className="text-[8px] font-black uppercase tracking-[0.2em]">Insights</span>
         </button>
+        <button
+          onClick={() => setView('settings')}
+          className={cn("flex flex-col items-center gap-1 transition-all", view === 'settings' ? "text-purple-600 scale-110" : "text-gray-300")}
+        >
+          <SettingsIcon size={22} strokeWidth={3} />
+          <span className="text-[8px] font-black uppercase tracking-[0.2em]">Settings</span>
+        </button>
       </nav>
-
-      {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
     </div>
   );
 }

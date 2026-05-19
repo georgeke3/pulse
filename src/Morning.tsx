@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { format, subDays, addDays, eachDayOfInterval } from 'date-fns';
-import { Sparkles, Play, Square, Check, Loader2, Zap } from 'lucide-react';
+import { Sparkles, Play, Square, Check, Loader2, Zap, X } from 'lucide-react';
 import { useApp } from './store';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { clsx, type ClassValue } from 'clsx';
@@ -12,7 +12,7 @@ function cn(...inputs: ClassValue[]) {
 
 type Phase = 'init' | 'grounding' | 'meditation' | 'journaling' | 'complete';
 
-export const MorningView = () => {
+export const MorningView = ({ onBack }: { onBack: () => void }) => {
   const { state, addEvent } = useApp();
   const [phase, setPhase] = useState<Phase>('init');
   const [loading, setLoading] = useState(false);
@@ -157,9 +157,14 @@ export const MorningView = () => {
 
   return (
     <div className="p-6 min-h-screen bg-white text-gray-900 pb-32">
-      <header className="mb-12">
-        <h1 className="text-3xl font-black tracking-tight mb-1">Morning Ritual</h1>
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-600">静写 • Seisha</p>
+      <header className="mb-12 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight mb-1">Morning Ritual</h1>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-600">静写 • Seisha</p>
+        </div>
+        <button onClick={onBack} className="p-2 bg-gray-50 rounded-xl text-gray-400 active:scale-90 transition-all">
+          <X size={20} strokeWidth={3} />
+        </button>
       </header>
 
       {phase === 'init' && (
@@ -318,7 +323,7 @@ export const MorningView = () => {
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Recovery Instance logged. Have a fluid day.</p>
           </div>
           <button 
-            onClick={() => window.location.reload()} // Quick way to reset or set state
+            onClick={onBack}
             className="w-full max-w-xs py-4 bg-gray-100 text-gray-600 rounded-2xl font-black text-sm active:scale-95 transition-all"
           >
             Back to Dashboard
