@@ -149,10 +149,10 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
             textColor = "text-white";
           } else if (score > 0) {
             if (score > 5) bgColor = "bg-green-100";
-            else if (score > 2) bgColor = "bg-green-50";
+            else bgColor = "bg-green-50";
           } else if (score < 0) {
             if (score < -5) bgColor = "bg-red-100";
-            else if (score < -2) bgColor = "bg-red-50";
+            else bgColor = "bg-red-50";
           }
 
           return (
