@@ -133,8 +133,14 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isTodayDay = isToday(day);
           const dayStr = format(day, 'yyyy-MM-dd');
-          const hasExpected = state.days[dayStr]?.events.some(e => e.isExpected);
+          const dayData = state.days[dayStr];
+          const hasExpected = dayData?.events.some(e => e.isExpected);
           
+          const dailyDelta = dayData?.events.reduce((acc, e) => {
+            const val = Number(e.intensity ?? e.objectiveIntensity ?? 0);
+            return e.type === 'recovery' ? acc + val : acc - val;
+          }, 0) || 0;
+
           let bgColor = "bg-gray-50";
           let textColor = "text-gray-900";
           
@@ -162,6 +168,15 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
             >
               {hasExpected && (
                 <div className="absolute top-1.5 right-1.5 w-1 h-1 bg-purple-400 rounded-full animate-pulse" />
+              )}
+              {dailyDelta !== 0 && (
+                <div className={cn(
+                  "absolute bottom-1 right-2 text-[7px] font-black",
+                  dailyDelta > 0 ? "text-green-600" : "text-red-600",
+                  isTodayDay && "text-white opacity-80"
+                )}>
+                  {dailyDelta > 0 ? `+${dailyDelta}` : dailyDelta}
+                </div>
               )}
               <span className={cn("text-sm font-bold")}>
                 {format(day, 'd')}
@@ -791,7 +806,6 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   const [objIntensity, setObjIntensity] = useState(existingEvent?.objectiveIntensity ?? 2); // Objective (1-10)
   const [duration, setDuration] = useState<Duration>(existingEvent?.duration || '<1h');
   const [notes, setNotes] = useState(existingEvent?.notes || '');
-  const [isExpected, setIsExpected] = useState(existingEvent?.isExpected ?? (parseISO(dateStr) > startOfDay(new Date())));
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const categories = type === 'training' ? state.config.categories.training : state.config.categories.recovery;
@@ -835,24 +849,6 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
           </div>
 
           <div className="space-y-5">
-            <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">Expected Session</span>
-                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter italic">Mark as planned/upcoming</span>
-              </div>
-              <button 
-                onClick={() => setIsExpected(!isExpected)}
-                className={cn(
-                  "w-12 h-6 rounded-full relative transition-all",
-                  isExpected ? "bg-purple-600" : "bg-gray-200"
-                )}
-              >
-                <div className={cn(
-                  "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
-                  isExpected ? "left-7" : "left-1"
-                )} />
-              </button>
-            </div>
             <div className="space-y-2">
               <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Category</label>
               <div className="flex flex-wrap gap-1.5">
@@ -981,7 +977,10 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
             )}
             {!showDeleteConfirm && (
               <button
-                onClick={() => onSubmit({ type, category, intensity, objectiveIntensity: objIntensity, duration, custom_data: {}, notes, isExpected, date: dateStr })}
+                onClick={() => {
+                  const automatedIsExpected = parseISO(dateStr) > startOfDay(new Date());
+                  onSubmit({ type, category, intensity, objectiveIntensity: objIntensity, duration, custom_data: {}, notes, isExpected: automatedIsExpected, date: dateStr });
+                }}
                 className="flex-1 py-4 bg-gray-900 text-white rounded-2xl font-black text-base active:scale-95 transition-all shadow-lg shadow-gray-200"
               >
                 {existingEvent ? 'Update Instance' : 'Save Instance'}
