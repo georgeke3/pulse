@@ -80,15 +80,17 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
     const timelineDays = eachDayOfInterval({ start: timelineStart, end: timelineEnd });
 
     return timelineDays.map(date => {
+      const dStr = format(date, 'yyyy-MM-dd');
       const score = getBanisterScore(date);
       return {
         date: format(date, 'MMM d'),
         isFuture: date > now,
-        isToday: format(date, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd'),
+        isToday: dStr === format(now, 'yyyy-MM-dd'),
+        hasExpected: state.days[dStr]?.events.some(e => e.isExpected),
         value: score
       };
     });
-  }, [state.days]);
+  }, [state.days, getBanisterScore]);
 
   return (
     <div 
@@ -187,7 +189,7 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
                   axisLine={false} 
                   tickLine={false} 
                   tick={{ fontSize: 7, fontWeight: 900, fill: '#cbd5e1' }}
-                  interval={2}
+                  interval="preserveStartEnd"
                 />
                 <YAxis 
                   axisLine={false}
@@ -232,6 +234,12 @@ const CalendarView = ({ onSelectDate, onOpenSettings }: { onSelectDate: (date: D
                   dot={(props: any) => {
                     const { cx, cy, payload } = props;
                     if (payload.isToday) return <circle cx={cx} cy={cy} r={5} fill="#9333ea" stroke="white" strokeWidth={2} />;
+                    if (payload.hasExpected) return (
+                      <g key={payload.date}>
+                        <circle cx={cx} cy={cy} r={4} fill={payload.isFuture ? "#e9d5ff" : "#9333ea"} />
+                        <circle cx={cx} cy={cy} r={6} fill="none" stroke="#a855f7" strokeWidth={1} className="animate-pulse" />
+                      </g>
+                    );
                     return <circle cx={cx} cy={cy} r={2} fill={payload.isFuture ? "#e9d5ff" : "#9333ea"} />;
                   }}
                   activeDot={{ r: 6, strokeWidth: 0 }}
@@ -783,7 +791,7 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   const [objIntensity, setObjIntensity] = useState(existingEvent?.objectiveIntensity ?? 2); // Objective (1-10)
   const [duration, setDuration] = useState<Duration>(existingEvent?.duration || '<1h');
   const [notes, setNotes] = useState(existingEvent?.notes || '');
-  const [isExpected, setIsExpected] = useState(existingEvent?.isExpected ?? (new Date(dateStr) > new Date()));
+  const [isExpected, setIsExpected] = useState(existingEvent?.isExpected ?? (parseISO(dateStr) > startOfDay(new Date())));
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const categories = type === 'training' ? state.config.categories.training : state.config.categories.recovery;
