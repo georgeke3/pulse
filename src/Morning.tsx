@@ -18,6 +18,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
   const [loading, setLoading] = useState(false);
   const [groundingText, setGroundingText] = useState<string | null>(null);
   const [focusIntention, setFocusIntention] = useState<string | null>(null);
+  const [spotifyLink, setSpotifyLink] = useState<string | null>(null);
   
   // Timer State
   const [timerActive, setTimerActive] = useState(false);
@@ -74,15 +75,18 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
 
       TASK:
       1. Generate a 3rd-person grounding statement ("State of George"). 
-         - Be hyperspecific to today's context.
-         - Acknowledge recent wins or friction points.
-         - Tone: Wise, calm, slightly directive.
-      2. Generate a 1-2 sentence focus intention for today.
+         - Be extremely concise (max 2 sentences).
+         - Focus on internal capacity and resilience rather than listing tasks.
+         - Tone: Wise, calm, objective.
+      2. Generate ONE abstract, high-level meditation intention for today (e.g. "Space," "Depth," "Stillness").
+      3. Recommend ONE specific song on Spotify that fits today's vibe (ambient, focus, or grounding).
+         - Return the literal Spotify HTTP URL (e.g. https://open.spotify.com/track/...)
 
       OUTPUT FORMAT (JSON):
       {
         "grounding": "...",
-        "intention": "..."
+        "intention": "...",
+        "spotify": "..."
       }
     `;
 
@@ -96,10 +100,12 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
       
       setGroundingText(parsed.grounding);
       setFocusIntention(parsed.intention);
+      setSpotifyLink(parsed.spotify);
     } catch (e) {
       console.error("Failed to generate grounding", e);
       setGroundingText("George is entering today with a blank slate. Focus on presence.");
-      setFocusIntention("Steady process over frantic execution.");
+      setFocusIntention("Depth");
+      setSpotifyLink("https://open.spotify.com/playlist/37i9dQZF1DWZqd5YICuS9s");
     } finally {
       setLoading(false);
     }
@@ -190,7 +196,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
               <Loader2 className="text-purple-600 animate-spin" size={32} />
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Consulting history & plan...</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Synthesizing state...</p>
             </div>
           ) : (
             <>
@@ -202,10 +208,31 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
                 <p className="text-lg font-black text-gray-100 leading-tight">
                   "{groundingText}"
                 </p>
-                <div className="pt-4 border-t border-gray-800">
-                  <p className="text-xs font-bold text-purple-400 leading-relaxed italic">
-                    Focus: {focusIntention}
-                  </p>
+                
+                <div className="flex flex-col gap-4 pt-4 border-t border-gray-800">
+                  <div>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 block mb-1">Intention</span>
+                    <p className="text-xl font-black text-purple-400 leading-relaxed uppercase tracking-tighter">
+                      {focusIntention}
+                    </p>
+                  </div>
+
+                  {spotifyLink && (
+                    <a 
+                      href={spotifyLink.replace('https://open.spotify.com/', 'spotify://')} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-2xl border border-gray-700 active:scale-95 transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Play size={14} fill="white" className="text-white ml-0.5" />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 block">Atmosphere</span>
+                        <span className="text-[10px] font-bold text-gray-300">Open in Spotify</span>
+                      </div>
+                    </a>
+                  )}
                 </div>
               </div>
               <button 
