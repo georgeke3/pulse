@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { format, subDays, addDays, eachDayOfInterval } from 'date-fns';
-import { Sparkles, Play, Square, Check, Loader2, Zap, Share2, Heart, Users } from 'lucide-react';
+import { Sparkles, Play, Square, Check, Loader2, Zap } from 'lucide-react';
 import { useApp } from './store';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { clsx, type ClassValue } from 'clsx';
@@ -28,11 +28,6 @@ export const MorningView = () => {
   // Journaling State
   const [journalEntry, setJournalEntry] = useState('');
   const [subjectiveYield, setSubjectiveYield] = useState(3);
-  const [validations, setValidations] = useState({
-    sentToKat: false,
-    sentToFamily: false,
-    sharedWin: false
-  });
 
   const startMorning = async () => {
     if (!state.geminiKey) {
@@ -144,7 +139,6 @@ export const MorningView = () => {
       duration: durationLabel as any,
       custom_data: {
         meditation_seconds: seconds,
-        validations,
         morning_routine: true
       },
       notes: journalEntry,
@@ -302,42 +296,6 @@ export const MorningView = () => {
               {['Drain', 'Neutral', 'Yield', 'Fluid'].map((label, i) => (
                 <span key={i} className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">{label}</span>
               ))}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Validation</h2>
-            <div className="flex flex-wrap gap-2">
-              <button 
-                onClick={() => setValidations(v => ({ ...v, sentToKat: !v.sentToKat }))}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all",
-                  validations.sentToKat ? "bg-red-50 border-red-200 text-red-600" : "bg-white border-gray-100 text-gray-400"
-                )}
-              >
-                <Heart size={14} className={validations.sentToKat ? "fill-current" : ""} />
-                Sent to Kat
-              </button>
-              <button 
-                onClick={() => setValidations(v => ({ ...v, sentToFamily: !v.sentToFamily }))}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all",
-                  validations.sentToFamily ? "bg-blue-50 border-blue-200 text-blue-600" : "bg-white border-gray-100 text-gray-400"
-                )}
-              >
-                <Users size={14} />
-                Sent to Family
-              </button>
-              <button 
-                onClick={() => setValidations(v => ({ ...v, sharedWin: !v.sharedWin }))}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all",
-                  validations.sharedWin ? "bg-purple-50 border-purple-200 text-purple-600" : "bg-white border-gray-100 text-gray-400"
-                )}
-              >
-                <Share2 size={14} />
-                Shared Win
-              </button>
             </div>
           </div>
 
