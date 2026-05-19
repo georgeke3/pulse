@@ -9,12 +9,14 @@ import {
   Calendar as CalendarIcon, ClipboardList, Plus, ChevronLeft, ChevronRight, X,
   Briefcase, Heart, Users, UsersRound, Zap, CheckSquare, Wallet, 
   Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen, HelpCircle, 
-  Library, Edit2, Check, Settings, Download, Upload
+  Library, Edit2, Check, Settings, Download, Upload, Coffee, BarChart3
 } from 'lucide-react';
 import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Event, Duration } from './types';
+import { MorningView } from './Morning';
+import { InsightsView } from './Insights';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -995,12 +997,9 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   );
 };
 
-import { InsightsView } from './Insights';
-import { BarChart3 } from 'lucide-react';
-
 export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [view, setView] = useState<'calendar' | 'ledger' | 'insights'>('calendar');
+  const [view, setView] = useState<'morning' | 'calendar' | 'ledger' | 'insights'>('morning');
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const navigateToLedger = (date: Date) => {
@@ -1011,7 +1010,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col max-w-md mx-auto relative shadow-2xl">
       <div className="flex-1 overflow-y-auto bg-white pb-20">
-        {view === 'calendar' ? (
+        {view === 'morning' ? (
+          <MorningView />
+        ) : view === 'calendar' ? (
           <CalendarView onSelectDate={navigateToLedger} onOpenSettings={() => setIsSettingsOpen(true)} />
         ) : view === 'ledger' ? (
           <DailyLedger date={selectedDate} onSelectDate={navigateToLedger} />
@@ -1021,6 +1022,13 @@ export default function App() {
       </div>
 
       <nav className="h-20 bg-white/80 backdrop-blur-md border-t border-gray-100 fixed bottom-0 w-full max-w-md flex items-center justify-around z-10 px-6">
+        <button
+          onClick={() => setView('morning')}
+          className={cn("flex flex-col items-center gap-1 transition-all", view === 'morning' ? "text-purple-600 scale-110" : "text-gray-300")}
+        >
+          <Coffee size={22} strokeWidth={3} />
+          <span className="text-[8px] font-black uppercase tracking-[0.2em]">Morning</span>
+        </button>
         <button
           onClick={() => setView('calendar')}
           className={cn("flex flex-col items-center gap-1 transition-all", view === 'calendar' ? "text-purple-600 scale-110" : "text-gray-300")}
