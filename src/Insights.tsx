@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend
 } from 'recharts';
@@ -79,9 +79,72 @@ const ReportFeedback = ({ reportId, initialFeedback, initialTruth }: {
   );
 };
 
+const CoachingReportItem = ({ report, deleteCoachingReport }: { report: any, deleteCoachingReport: (id: string) => void }) => {
+  const [isCollapsed, setIsCollapsed] = useState(true);
+
+  return (
+    <div className="p-6 rounded-3xl bg-gray-50 border border-gray-100 space-y-4 group transition-all duration-300">
+      <div className="flex justify-between items-center">
+        <div className="flex flex-col">
+          <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">
+            {format(parseISO(report.date), 'MMM d, h:mm a')}
+          </span>
+          {report.mode && (
+            <span className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mt-0.5">{report.mode} Analysis</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="text-[9px] font-black uppercase tracking-widest text-purple-400 hover:text-purple-600 transition-colors"
+          >
+            {isCollapsed ? 'Expand' : 'Collapse'}
+          </button>
+          <button 
+            onClick={() => {
+              if (confirm('Delete this analysis from history?')) {
+                deleteCoachingReport(report.id);
+              }
+            }}
+            className="text-gray-300 hover:text-red-500 transition-colors"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+
+      {!isCollapsed && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-top-1 duration-300">
+          <div className="space-y-4 text-left">
+            {report.content.split('\n').filter((p: string) => p.trim()).map((p: string, i: number) => (
+              <p key={i} className="text-gray-700 text-xs font-medium leading-relaxed">
+                {p}
+              </p>
+            ))}
+          </div>
+          
+          <div className="bg-white/50 p-5 rounded-[1.5rem] space-y-4">
+            <h4 className="text-[8px] font-black uppercase tracking-widest text-gray-400">Your Evaluation</h4>
+            <ReportFeedback 
+              reportId={report.id} 
+              initialFeedback={report.feedback} 
+              initialTruth={report.truthUtility}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CoachingHistoryModal = ({ onClose }: { onClose: () => void }) => {
   const { state, deleteCoachingReport } = useApp();
   
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, []);
+
   return (
     <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center z-50 p-4 backdrop-blur-md text-gray-900 text-left">
       <div className="bg-white w-full max-w-md rounded-[2.5rem] flex flex-col max-h-[80vh] overflow-hidden animate-in slide-in-from-bottom duration-500 relative">
@@ -92,52 +155,19 @@ const CoachingHistoryModal = ({ onClose }: { onClose: () => void }) => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-7 pt-4 space-y-6 text-left">
+        <div className="flex-1 overflow-y-auto p-7 pt-4 space-y-6 text-left no-scrollbar">
           {state.coachingHistory.length === 0 ? (
             <div className="text-center py-12">
               <Clock className="mx-auto text-gray-200 mb-4" size={48} />
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No history yet</p>
             </div>
           ) : (
-            state.coachingHistory.map(report => (
-              <div key={report.id} className="p-6 rounded-3xl bg-gray-50 border border-gray-100 space-y-4 group">
-                <div className="flex justify-between items-center">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">
-                      {format(parseISO(report.date), 'MMM d, h:mm a')}
-                    </span>
-                    {report.mode && (
-                      <span className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mt-0.5">{report.mode} Analysis</span>
-                    )}
-                  </div>
-                  <button 
-                    onClick={() => {
-                      if (confirm('Delete this analysis from history?')) {
-                        deleteCoachingReport(report.id);
-                      }
-                    }}
-                    className="text-gray-300 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {report.content.split('\n').filter(p => p.trim()).map((p, i) => (
-                    <p key={i} className="text-gray-700 text-[11px] font-medium leading-relaxed italic">
-                      {p}
-                    </p>
-                  ))}
-                </div>
-                
-                <div className="bg-white/50 p-4 rounded-2xl space-y-4">
-                  <h4 className="text-[8px] font-black uppercase tracking-widest text-gray-400">Feedback</h4>
-                  <ReportFeedback 
-                    reportId={report.id} 
-                    initialFeedback={report.feedback} 
-                    initialTruth={report.truthUtility}
-                  />
-                </div>
-              </div>
+            state.coachingHistory.map((report: any) => (
+              <CoachingReportItem 
+                key={report.id} 
+                report={report} 
+                deleteCoachingReport={deleteCoachingReport} 
+              />
             ))
           )}
         </div>
@@ -283,7 +313,7 @@ const AICoach = () => {
             <div className="space-y-2">
               <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Analysis Mode</label>
               <div className="flex flex-wrap gap-2">
-                {(['Standard', 'Action Plan', 'Philosophical'] as const).map(m => (
+                {(['Standard', 'Action Plan', 'Philosophical'] as const).map((m: any) => (
                   <button
                     key={m}
                     onClick={() => setMode(m)}
@@ -330,10 +360,10 @@ const AICoach = () => {
         )}
 
         {insight && !loading && (
-          <div className="space-y-6 animate-in fade-in duration-700">
+          <div className="space-y-8 animate-in fade-in duration-700 max-w-prose mx-auto">
             <div className="flex justify-between items-start">
-              <div className="space-y-4 text-left flex-1">
-                {insight.split('\n').filter(p => p.trim()).map((p, i) => (
+              <div className="space-y-5 text-left flex-1">
+                {insight.split('\n').filter((p: string) => p.trim()).map((p: string, i: number) => (
                   <p key={i} className="text-gray-200 text-sm font-medium leading-relaxed">
                     {p}
                   </p>

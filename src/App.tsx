@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { 
   format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths, addDays, subDays, startOfDay, parseISO 
 } from 'date-fns';
@@ -48,6 +48,10 @@ const getIcon = (category: string) => {
 };
 
 const MorningLaunchPad = ({ onTrigger }: { onTrigger: () => void }) => {
+  const { state } = useApp();
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const isComplete = state.days[todayStr]?.events.some(e => e.custom_data?.morning_routine === true);
+
   return (
     <div className="bg-gray-900 rounded-[2.5rem] p-6 shadow-2xl border border-gray-800 space-y-4">
       <div className="flex items-center gap-2 mb-2">
@@ -57,12 +61,24 @@ const MorningLaunchPad = ({ onTrigger }: { onTrigger: () => void }) => {
       <div className="grid grid-cols-2 gap-3">
         <button 
           onClick={onTrigger}
-          className="flex flex-col items-center justify-center p-4 bg-gray-800 rounded-3xl border border-gray-700 active:scale-95 transition-all group"
+          className={cn(
+            "flex flex-col items-center justify-center p-4 rounded-3xl border active:scale-95 transition-all group relative",
+            isComplete ? "bg-gray-800/50 border-gray-800" : "bg-gray-800 border-gray-700"
+          )}
         >
-          <div className="w-10 h-10 rounded-2xl bg-purple-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-            <Coffee size={20} className="text-white" strokeWidth={3} />
+          {!isComplete && (
+            <div className="absolute top-3 right-3 w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse shadow-lg shadow-purple-900" />
+          )}
+          <div className={cn(
+            "w-10 h-10 rounded-2xl flex items-center justify-center mb-3 transition-transform",
+            isComplete ? "bg-green-600/20 text-green-500" : "bg-purple-600 text-white group-hover:scale-110"
+          )}>
+            {isComplete ? <Check size={20} strokeWidth={3} /> : <Coffee size={20} strokeWidth={3} />}
           </div>
-          <span className="text-[10px] font-black text-gray-100 uppercase tracking-widest">Ritual</span>
+          <span className={cn(
+            "text-[10px] font-black uppercase tracking-widest",
+            isComplete ? "text-gray-500" : "text-gray-100"
+          )}>{isComplete ? 'Complete' : 'Ritual'}</span>
         </button>
         <button className="flex flex-col items-center justify-center p-4 bg-gray-800 rounded-3xl border border-gray-700 opacity-30 cursor-not-allowed">
           <div className="w-10 h-10 rounded-2xl bg-gray-700 flex items-center justify-center mb-3">
@@ -78,7 +94,7 @@ const MorningLaunchPad = ({ onTrigger }: { onTrigger: () => void }) => {
 // --- Components ---
 
 const CalendarView = ({ onSelectDate, onOpenMorning }: { onSelectDate: (date: Date) => void, onOpenMorning: () => void }) => {
-  const { state, getBanisterScore, getBanisterDetails, updateEvent, deleteEvent } = useApp();
+  const { state, getBanisterScore, getBanisterDetails, updateEvent, deleteEvent, moveEvent } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [inspectedEvent, setInspectedEvent] = useState<{ event: Event, dateStr: string } | null>(null);
   const [calendarMode, setCalendarMode] = useState<'readiness' | 'streaks'>('readiness');
@@ -174,7 +190,7 @@ const CalendarView = ({ onSelectDate, onOpenMorning }: { onSelectDate: (date: Da
   const readinessTimeline = useMemo(() => {
     const now = startOfDay(new Date());
     const timelineStart = subDays(now, 7);
-    const timelineEnd = addDays(now, 7);
+    const timelineEnd = addDays(now, 14);
     const timelineDays = eachDayOfInterval({ start: timelineStart, end: timelineEnd });
 
     return timelineDays.map(date => {
@@ -329,7 +345,7 @@ const CalendarView = ({ onSelectDate, onOpenMorning }: { onSelectDate: (date: Da
               <div className="text-2xl font-black text-gray-900">{getBanisterScore(new Date())}</div>
               <div className="text-[8px] font-black uppercase tracking-widest text-gray-400">Mental Bank Readiness</div>
             </div>
-            <div className="text-[8px] font-black text-purple-600 uppercase tracking-widest pb-1">±7 Day Projection</div>
+            <div className="text-[8px] font-black text-purple-600 uppercase tracking-widest pb-1">±14 Day Projection</div>
           </div>
           <div className="h-32 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -340,7 +356,7 @@ const CalendarView = ({ onSelectDate, onOpenMorning }: { onSelectDate: (date: Da
                   axisLine={false} 
                   tickLine={false} 
                   tick={{ fontSize: 7, fontWeight: 900, fill: '#cbd5e1' }}
-                  interval="preserveStartEnd"
+                  interval={2}
                 />
                 <YAxis 
                   axisLine={false}
@@ -511,13 +527,19 @@ const CalendarView = ({ onSelectDate, onOpenMorning }: { onSelectDate: (date: Da
           dateStr={inspectedEvent.dateStr}
           existingEvent={inspectedEvent.event}
           onClose={() => setInspectedEvent(null)}
-          onSubmit={(ev) => {
-            updateEvent(inspectedEvent.dateStr, { ...ev, id: inspectedEvent.event.id } as Event);
+          onSubmit={(ev, newDate) => {
+            if (inspectedEvent.dateStr !== newDate) {
+              moveEvent(inspectedEvent.dateStr, newDate, { ...ev, id: inspectedEvent.event.id } as Event);
+            } else {
+              updateEvent(inspectedEvent.dateStr, { ...ev, id: inspectedEvent.event.id } as Event);
+            }
             setInspectedEvent(null);
           }}
           onDelete={(id) => {
-            deleteEvent(inspectedEvent.dateStr, id);
-            setInspectedEvent(null);
+            if (confirm('Delete this instance?')) {
+              deleteEvent(inspectedEvent.dateStr, id);
+              setInspectedEvent(null);
+            }
           }}
         />
       )}
@@ -526,7 +548,7 @@ const CalendarView = ({ onSelectDate, onOpenMorning }: { onSelectDate: (date: Da
 };
 
 const DailyLedger = ({ date, onSelectDate }: { date: Date, onSelectDate: (d: Date) => void }) => {
-  const { state, updateAnswers, addEvent, updateEvent, deleteEvent, updateDayNote, updateDayMotto, addMotto, getBanisterScore } = useApp();
+  const { state, updateAnswers, addEvent, updateEvent, deleteEvent, updateDayNote, updateDayMotto, addMotto, getBanisterScore, moveEvent } = useApp();
   const dateStr = format(date, 'yyyy-MM-dd');
   const dayData = state.days[dateStr] || { events: [], answers: {}, note: '', motto: '' };
   const score = getBanisterScore(date);
@@ -539,24 +561,6 @@ const DailyLedger = ({ date, onSelectDate }: { date: Date, onSelectDate: (d: Dat
   const [isNoteCollapsed, setIsNoteCollapsed] = useState(() => {
     return localStorage.getItem('note_collapsed') === 'true';
   });
-
-  const touchStart = useRef<number | null>(null);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStart.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart.current) return;
-    const touchEnd = e.changedTouches[0].clientX;
-    const distance = touchEnd - touchStart.current;
-    if (distance > 100) {
-      onSelectDate(subDays(date, 1));
-    } else if (distance < -100) {
-      onSelectDate(addDays(date, 1));
-    }
-    touchStart.current = null;
-  };
 
   const togglePulse = () => {
     const newState = !isPulseCollapsed;
@@ -573,11 +577,7 @@ const DailyLedger = ({ date, onSelectDate }: { date: Date, onSelectDate: (d: Dat
   const isLateNight = isToday(date) && new Date().getHours() < 6;
 
   return (
-    <div 
-      className="flex flex-col h-full bg-white min-h-screen"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="flex flex-col h-full bg-white min-h-screen">
       {isLateNight && (
         <div className="bg-amber-50 px-6 py-3 border-b border-amber-100 flex items-center justify-between animate-in slide-in-from-top duration-300">
           <p className="text-[10px] font-bold text-amber-700">
@@ -593,18 +593,8 @@ const DailyLedger = ({ date, onSelectDate }: { date: Date, onSelectDate: (d: Dat
       )}
       <header className="px-6 pt-12 pb-4 flex justify-between items-start bg-white">
         <div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => onSelectDate(subDays(date, 1))} className="text-gray-300 active:text-purple-600 transition-colors">
-              <ChevronLeft size={24} strokeWidth={3}/>
-            </button>
-            <div>
-              <h1 className="text-3xl font-black text-gray-900 tracking-tight">{format(date, 'MMM d')}</h1>
-              <p className="text-gray-500 font-bold">{format(date, 'EEEE')}</p>
-            </div>
-            <button onClick={() => onSelectDate(addDays(date, 1))} className="text-gray-300 active:text-purple-600 transition-colors">
-              <ChevronRight size={24} strokeWidth={3}/>
-            </button>
-          </div>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">{format(date, 'MMM d')}</h1>
+          <p className="text-gray-500 font-bold">{format(date, 'EEEE')}</p>
         </div>
         <div className={cn(
           "text-4xl font-black rounded-3xl p-4 min-w-[80px] text-center",
@@ -725,37 +715,44 @@ const DailyLedger = ({ date, onSelectDate }: { date: Date, onSelectDate: (d: Dat
             ) : (
               dayData.events.map(event => {
                 const Icon = getIcon(event.category);
+                const isWin = event.type === 'win';
                 return (
                   <button
                     key={event.id}
                     onClick={() => setModalMode({ open: true, event })}
-                    className="w-full group p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-all text-left space-y-2 relative overflow-hidden"
+                    className={cn(
+                      "w-full group p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-all text-left space-y-2 relative overflow-hidden",
+                      isWin && "border-purple-100 shadow-purple-50"
+                    )}
                   >
                     {event.isExpected && (
                       <div className="absolute top-0 right-0 bg-purple-100 text-purple-600 text-[7px] font-black px-2 py-0.5 rounded-bl-lg tracking-widest uppercase">
-                        Expected
+                        Planned
                       </div>
                     )}
-                    <div className="flex items-center justify-between">                      <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
                         <div className={cn(
                           "w-10 h-10 rounded-xl flex items-center justify-center",
-                          event.type === 'recovery' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+                          isWin ? "bg-purple-50 text-purple-600" : (event.type === 'recovery' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600")
                         )}>
                           <Icon size={20} strokeWidth={3} />
                         </div>
                         <div>
                           <div className="text-xs font-black text-gray-900">{event.category}</div>
                           <div className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                            {event.duration} • obj {event.objectiveIntensity} • sub {event.intensity}
+                            {isWin ? event.duration : `${event.duration} • obj ${event.objectiveIntensity} • sub ${event.intensity}`}
                           </div>
                         </div>
                       </div>
-                      <div className={cn(
-                        "text-lg font-black",
-                        event.type === 'recovery' ? "text-green-600" : "text-red-600"
-                      )}>
-                        {event.type === 'recovery' ? `+${event.intensity}` : `-${event.intensity}`}
-                      </div>
+                      {!isWin && (
+                        <div className={cn(
+                          "text-lg font-black",
+                          event.type === 'recovery' ? "text-green-600" : "text-red-600"
+                        )}>
+                          {event.type === 'recovery' ? `+${event.intensity}` : `-${event.intensity}`}
+                        </div>
+                      )}
                     </div>
                     {event.notes && (
                       <div className="pl-13">
@@ -770,24 +767,50 @@ const DailyLedger = ({ date, onSelectDate }: { date: Date, onSelectDate: (d: Dat
         </section>
       </main>
 
-      <button
-        onClick={() => setModalMode({ open: true })}
-        className="fixed bottom-24 right-8 w-16 h-16 bg-gray-900 text-white rounded-3xl shadow-2xl flex items-center justify-center active:scale-90 transition-all z-20"
-      >
-        <Plus size={32} strokeWidth={3} />
-      </button>
+      {/* Floating Bottom Navigator */}
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-6 z-20 w-full max-w-xs justify-center">
+        <button 
+          onClick={() => onSelectDate(subDays(date, 1))}
+          className="w-12 h-12 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 flex items-center justify-center text-gray-400 active:scale-90 active:text-purple-600 transition-all"
+        >
+          <ChevronLeft size={24} strokeWidth={3} />
+        </button>
+        
+        <button
+          onClick={() => setModalMode({ open: true })}
+          className="w-16 h-16 bg-gray-900 text-white rounded-3xl shadow-2xl flex items-center justify-center active:scale-90 transition-all group"
+        >
+          <Plus size={32} strokeWidth={3} className="group-hover:rotate-90 transition-transform duration-300" />
+        </button>
+
+        <button 
+          onClick={() => onSelectDate(addDays(date, 1))}
+          className="w-12 h-12 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 flex items-center justify-center text-gray-400 active:scale-90 active:text-purple-600 transition-all"
+        >
+          <ChevronRight size={24} strokeWidth={3} />
+        </button>
+      </div>
 
       {modalMode.open && (
         <AddEventModal 
           dateStr={dateStr} 
           existingEvent={modalMode.event}
           onClose={() => setModalMode({ open: false })} 
-          onDelete={(id) => { deleteEvent(dateStr, id); setModalMode({ open: false }); }}
-          onSubmit={(ev) => {
+          onDelete={(id) => {
+            if (confirm('Delete this instance?')) {
+              deleteEvent(dateStr, id); 
+              setModalMode({ open: false });
+            }
+          }}
+          onSubmit={(ev, newDate) => {
             if (modalMode.event) {
-              updateEvent(dateStr, { ...ev, id: modalMode.event.id } as Event);
+              if (dateStr !== newDate) {
+                moveEvent(dateStr, newDate, { ...ev, id: modalMode.event.id } as Event);
+              } else {
+                updateEvent(dateStr, { ...ev, id: modalMode.event.id } as Event);
+              }
             } else {
-              addEvent(dateStr, ev as Omit<Event, 'id'>);
+              addEvent(newDate, ev as Omit<Event, 'id'>);
             }
             setModalMode({ open: false });
           }}
@@ -809,6 +832,12 @@ const DailyLedger = ({ date, onSelectDate }: { date: Date, onSelectDate: (d: Dat
 
 const MottoLibraryModal = ({ onClose, onSelect }: { onClose: () => void, onSelect: (m: string) => void }) => {
   const { state, deleteMotto, updateMotto } = useApp();
+  
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, []);
+
   const [editingMotto, setEditingMotto] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
@@ -1007,10 +1036,17 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   dateStr: string, 
   existingEvent?: Event, 
   onClose: () => void, 
-  onSubmit: (ev: any) => void,
+  onSubmit: (ev: any, newDate: string) => void,
   onDelete: (id: string) => void
 }) => {
   const { state } = useApp();
+  const [targetDate, setTargetDate] = useState(dateStr);
+  
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, []);
+
   const [type, setType] = useState<EventType>(existingEvent?.type || 'training');
   const [category, setCategory] = useState(existingEvent?.category || (type === 'training' ? state.config.categories.training[0] : type === 'recovery' ? state.config.categories.recovery[0] : 'Win'));
   const [intensity, setIntensity] = useState(existingEvent?.intensity ?? 2); // Subjective (1-4)
@@ -1020,7 +1056,9 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   const [streakCategory, setStreakCategory] = useState(existingEvent?.streakCategory || '');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const categories = type === 'training' ? state.config.categories.training : type === 'recovery' ? state.config.categories.recovery : ['Win'];
+  const categories = type === 'win' 
+    ? [...state.config.categories.training, ...state.config.categories.recovery] 
+    : (type === 'training' ? state.config.categories.training : state.config.categories.recovery);
   const scales = type === 'training' ? state.config.scales.training : state.config.scales.recovery;
 
   const DURATION_OPTS: { val: Duration, label: string }[] = [
@@ -1067,6 +1105,16 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
           </div>
 
           <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-400">Target Date</label>
+              <input 
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                className="w-full p-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-bold text-xs"
+              />
+            </div>
+
             {type !== 'win' && (
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Category</label>
@@ -1229,19 +1277,19 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
             {!showDeleteConfirm && (
               <button
                 onClick={() => {
-                  const automatedIsExpected = parseISO(dateStr) > startOfDay(new Date());
+                  const automatedIsExpected = parseISO(targetDate) > startOfDay(new Date());
                   onSubmit({ 
                     type, 
                     category, 
                     intensity: type === 'win' ? 0 : intensity, 
                     objectiveIntensity: type === 'win' ? 0 : objIntensity, 
                     duration, 
-                    custom_data: {}, 
+                    custom_data: existingEvent?.custom_data || {}, 
                     notes, 
                     isExpected: automatedIsExpected, 
-                    date: dateStr,
+                    date: targetDate,
                     streakCategory: streakCategory || undefined
-                  });
+                  }, targetDate);
                 }}
                 className="flex-1 py-4 bg-gray-900 text-white rounded-2xl font-black text-base active:scale-95 transition-all shadow-lg shadow-gray-200"
               >

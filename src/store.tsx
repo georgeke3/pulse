@@ -1,155 +1,64 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { AppState, Config, Event, CoachingReport } from './types';
+import type { AppState, Config, Event, CoachingReport, EventType } from './types';
 import { format, subDays, startOfDay } from 'date-fns';
 
 const DEFAULT_CONFIG: Config = {
   categories: {
     training: ["Work", "Nucleus", "Family", "Friends", "Chaos", "Baseline", "Finances"],
-    recovery: ["Walk", "Nap", "Meditation", "Presence check", "Family", "Friends", "Creative", "Nucleus", "Fun", "Journaling"]
+    recovery: ["Walk", "Nap", "Meditation", "Presence check", "Creative", "Fun", "Journaling"]
   },
   scales: {
     training: {
       objective: [
-        { value: 1, label: "Admin/Maintenance", description: "Routine errands, laundry, emails, basic house chores." },
-        { value: 2, label: "Execution", description: "Standard workday, grocery shopping, routine logistics." },
-        { value: 3, label: "Heavy Load", description: "Intense study, complex project, minor house repairs, deep focus." },
-        { value: 4, label: "The Heavyweight", description: "High-stakes meetings, production outages, moving house, hard conversations." },
-        { value: 5, label: "Peak Intensity", description: "Major life pivot, acute crisis, maximum professional/personal risk." },
-        { value: 6, label: "Massive Setback", description: "Project failure, severe financial turbulence, major social fallout." },
-        { value: 7, label: "One-Way Doors", description: "Major family disputes, significant life changes, financial crossroads." },
-        { value: 8, label: "Severe Volatility", description: "Sustained health or personal crisis in your immediate circle." },
-        { value: 9, label: "Profound Trauma", description: "System-shocking events, deep personal loss, life-altering shocks." },
-        { value: 10, label: "Theoretical Max", description: "The absolute limit of sustainable human load." }
+        { value: 1, label: "Trivial", description: "Minimal mental energy" },
+        { value: 2, label: "Routine", description: "Standard daily execution" },
+        { value: 3, label: "Engagement", description: "Requires focus" },
+        { value: 5, label: "Deep Work", description: "Sustained high intensity" },
+        { value: 8, label: "Marathon", description: "Draining sustained effort" },
+        { value: 10, label: "Overload", description: "Full CNS burnout risk" }
       ],
       subjective: [
-        { value: 1, label: "Flow / Minimal Cost", description: "Zero internal resistance. Activity felt restorative or effortless." },
-        { value: 2, label: "Steady Burn", description: "Noticeable fuel consumption, but sustainable and calm." },
-        { value: 3, label: "Grinding", description: "Heavy internal resistance, anxiety, or significant willpower required." },
-        { value: 4, label: "Redlined", description: "Maximum internal toll. White-knuckled survival or total exhaustion." }
+        { value: 1, label: "Fluid", description: "Felt effortless" },
+        { value: 2, label: "Yielding", description: "Standard cost" },
+        { value: 3, label: "Heavy", description: "Harder than it should be" },
+        { value: 4, label: "Grind", description: "Pure willpower used" }
       ]
     },
     recovery: {
       objective: [
-        { value: 0, label: "Neutral", description: "No meaningful physiological or psychological change." },
-        { value: 1, label: "Micro-Reset", description: "5-min walk, physiological sigh, quick stretch." },
-        { value: 2, label: "Standard Unplug", description: "Reading fiction, light movement, evening offline, social connection." },
-        { value: 3, label: "Deep Down-Regulation", description: "20+ min meditation, perfect sleep, high-quality leisure." },
-        { value: 4, label: "The Payoff", description: "Restorative weekend, celebrating a major milestone, deep relaxation." },
-        { value: 5, label: "Profound Reset", description: "Deep connection with loved ones, breakthrough perspective, long rest." },
-        { value: 6, label: "Sustained Immersion", description: "Multi-day retreat, total removal from stressors." },
-        { value: 7, label: "Life-Altering", description: "Psychological breakthrough, fundamental upgrade in peace." },
-        { value: 8, label: "Era Alignment", description: "Daily habits, goals, and environment in total harmony." },
-        { value: 9, label: "Generational Peace", description: "Security and legacy for family and self feel firmly established." },
-        { value: 10, label: "Absolute Sync", description: "Complete, profound synchronization on all physiological and mental axes." }
+        { value: 1, label: "Micro", description: "5-15 min reset" },
+        { value: 2, label: "Standard", description: "30-60 min focus" },
+        { value: 3, label: "Deep", description: "2h+ dedicated restorative" },
+        { value: 5, label: "Sacred", description: "Half-day reset" }
       ],
       subjective: [
-        { value: 0, label: "Neutral", description: "Felt neither rested nor more drained." },
-        { value: 1, label: "Mild Yield", description: "Didn't fully refill, but stopped the energy leak." },
-        { value: 2, label: "Maintenance", description: "Solid baseline reset. Feeling ready for the next challenge." },
-        { value: 3, label: "Deeply Restored", description: "Noticeably lighter and more optimistic. Anxiety cleared." },
-        { value: 4, label: "Overflowing", description: "Radiating energy. Profoundly energized and ready for anything." }
+        { value: 0, label: "Neutral", description: "No noticeable shift" },
+        { value: 1, label: "Mild", description: "Slightly better" },
+        { value: 2, label: "Maintenance", description: "Held the line" },
+        { value: 3, label: "Deeply Restored", description: "System rebooted" },
+        { value: 4, label: "Overflowing", description: "Ready for absolute chaos" }
       ]
     }
   },
   daily_questions: [
     {
-      id: "driver",
-      prompt: "1. Motivation (Driver)",
+      id: "motivation",
+      prompt: "How high was your 'want-to' (vs 'have-to') today?",
       options: [
-        { value: 1, label: "Defensive", description: "Anxiety blinders up; acting to prevent failure." },
-        { value: 2, label: "Grinding", description: "Pushing through friction out of raw discipline." },
-        { value: 3, label: "Proactive", description: "Steady execution with clear, calm purpose." },
-        { value: 4, label: "Inspired", description: "Acting purely from excitement; work feels like play." }
+        { value: 1, label: "Pure Resistance", description: "Dragging every step" },
+        { value: 2, label: "Standard", description: "Doing what needs to be done" },
+        { value: 3, label: "Hungry", description: "Proactively seeking load" },
+        { value: 4, label: "Apex", description: "Total alignment" }
       ]
     },
     {
-      id: "frame",
-      prompt: "2. Execution (Frame)",
+      id: "presence",
+      prompt: "How frequently were you 'lost in thought'?",
       options: [
-        { value: 1, label: "Erratic", description: "Tunnel vision, jerky movements, hijacked by inputs." },
-        { value: 2, label: "Rushed", description: "Operating slightly too fast with physical tension." },
-        { value: 3, label: "Composed", description: "Standard execution; handling friction smoothly." },
-        { value: 4, label: "Poised", description: "Absolute control; dictating the pace of the chaos." }
-      ]
-    },
-    {
-      id: "ego",
-      prompt: "3. Identity (Ego)",
-      options: [
-        { value: 1, label: "Unstable", description: "Wildly overconfident/loud or deeply insecure." },
-        { value: 2, label: "Drifting", description: "Catching minor swings in ego or self-doubt." },
-        { value: 3, label: "Grounded", description: "Stable sense of self; doing the work without ego." },
-        { value: 4, label: "Centered", description: "Supreme confidence paired with deep humility." }
-      ]
-    },
-    {
-      id: "outlook",
-      prompt: "4. Capacity (Outlook)",
-      options: [
-        { value: 1, label: "Cynical", description: "Goals feel impossible; even fun things are draining." },
-        { value: 2, label: "Numb", description: "Flatly going through the motions to survive." },
-        { value: 3, label: "Present", description: "Reasonably optimistic and enjoying the downtime." },
-        { value: 4, label: "Expansive", description: "Deeply joyful; the future feels bright and reachable." }
-      ]
-    },
-    {
-      id: "relational",
-      prompt: "5. Relational (Connection)",
-      options: [
-        { value: 1, label: "Transactional", description: "Viewing other people as obstacles or resources." },
-        { value: 2, label: "Obligated", description: "Engaging out of duty, but mentally checked out." },
-        { value: 3, label: "Engaged", description: "Present, listening, and maintaining standard social baseline." },
-        { value: 4, label: "Connected", description: "Highly empathetic; drawing actual energy from interactions." }
-      ]
-    },
-    {
-      id: "ram",
-      prompt: "6. Cognition (RAM)",
-      options: [
-        { value: 1, label: "Fried", description: "Heavy brain fog; cannot hold variables in working memory." },
-        { value: 2, label: "Sluggish", description: "Requiring heavy willpower or caffeine to stay locked in." },
-        { value: 3, label: "Clear", description: "Standard computing power and normal baseline focus." },
-        { value: 4, label: "Sharp", description: "Total lucidity; effortless pattern recognition and flow." }
-      ]
-    },
-    {
-      id: "gratitude",
-      prompt: "7. Perspective (Gratitude)",
-      options: [
-        { value: 1, label: "Resentful", description: "Angry victim mindset; feeling the world is unfair." },
-        { value: 2, label: "Entitled", description: "Taking the baseline for granted; hyper-focused on flaws." },
-        { value: 3, label: "Appreciative", description: "Solid recognition of the good (health, family, job)." },
-        { value: 4, label: "Reborn", description: "Near-death level gratitude simply to be alive and breathing." }
-      ]
-    },
-    {
-      id: "boundary",
-      prompt: "8. Boundary (Self vs. Others)",
-      options: [
-        { value: 1, label: "Polarized", description: "Extreme martyrdom (abandoning self) or extreme selfishness." },
-        { value: 2, label: "Tilted", description: "Noticeably over-giving or shutting people out entirely." },
-        { value: 3, label: "Managed", description: "Holding boundaries, but it requires uncomfortable effort." },
-        { value: 4, label: "Integrated", description: "Effortless balance of deep empathy and ironclad boundaries." }
-      ]
-    },
-    {
-      id: "responsibility",
-      prompt: "9. Responsibility (Burden)",
-      options: [
-        { value: 1, label: "Dysregulated", description: "Crushed by uncontrollable weight, or entirely careless." },
-        { value: 2, label: "Slipping", description: "Feeling anxiety spike, or catching urges to drop the ball." },
-        { value: 3, label: "Grounded", description: "Carrying a standard, manageable daily load." },
-        { value: 4, label: "Calibrated", description: "Taking absolute ownership of the controllable; releasing the rest." }
-      ]
-    },
-    {
-      id: "agency",
-      prompt: "10. Agency (Control)",
-      options: [
-        { value: 1, label: "Delusional", description: "Helpless victim (NPC) or frantic micromanager (Tyrant)." },
-        { value: 2, label: "Rigid", description: "Easily frustrated when the world doesn't execute your exact plan." },
-        { value: 3, label: "Active", description: "Taking healthy initiative and adjusting to standard obstacles." },
-        { value: 4, label: "Fluid", description: "Shaping reality where leveraged; flowing like water around the rest." }
+        { value: 1, label: "Fully Drifted", description: "Disconnected from now" },
+        { value: 2, label: "Standard", description: "Normal mental noise" },
+        { value: 3, label: "Sharp", description: "Noticeably present" },
+        { value: 4, label: "Locked In", description: "Deep presence all day" }
       ]
     }
   ]
@@ -183,13 +92,14 @@ interface AppContextType {
   getBanisterScore: (date: Date) => number;
   getBanisterDetails: (date: Date) => { 
     score: number; 
-    topContributors: Array<{ category: string, impact: number, type: 'training' | 'recovery' | 'win', event: Event }>;
-    upcomingCliffs: Array<{ category: string, impact: number, daysRemaining: number, type: 'training' | 'recovery' | 'win', event: Event }>;
+    topContributors: Array<{ category: string, impact: number, type: EventType, event: Event }>;
+    upcomingCliffs: Array<{ category: string, impact: number, daysRemaining: number, type: EventType, event: Event }>;
   };
   saveCoachingReport: (content: string, dataSnapshot: any, mode: 'Standard' | 'Action Plan' | 'Philosophical') => string;
   updateCoachingReport: (id: string, updates: Partial<Pick<CoachingReport, 'feedback' | 'truthUtility'>>) => void;
   deleteCoachingReport: (id: string) => void;
   importState: (json: string) => void;
+  moveEvent: (oldDate: string, newDate: string, event: Event) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -403,6 +313,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const moveEvent = (oldDate: string, newDate: string, event: Event) => {
+    setState(prev => {
+      const oldDayData = prev.days[oldDate];
+      if (!oldDayData) return prev;
+      
+      const newDayData = prev.days[newDate] || { events: [], answers: {}, note: '' };
+      
+      const updatedOldEvents = oldDayData.events.filter(e => e.id !== event.id);
+      const updatedNewEvents = [...newDayData.events, { ...event, date: newDate }];
+      
+      return {
+        ...prev,
+        days: {
+          ...prev.days,
+          [oldDate]: { ...oldDayData, events: updatedOldEvents },
+          [newDate]: { ...newDayData, events: updatedNewEvents }
+        }
+      };
+    });
+  };
+
   const getBanisterScore = (targetDate: Date) => {
     return getBanisterDetails(targetDate).score;
   };
@@ -413,7 +344,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let fitness = 0;
     let fatigue = 0;
-    const contributors: Array<{ category: string, impact: number, type: 'training' | 'recovery' | 'win', date: string, event: Event }> = [];
+    const contributors: Array<{ category: string, impact: number, type: EventType, date: string, event: Event }> = [];
 
     for (let i = 0; i < windowDays; i++) {
       const d = subDays(end, i);
@@ -499,7 +430,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteCoachingReport, 
       importState, 
       getBanisterScore,
-      getBanisterDetails 
+      getBanisterDetails,
+      moveEvent
     }}>
       {children}
     </AppContext.Provider>
