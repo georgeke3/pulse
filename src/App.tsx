@@ -1340,7 +1340,7 @@ export default function App() {
       <nav className="h-20 bg-white/80 backdrop-blur-md border-t border-gray-100 fixed bottom-0 w-full max-w-md flex items-center justify-around z-10 px-6">
         <button
           onClick={() => setView('home')}
-          className={cn("flex flex-col items-center gap-1 transition-all", (view === 'home' || view === 'morning') ? "text-purple-600 scale-110" : "text-gray-300")}
+          className={cn("flex flex-col items-center gap-1 transition-all", (view === 'home' || view === 'morning' || view === 'focus') ? "text-purple-600 scale-110" : "text-gray-300")}
         >
           <Home size={22} strokeWidth={3} />
           <span className="text-[8px] font-black uppercase tracking-[0.2em]">Pulse</span>
