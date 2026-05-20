@@ -518,7 +518,7 @@ export const InsightsView = () => {
           <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Daily Matrix Trends</h2>
           <div className="flex flex-wrap gap-2 text-left">
             {state.config.daily_questions.map(q => {
-              const label = q.prompt.includes('.') ? q.prompt.split('.')[1].split('(')[0].trim() : q.prompt.split('(')[0].trim();
+              const label = q.id.charAt(0).toUpperCase() + q.id.slice(1);
               return (
                 <button
                   key={q.id}

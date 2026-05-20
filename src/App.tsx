@@ -40,6 +40,7 @@ const CATEGORY_ICONS: Record<string, any> = {
   "Creative": Palette,
   "Fun": Gamepad2,
   "Journaling": BookOpen,
+  "Focus Time": Brain,
   // Wins
   "Win": Trophy,
 };
@@ -899,7 +900,16 @@ const MottoLibraryModal = ({ onClose, onSelect }: { onClose: () => void, onSelec
                       </button>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => startEdit(m)} className="p-2 text-gray-400 hover:text-purple-600"><Edit2 size={16}/></button>
-                        <button onClick={() => deleteMotto(m)} className="p-2 text-gray-400 hover:text-red-500"><X size={16}/></button>
+                        <button 
+                          onClick={() => {
+                            if (confirm('Delete this motto from library?')) {
+                              deleteMotto(m);
+                            }
+                          }} 
+                          className="p-2 text-gray-400 hover:text-red-500"
+                        >
+                          <X size={16}/>
+                        </button>
                       </div>
                     </>
                   )}
@@ -1052,7 +1062,7 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   }, []);
 
   const [type, setType] = useState<EventType>(existingEvent?.type || 'training');
-  const [category, setCategory] = useState(existingEvent?.category || (type === 'training' ? state.config.categories.training[0] : type === 'recovery' ? state.config.categories.recovery[0] : 'Win'));
+  const [category, setCategory] = useState(existingEvent?.category || (type === 'training' ? state.config.categories.training[0] : type === 'recovery' ? state.config.categories.recovery[0] : state.config.categories.training[0]));
   const [intensity, setIntensity] = useState(existingEvent?.intensity ?? 2); // Subjective (1-4)
   const [objIntensity, setObjIntensity] = useState(existingEvent?.objectiveIntensity ?? 2); // Objective (1-10)
   const [duration, setDuration] = useState<Duration>(existingEvent?.duration || '<1h');
