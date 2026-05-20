@@ -16,6 +16,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Event, Duration, EventType } from './types';
 import { MorningView } from './Morning';
+import { FocusView } from './Focus';
 import { InsightsView } from './Insights';
 
 function cn(...inputs: ClassValue[]) {
@@ -47,7 +48,7 @@ const getIcon = (category: string) => {
   return CATEGORY_ICONS[category] || HelpCircle;
 };
 
-const MorningLaunchPad = ({ onTrigger }: { onTrigger: () => void }) => {
+const MorningLaunchPad = ({ onTrigger }: { onTrigger: (v: 'morning' | 'focus') => void }) => {
   const { state } = useApp();
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const isComplete = state.days[todayStr]?.events.some(e => e.custom_data?.morning_routine === true);
@@ -56,11 +57,11 @@ const MorningLaunchPad = ({ onTrigger }: { onTrigger: () => void }) => {
     <div className="bg-gray-900 rounded-[2.5rem] p-6 shadow-2xl border border-gray-800 space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <Sparkles size={16} className="text-purple-400" />
-        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Morning Launch Pad</h2>
+        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Daily Activation</h2>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <button 
-          onClick={onTrigger}
+          onClick={() => onTrigger('morning')}
           className={cn(
             "flex flex-col items-center justify-center p-4 rounded-3xl border active:scale-95 transition-all group relative",
             isComplete ? "bg-gray-800/50 border-gray-800" : "bg-gray-800 border-gray-700"
@@ -78,13 +79,16 @@ const MorningLaunchPad = ({ onTrigger }: { onTrigger: () => void }) => {
           <span className={cn(
             "text-[10px] font-black uppercase tracking-widest",
             isComplete ? "text-gray-500" : "text-gray-100"
-          )}>{isComplete ? 'Complete' : 'Ritual'}</span>
+          )}>{isComplete ? 'Done' : 'Ritual'}</span>
         </button>
-        <button className="flex flex-col items-center justify-center p-4 bg-gray-800 rounded-3xl border border-gray-700 opacity-30 cursor-not-allowed">
-          <div className="w-10 h-10 rounded-2xl bg-gray-700 flex items-center justify-center mb-3">
-            <Zap size={20} className="text-gray-500" />
+        <button 
+          onClick={() => onTrigger('focus')}
+          className="flex flex-col items-center justify-center p-4 bg-gray-800 border-gray-700 rounded-3xl border active:scale-95 transition-all group"
+        >
+          <div className="w-10 h-10 rounded-2xl bg-gray-700 text-white flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <Zap size={20} className="text-gray-100" fill="currentColor" />
           </div>
-          <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Focus</span>
+          <span className="text-[10px] font-black text-gray-100 uppercase tracking-widest">Focus</span>
         </button>
       </div>
     </div>
@@ -93,7 +97,7 @@ const MorningLaunchPad = ({ onTrigger }: { onTrigger: () => void }) => {
 
 // --- Components ---
 
-const CalendarView = ({ onSelectDate, onOpenMorning }: { onSelectDate: (date: Date) => void, onOpenMorning: () => void }) => {
+const CalendarView = ({ onSelectDate, onOpenModule }: { onSelectDate: (date: Date) => void, onOpenModule: (v: 'morning' | 'focus') => void }) => {
   const { state, getBanisterScore, getBanisterDetails, updateEvent, deleteEvent, moveEvent } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [inspectedEvent, setInspectedEvent] = useState<{ event: Event, dateStr: string } | null>(null);
@@ -207,11 +211,7 @@ const CalendarView = ({ onSelectDate, onOpenMorning }: { onSelectDate: (date: Da
   }, [state.days, getBanisterScore]);
 
   return (
-    <div 
-      className="p-6 bg-white min-h-screen"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="p-6 bg-white min-h-screen">
       <header className="mb-8 space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -224,7 +224,7 @@ const CalendarView = ({ onSelectDate, onOpenMorning }: { onSelectDate: (date: Da
           </div>
         </div>
 
-        <MorningLaunchPad onTrigger={onOpenMorning} />
+        <MorningLaunchPad onTrigger={onOpenModule} />
 
         <div className="flex justify-between items-center">
           {!isSameMonth(currentMonth, new Date()) && (
@@ -262,7 +262,11 @@ const CalendarView = ({ onSelectDate, onOpenMorning }: { onSelectDate: (date: Da
         </div>
       </header>
 
-      <div className="grid grid-cols-7 gap-y-4 gap-x-2">
+      <div 
+        className="grid grid-cols-7 gap-y-4 gap-x-2"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
           <div key={d} className="text-center text-[10px] font-black text-gray-400 uppercase tracking-widest pb-2">{d}</div>
         ))}
@@ -1304,7 +1308,7 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
 };
 
 export default function App() {
-  const [view, setView] = useState<'home' | 'morning' | 'ledger' | 'insights' | 'settings'>('home');
+  const [view, setView] = useState<'home' | 'morning' | 'focus' | 'ledger' | 'insights' | 'settings'>('home');
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Handle scroll locking for modals (e.g. AddEventModal, though it's technically handled by 'fixed')
@@ -1319,9 +1323,11 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 flex flex-col max-w-md mx-auto relative shadow-2xl overflow-hidden">
       <div className="flex-1 overflow-y-auto bg-white pb-20 no-scrollbar">
         {view === 'home' ? (
-          <CalendarView onSelectDate={navigateToLedger} onOpenMorning={() => setView('morning')} />
+          <CalendarView onSelectDate={navigateToLedger} onOpenModule={(v) => setView(v)} />
         ) : view === 'morning' ? (
           <MorningView onBack={() => setView('home')} />
+        ) : view === 'focus' ? (
+          <FocusView onBack={() => setView('home')} />
         ) : view === 'ledger' ? (
           <DailyLedger date={selectedDate} onSelectDate={navigateToLedger} />
         ) : view === 'insights' ? (
