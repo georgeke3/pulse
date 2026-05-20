@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Check, X, RotateCcw, Undo2, Zap, Play, Square } from 'lucide-react';
 import { useApp } from './store';
@@ -29,6 +29,29 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
   const [notes, setNotes] = useState('');
   const [subjectiveYield, setSubjectiveYield] = useState(2);
 
+  // High-DPI Canvas Scaling
+  useEffect(() => {
+    if (phase === 'active' && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      
+      // If we had history, redraw last frame
+      if (history.length > 0) {
+        const img = new Image();
+        img.src = history[history.length - 1];
+        img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      }
+    }
+  }, [phase]);
+
   // Wake Lock
   const requestWakeLock = async () => {
     try {
@@ -52,16 +75,21 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
     setTimerActive(true);
     await requestWakeLock();
     startTimeRef.current = Date.now();
+    const initialSeconds = seconds;
     timerRef.current = setInterval(() => {
       const elapsed = Math.floor((Date.now() - (startTimeRef.current || 0)) / 1000);
-      setSeconds(elapsed);
+      setSeconds(initialSeconds + elapsed);
     }, 1000);
   };
 
-  const endFocus = async () => {
+  const pauseFocus = async () => {
     if (timerRef.current) clearInterval(timerRef.current);
     setTimerActive(false);
     await releaseWakeLock();
+  };
+
+  const endFocus = async () => {
+    await pauseFocus();
     setPhase('journaling');
   };
 
@@ -102,19 +130,22 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
     newHistory.pop(); // Remove current
     setHistory(newHistory);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0, 0, rect.width, rect.height);
     if (newHistory.length > 0) {
       const img = new Image();
       img.src = newHistory[newHistory.length - 1];
-      img.onload = () => ctx.drawImage(img, 0, 0);
+      img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
     }
   };
 
   const clearCanvas = () => {
+    if (!confirm('Clear entire sketch?')) return;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (canvas && ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
       setHistory([]);
     }
   };
@@ -141,6 +172,7 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
     ctx.moveTo(x, y);
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.strokeStyle = '#111827';
     setIsDrawing(true);
   };
@@ -170,11 +202,11 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white text-gray-900 overflow-hidden">
-      <header className="p-6 flex justify-between items-start bg-white z-10">
+    <div className="flex flex-col fixed inset-0 bg-white text-gray-900 z-[100] overflow-hidden">
+      <header className="p-6 flex justify-between items-start bg-white z-10 border-b border-gray-50">
         <div>
           <h1 className="text-3xl font-black tracking-tight mb-1">Focus</h1>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-600">Deep Work Sketch</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-600 uppercase">Deep Work Sketch</p>
         </div>
         <button onClick={onBack} className="p-2 bg-gray-50 rounded-xl text-gray-400 active:scale-90 transition-all">
           <X size={20} strokeWidth={3} />
@@ -188,7 +220,7 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
           </div>
           <div className="text-center space-y-2">
             <h2 className="text-xl font-black">Enter Focus Block</h2>
-            <p className="text-xs font-bold text-gray-400">Time your work and doodle freely.</p>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">Time your work and doodle freely.</p>
           </div>
           <button 
             onClick={startFocus}
@@ -224,8 +256,6 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
           {/* Draw Pad */}
           <canvas
             ref={canvasRef}
-            width={window.innerWidth}
-            height={window.innerHeight - 200}
             onMouseDown={startDrawing}
             onMouseMove={draw}
             onMouseUp={stopDrawing}
@@ -233,21 +263,13 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
             onTouchStart={startDrawing}
             onTouchMove={draw}
             onTouchEnd={stopDrawing}
-            className="flex-1 bg-gray-50/50 touch-none"
+            className="flex-1 bg-gray-50/50 touch-none w-full h-full"
           />
 
-          {/* End Button */}
-          <div className="p-6 bg-white border-t border-gray-50 flex justify-center gap-4">
+          {/* End Button Container - Ensures overlap with nav doesn't happen */}
+          <div className="p-6 bg-white border-t border-gray-100 flex justify-center gap-4 z-20 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.05)]">
             <button 
-              onClick={() => {
-                if (timerActive) {
-                   if (timerRef.current) clearInterval(timerRef.current);
-                   setTimerActive(false);
-                   releaseWakeLock();
-                } else {
-                   startFocus();
-                }
-              }}
+              onClick={() => timerActive ? pauseFocus() : startFocus()}
               className={cn(
                 "w-20 h-14 rounded-2xl flex items-center justify-center transition-all active:scale-90",
                 timerActive ? "bg-gray-100 text-gray-400" : "bg-purple-600 text-white shadow-lg shadow-purple-200"
@@ -267,7 +289,7 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
       )}
 
       {phase === 'journaling' && (
-        <div className="flex-1 p-6 space-y-8 animate-in slide-in-from-bottom-4 duration-700 text-left">
+        <div className="flex-1 p-6 space-y-8 animate-in slide-in-from-bottom-4 duration-700 text-left overflow-y-auto">
           <div className="space-y-4">
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Focus Notes</h2>
             <textarea

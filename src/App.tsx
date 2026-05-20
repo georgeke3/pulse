@@ -80,7 +80,7 @@ const MorningLaunchPad = ({ onTrigger }: { onTrigger: (v: 'morning' | 'focus') =
           <span className={cn(
             "text-[10px] font-black uppercase tracking-widest",
             isComplete ? "text-gray-500" : "text-gray-100"
-          )}>{isComplete ? 'Done' : 'Ritual'}</span>
+          )}>{isComplete ? 'Ritual Done' : 'Ritual'}</span>
         </button>
         <button 
           onClick={() => onTrigger('focus')}

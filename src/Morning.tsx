@@ -19,6 +19,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
   const [groundingText, setGroundingText] = useState<string | null>(null);
   const [focusIntention, setFocusIntention] = useState<string | null>(null);
   const [spotifyLink, setSpotifyLink] = useState<string | null>(null);
+  const [ignoreCompletion, setIgnoreCompletion] = useState(false);
   
   // Timer State
   const [timerActive, setTimerActive] = useState(false);
@@ -31,6 +32,10 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
   // Journaling State
   const [journalEntry, setJournalEntry] = useState('');
   const [subjectiveYield, setSubjectiveYield] = useState(2); // Maintenance default
+
+  // Check for completion
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const previousRoutine = state.days[todayStr]?.events.find(e => e.custom_data?.morning_routine === true);
 
   // Wake Lock handling
   const requestWakeLock = async () => {
@@ -172,7 +177,8 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
       duration: durationLabel as any,
       custom_data: {
         meditation_seconds: seconds,
-        morning_routine: true
+        morning_routine: true,
+        completed_at: new Date().toISOString()
       },
       notes: journalEntry,
       date: format(new Date(), 'yyyy-MM-dd'),
@@ -205,16 +211,45 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
           <div className="w-24 h-24 rounded-full bg-gray-50 flex items-center justify-center border border-gray-100 shadow-inner">
             <Zap size={40} className="text-purple-600" />
           </div>
-          <div className="text-center space-y-2">
-            <h2 className="text-xl font-black text-gray-900">Morning Grounding</h2>
-            <p className="text-xs font-bold text-gray-400">Initialize today's ritual.</p>
-          </div>
-          <button 
-            onClick={startMorning}
-            className="w-full max-w-xs py-4 bg-gray-900 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-xl"
-          >
-            Start Ritual
-          </button>
+
+          {previousRoutine && !ignoreCompletion ? (
+            <div className="text-center space-y-6 px-4">
+              <div className="space-y-2">
+                <h2 className="text-xl font-black text-gray-900">Ritual Already Active</h2>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
+                  Last session at {format(new Date(previousRoutine.custom_data.completed_at || previousRoutine.date), 'h:mm a')}<br/>
+                  Duration: {Math.floor(previousRoutine.custom_data.meditation_seconds / 60)}m {previousRoutine.custom_data.meditation_seconds % 60}s
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 w-full max-w-[200px] mx-auto">
+                <button 
+                  onClick={onBack}
+                  className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-xl"
+                >
+                  Dashboard
+                </button>
+                <button 
+                  onClick={() => setIgnoreCompletion(true)}
+                  className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-300 hover:text-purple-600 transition-colors"
+                >
+                  Restart Sequence?
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="text-center space-y-2">
+                <h2 className="text-xl font-black text-gray-900">Morning Grounding</h2>
+                <p className="text-xs font-bold text-gray-400">Initialize today's ritual.</p>
+              </div>
+              <button 
+                onClick={startMorning}
+                className="w-full max-w-xs py-4 bg-gray-900 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-xl"
+              >
+                Start Ritual
+              </button>
+            </>
+          )}
         </div>
       )}
 
