@@ -78,15 +78,15 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
          - Be extremely concise (max 2 sentences).
          - Focus on internal capacity and resilience rather than listing tasks.
          - Tone: Wise, calm, objective.
-      2. Generate ONE abstract, high-level meditation intention for today (e.g. "Space," "Depth," "Stillness").
-      3. Recommend ONE specific song on Spotify that fits today's vibe (ambient, focus, or grounding).
-         - Return the literal Spotify HTTP URL (e.g. https://open.spotify.com/track/...)
+      2. Generate a descriptive, high-level meditation intention for today (3-6 words, e.g. "Expanding the inner horizon," "Steady focus amidst the drift").
+      3. Recommend ONE specific song or artist on Spotify that fits today's vibe (ambient, focus, or grounding).
+         - Return the literal track name and artist for a search query.
 
       OUTPUT FORMAT (JSON):
       {
         "grounding": "...",
         "intention": "...",
-        "spotify": "..."
+        "spotifySearch": "..."
       }
     `;
 
@@ -100,12 +100,12 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
       
       setGroundingText(parsed.grounding);
       setFocusIntention(parsed.intention);
-      setSpotifyLink(parsed.spotify);
+      setSpotifyLink(`spotify:search:${encodeURIComponent(parsed.spotifySearch)}`);
     } catch (e) {
       console.error("Failed to generate grounding", e);
       setGroundingText("George is entering today with a blank slate. Focus on presence.");
-      setFocusIntention("Depth");
-      setSpotifyLink("https://open.spotify.com/playlist/37i9dQZF1DWZqd5YICuS9s");
+      setFocusIntention("Quiet focus and internal alignment");
+      setSpotifyLink("spotify:search:Ambient%20Focus");
     } finally {
       setLoading(false);
     }
@@ -179,14 +179,14 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
             <Zap size={40} className="text-purple-600" />
           </div>
           <div className="text-center space-y-2">
-            <h2 className="text-xl font-black">Ready to ground?</h2>
-            <p className="text-xs font-bold text-gray-400">Initialize your daily activation engine.</p>
+            <h2 className="text-xl font-black text-gray-900">Morning Grounding</h2>
+            <p className="text-xs font-bold text-gray-400">Initialize today's ritual.</p>
           </div>
           <button 
             onClick={startMorning}
             className="w-full max-w-xs py-4 bg-gray-900 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-xl"
           >
-            Initiate Sequence
+            Start Ritual
           </button>
         </div>
       )}
@@ -212,14 +212,14 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
                 <div className="flex flex-col gap-4 pt-4 border-t border-gray-800">
                   <div>
                     <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 block mb-1">Intention</span>
-                    <p className="text-xl font-black text-purple-400 leading-relaxed uppercase tracking-tighter">
+                    <p className="text-xl font-black text-purple-400 leading-tight">
                       {focusIntention}
                     </p>
                   </div>
 
                   {spotifyLink && (
                     <a 
-                      href={spotifyLink.replace('https://open.spotify.com/', 'spotify://')} 
+                      href={spotifyLink} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-2xl border border-gray-700 active:scale-95 transition-all group"
@@ -227,7 +227,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
                       <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <Play size={14} fill="white" className="text-white ml-0.5" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 text-left">
                         <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 block">Atmosphere</span>
                         <span className="text-[10px] font-bold text-gray-300">Open in Spotify</span>
                       </div>
@@ -239,7 +239,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
                 onClick={() => setPhase('meditation')}
                 className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg"
               >
-                Proceed to Stillness
+                Start Meditation
               </button>
             </>
           )}
