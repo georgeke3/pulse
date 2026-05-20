@@ -60,6 +60,26 @@ const DEFAULT_CONFIG: Config = {
         { value: 3, label: "Sharp", description: "Noticeably present" },
         { value: 4, label: "Locked In", description: "Deep presence all day" }
       ]
+    },
+    {
+      id: "fluidity",
+      prompt: "How was your word retrieval / processing speed?",
+      options: [
+        { value: 1, label: "Stuttering", description: "Noticeable lag in thoughts" },
+        { value: 2, label: "Standard", description: "Normal day" },
+        { value: 3, label: "Crisp", description: "Fast, clear articulation" },
+        { value: 4, label: "God Mode", description: "Hyper-articulate/No lag" }
+      ]
+    },
+    {
+      id: "boundaries",
+      prompt: "Did you maintain your planned work/life boundaries?",
+      options: [
+        { value: 1, label: "Total Collapse", description: "Lost control of my day" },
+        { value: 2, label: "Yielded", description: "Let others dictate my time" },
+        { value: 3, label: "Maintained", description: "Kept the line" },
+        { value: 4, label: "Sovereign", description: "Total agency over my time" }
+      ]
     }
   ]
 };

@@ -517,18 +517,21 @@ export const InsightsView = () => {
         <div className="space-y-1">
           <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">Daily Matrix Trends</h2>
           <div className="flex flex-wrap gap-2 text-left">
-            {state.config.daily_questions.map(q => (
-              <button
-                key={q.id}
-                onClick={() => setActiveMetric(q.id)}
-                className={cn(
-                  "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tighter border-2 transition-all",
-                  activeMetric === q.id ? "bg-purple-600 border-purple-600 text-white" : "bg-white border-gray-100 text-gray-400"
-                )}
-              >
-                {q.prompt.split('(')[0].split('.')[1].trim()}
-              </button>
-            ))}
+            {state.config.daily_questions.map(q => {
+              const label = q.prompt.includes('.') ? q.prompt.split('.')[1].split('(')[0].trim() : q.prompt.split('(')[0].trim();
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => setActiveMetric(q.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tighter border-2 transition-all",
+                    activeMetric === q.id ? "bg-purple-600 border-purple-600 text-white" : "bg-white border-gray-100 text-gray-400"
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
 

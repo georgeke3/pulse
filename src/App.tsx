@@ -6,7 +6,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar
 } from 'recharts';
 import { 
-  ClipboardList, Plus, ChevronLeft, ChevronRight, X, Sparkles,
+  ClipboardList, Plus, ChevronLeft, ChevronRight, X, Sparkles, Calendar,
   Briefcase, Heart, Users, UsersRound, Zap, CheckSquare, Wallet, 
   Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen, HelpCircle, 
   Library, Edit2, Check, Settings as SettingsIcon, Download, Upload, Coffee, Trophy, Home, Activity
@@ -1109,14 +1109,20 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
           </div>
 
           <div className="space-y-5">
-            <div className="space-y-2">
+            <div className="flex flex-col space-y-2">
               <label className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-400">Target Date</label>
-              <input 
-                type="date"
-                value={targetDate}
-                onChange={(e) => setTargetDate(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-bold text-xs"
-              />
+              <div className="relative group">
+                <input 
+                  type="date"
+                  value={targetDate}
+                  onChange={(e) => setTargetDate(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                />
+                <div className="w-full p-4 rounded-2xl bg-gray-50 border-none group-hover:bg-gray-100 transition-colors flex items-center justify-between">
+                  <span className="text-xs font-black text-gray-900">{format(parseISO(targetDate), 'EEEE, MMM d, yyyy')}</span>
+                  <Calendar size={14} className="text-purple-600" />
+                </div>
+              </div>
             </div>
 
             {type !== 'win' && (
