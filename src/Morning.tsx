@@ -24,11 +24,31 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
   const [timerActive, setTimerActive] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef<any>(null);
+  const wakeLockRef = useRef<any>(null);
+  const startTimeRef = useRef<number | null>(null);
   const BASELINE_SECONDS = 10 * 60; // 10 minutes baseline
 
   // Journaling State
   const [journalEntry, setJournalEntry] = useState('');
-  const [subjectiveYield, setSubjectiveYield] = useState(3);
+  const [subjectiveYield, setSubjectiveYield] = useState(2); // Maintenance default
+
+  // Wake Lock handling
+  const requestWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      }
+    } catch (err: any) {
+      console.error(`${err.name}, ${err.message}`);
+    }
+  };
+
+  const releaseWakeLock = async () => {
+    if (wakeLockRef.current) {
+      await wakeLockRef.current.release();
+      wakeLockRef.current = null;
+    }
+  };
 
   const startMorning = async () => {
     if (!state.geminiKey) {
@@ -111,21 +131,28 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
     }
   };
 
-  const toggleTimer = () => {
+  const toggleTimer = async () => {
     if (timerActive) {
       if (timerRef.current) clearInterval(timerRef.current);
       setTimerActive(false);
+      await releaseWakeLock();
     } else {
       setTimerActive(true);
+      await requestWakeLock();
+      const initialSeconds = seconds;
+      startTimeRef.current = Date.now();
+      
       timerRef.current = setInterval(() => {
-        setSeconds(s => s + 1);
+        const elapsed = Math.floor((Date.now() - (startTimeRef.current || 0)) / 1000);
+        setSeconds(initialSeconds + elapsed);
       }, 1000);
     }
   };
 
-  const finishMeditation = () => {
+  const finishMeditation = async () => {
     if (timerRef.current) clearInterval(timerRef.current);
     setTimerActive(false);
+    await releaseWakeLock();
     setPhase('journaling');
   };
 
@@ -317,7 +344,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
             </div>
             <input 
               type="range"
-              min="1"
+              min="0"
               max="4"
               step="1"
               value={subjectiveYield}
@@ -325,7 +352,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
             />
             <div className="flex justify-between px-1">
-              {['Drain', 'Neutral', 'Yield', 'Fluid'].map((label, i) => (
+              {['Neutral', 'Mild', 'Maint.', 'Deep', 'Flow'].map((label, i) => (
                 <span key={i} className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">{label}</span>
               ))}
             </div>
