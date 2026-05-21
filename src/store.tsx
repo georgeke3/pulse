@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { AppState, Config, Event, CoachingReport, EventType } from './types';
 import { format, subDays, startOfDay } from 'date-fns';
 
-const DEFAULT_CONFIG: Config = {
+export const DEFAULT_CONFIG: Config = {
   categories: {
     training: ["Work", "Nucleus", "Family", "Friends", "Chaos", "Baseline", "Finances"],
     recovery: ["Walk", "Nap", "Meditation", "Presence check", "Family", "Friends", "Creative", "Nucleus", "Fun", "Journaling"]
