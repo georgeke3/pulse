@@ -80,7 +80,7 @@ const MorningLaunchPad = ({ onTrigger }: { onTrigger: (v: 'morning' | 'focus') =
           <span className={cn(
             "text-[10px] font-black uppercase tracking-widest",
             isComplete ? "text-gray-500" : "text-gray-100"
-          )}>{isComplete ? 'Ritual Done' : 'Ritual'}</span>
+          )}>{isComplete ? 'Morning Done' : 'Morning Ritual'}</span>
         </button>
         <button 
           onClick={() => onTrigger('focus')}
@@ -737,7 +737,7 @@ const DailyLedger = ({ date, onSelectDate }: { date: Date, onSelectDate: (d: Dat
                     onClick={() => setModalMode({ open: true, event })}
                     className={cn(
                       "w-full group p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-all text-left space-y-2 relative overflow-hidden",
-                      isWin && "border-purple-100 shadow-purple-50"
+                      isWin && "bg-purple-50/30 border-purple-100 shadow-purple-50"
                     )}
                   >
                     {event.isExpected && (
