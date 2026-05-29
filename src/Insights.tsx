@@ -79,6 +79,41 @@ const ReportFeedback = ({ reportId, initialFeedback, initialTruth }: {
   );
 };
 
+const MarkdownLite = ({ text, className, isDark = false }: { text: string, className?: string, isDark?: boolean }) => {
+  const lines = text.split('\n').filter(l => l.trim());
+  
+  return (
+    <div className={cn("space-y-4", className)}>
+      {lines.map((line, i) => {
+        // Check for bullets
+        const trimmed = line.trim();
+        const isBullet = trimmed.startsWith('- ') || trimmed.startsWith('* ');
+        const cleanLine = isBullet ? trimmed.substring(2) : line;
+        
+        // Handle bold
+        const parts = cleanLine.split(/(\*\*.*?\*\*)/g);
+        const content = parts.map((part, j) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={j} className={cn("font-black", isDark ? "text-purple-400" : "text-purple-600")}>{part.slice(2, -2)}</strong>;
+          }
+          return part;
+        });
+
+        if (isBullet) {
+          return (
+            <div key={i} className="flex gap-3 items-start pl-2 text-left">
+              <span className={cn("mt-1.5 w-1 h-1 rounded-full shrink-0", isDark ? "bg-purple-400" : "bg-purple-600")} />
+              <p className="flex-1 leading-relaxed">{content}</p>
+            </div>
+          );
+        }
+
+        return <p key={i} className="leading-relaxed text-left">{content}</p>;
+      })}
+    </div>
+  );
+};
+
 const CoachingReportItem = ({ report, deleteCoachingReport }: { report: any, deleteCoachingReport: (id: string) => void }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
 
@@ -115,15 +150,11 @@ const CoachingReportItem = ({ report, deleteCoachingReport }: { report: any, del
 
       {!isCollapsed && (
         <div className="space-y-6 animate-in fade-in slide-in-from-top-1 duration-300">
-          <div className="space-y-4 text-left">
-            {report.content.split('\n').filter((p: string) => p.trim()).map((p: string, i: number) => (
-              <p key={i} className="text-gray-700 text-xs font-medium leading-relaxed">
-                {p}
-              </p>
-            ))}
+          <div className="text-gray-700 text-xs font-medium">
+            <MarkdownLite text={report.content} />
           </div>
           
-          <div className="bg-white/50 p-5 rounded-[1.5rem] space-y-4">
+          <div className="bg-white/50 p-5 rounded-[1.5rem] space-y-4 text-left">
             <h4 className="text-[8px] font-black uppercase tracking-widest text-gray-400">Your Evaluation</h4>
             <ReportFeedback 
               reportId={report.id} 
@@ -362,12 +393,8 @@ const AICoach = () => {
         {insight && !loading && (
           <div className="space-y-8 animate-in fade-in duration-700 max-w-prose mx-auto">
             <div className="flex justify-between items-start">
-              <div className="space-y-5 text-left flex-1">
-                {insight.split('\n').filter((p: string) => p.trim()).map((p: string, i: number) => (
-                  <p key={i} className="text-gray-200 text-sm font-medium leading-relaxed">
-                    {p}
-                  </p>
-                ))}
+              <div className="text-gray-200 text-sm font-medium flex-1">
+                <MarkdownLite text={insight} isDark />
               </div>
               {currentReportId && (
                 <button 
