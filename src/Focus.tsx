@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, subDays, addDays, eachDayOfInterval } from 'date-fns';
 import { Check, X, RotateCcw, Undo2, Zap, Play, Square } from 'lucide-react';
 import { useApp } from './store';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -12,10 +13,11 @@ function cn(...inputs: ClassValue[]) {
 type Phase = 'init' | 'active' | 'journaling' | 'complete';
 
 export const FocusView = ({ onBack }: { onBack: () => void }) => {
-  const { addEvent } = useApp();
+  const { state, addEvent } = useApp();
   const [phase, setPhase] = useState<Phase>('init');
   const [seconds, setSeconds] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
+  const [journalGrounding, setJournalGrounding] = useState<string | null>(null);
   const timerRef = useRef<any>(null);
   const startTimeRef = useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
@@ -70,9 +72,69 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
     }
   };
 
+  const fetchLifeBlurb = async () => {
+    if (!state.geminiKey) return;
+
+    const now = new Date();
+    const start = subDays(now, 7);
+    const end = addDays(now, 7);
+    const daysInRange = eachDayOfInterval({ start, end });
+
+    const contextData = daysInRange.map(d => {
+      const dStr = format(d, 'yyyy-MM-dd');
+      const data = state.days[dStr];
+      if (!data) return null;
+      return {
+        date: dStr,
+        motto: data.motto,
+        notes: data.note,
+        scores: data.answers,
+        events: data.events.map((e: any) => ({
+          type: e.type,
+          cat: e.category,
+          obj: e.objectiveIntensity,
+          sub: e.intensity,
+          dur: e.duration,
+          isExpected: e.isExpected
+        }))
+      };
+    }).filter(d => d !== null);
+
+    const prompt = `
+      You are an elite performance coach.
+      Analyze George's recent CNS data and upcoming planned events (window: +/- 7 days).
+      
+      USER PROFILE:
+      ${state.systemPrompt || 'No profile provided.'}
+
+      RECENT & UPCOMING DATA:
+      ${JSON.stringify(contextData, null, 2)}
+
+      TASK:
+      Generate a 3rd-person summary of George's current life trajectory ("Life Blurb").
+      - Base this on the provided data for the +/- 7 day window.
+      - Length: Exactly 2-3 sentences.
+      - Goal: Provide an objective mirror to ground his focus notes.
+      - Tone: Wise, calm, objective.
+
+      OUTPUT: Return ONLY the raw string.
+    `;
+
+    try {
+      const genAI = new GoogleGenerativeAI(state.geminiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      setJournalGrounding(text.trim());
+    } catch (e) {
+      console.error("Failed to generate focus blurb", e);
+    }
+  };
+
   const startFocus = async () => {
     setPhase('active');
     setTimerActive(true);
+    fetchLifeBlurb(); // Background fetch
     await requestWakeLock();
     startTimeRef.current = Date.now();
     const initialSeconds = seconds;
@@ -290,6 +352,15 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
 
       {phase === 'journaling' && (
         <div className="flex-1 p-6 space-y-8 animate-in slide-in-from-bottom-4 duration-700 text-left overflow-y-auto">
+          {journalGrounding && (
+            <div className="p-6 bg-purple-50 rounded-[2.5rem] border border-purple-100 italic">
+              <span className="text-[8px] font-black uppercase tracking-widest text-purple-400 block mb-2 text-left">The Mirror</span>
+              <p className="text-sm font-bold text-purple-900 leading-relaxed">
+                "{journalGrounding}"
+              </p>
+            </div>
+          )}
+
           <div className="space-y-4">
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Focus Notes</h2>
             <textarea
@@ -303,7 +374,12 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
 
           <div className="space-y-4">
             <div className="flex justify-between items-end">
-              <label className="text-[10px] font-black uppercase tracking-widest text-purple-600">Focus Yield</label>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-purple-600 italic">Focus Yield</label>
+                <div className="text-sm font-black text-gray-900 mt-1">
+                  {state.config.scales.recovery.subjective.find((s: any) => s.value === Math.round(subjectiveYield))?.label}
+                </div>
+              </div>
               <span className="text-xl font-black text-gray-900">{subjectiveYield}</span>
             </div>
             <input 
@@ -315,11 +391,9 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
               onChange={(e) => setSubjectiveYield(parseInt(e.target.value))}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
             />
-            <div className="flex justify-between px-1">
-              {['Drain', 'Low', 'Maint.', 'High', 'Elite'].map((label, i) => (
-                <span key={i} className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">{label}</span>
-              ))}
-            </div>
+            <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[1.5em]">
+              {state.config.scales.recovery.subjective.find((s: any) => s.value === Math.round(subjectiveYield))?.description}
+            </p>
           </div>
 
           <button 

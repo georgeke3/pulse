@@ -19,6 +19,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
   const [groundingText, setGroundingText] = useState<string | null>(null);
   const [focusIntention, setFocusIntention] = useState<string | null>(null);
   const [spotifyLink, setSpotifyLink] = useState<string | null>(null);
+  const [journalGrounding, setJournalGrounding] = useState<string | null>(null);
   const [ignoreCompletion, setIgnoreCompletion] = useState(false);
   
   // Timer State
@@ -64,8 +65,8 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
     setLoading(true);
 
     const now = new Date();
-    const start = subDays(now, 3);
-    const end = addDays(now, 2); // Include some future for "upcoming instances"
+    const start = subDays(now, 7);
+    const end = addDays(now, 7);
     const daysInRange = eachDayOfInterval({ start, end });
 
     const contextData = daysInRange.map(d => {
@@ -90,7 +91,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
 
     const prompt = `
       You are an elite performance coach and grounding guide. 
-      Analyze George's recent CNS data (last 3 days) and upcoming planned events.
+      Analyze George's recent CNS data and upcoming planned events (window: +/- 7 days).
       
       USER PROFILE:
       ${state.systemPrompt || 'No profile provided.'}
@@ -106,12 +107,17 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
       2. Generate a descriptive, high-level meditation intention for today (3-6 words, e.g. "Expanding the inner horizon," "Steady focus amidst the drift").
       3. Recommend ONE specific song or artist on Spotify that fits today's vibe (ambient, focus, or grounding).
          - Return the literal track name and artist for a search query.
+      4. Generate a 3rd-person summary of George's current life trajectory ("Life Blurb").
+         - Base this on the provided data for the +/- 7 day window.
+         - Length: Exactly 2-3 sentences.
+         - Goal: Provide an objective mirror to ground his journaling.
 
       OUTPUT FORMAT (JSON):
       {
         "grounding": "...",
         "intention": "...",
-        "spotifySearch": "..."
+        "spotifySearch": "...",
+        "journalGrounding": "..."
       }
     `;
 
@@ -126,6 +132,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
       setGroundingText(parsed.grounding);
       setFocusIntention(parsed.intention);
       setSpotifyLink(`spotify:search:${encodeURIComponent(parsed.spotifySearch)}`);
+      setJournalGrounding(parsed.journalGrounding);
     } catch (e) {
       console.error("Failed to generate grounding", e);
       setGroundingText("George is entering today with a blank slate. Focus on presence.");
@@ -361,6 +368,15 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
 
       {phase === 'journaling' && (
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-700 text-left">
+          {journalGrounding && (
+            <div className="p-6 bg-purple-50 rounded-[2.5rem] border border-purple-100 italic">
+              <span className="text-[8px] font-black uppercase tracking-widest text-purple-400 block mb-2 text-left">The Mirror</span>
+              <p className="text-sm font-bold text-purple-900 leading-relaxed">
+                "{journalGrounding}"
+              </p>
+            </div>
+          )}
+
           <div className="space-y-4">
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Morning Log</h2>
             <textarea
@@ -374,7 +390,12 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
 
           <div className="space-y-4">
             <div className="flex justify-between items-end">
-              <label className="text-[10px] font-black uppercase tracking-widest text-purple-600">Subjective Yield</label>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-purple-600 italic">Subjective Yield</label>
+                <div className="text-sm font-black text-gray-900 mt-1">
+                  {state.config.scales.recovery.subjective.find(s => s.value === Math.round(subjectiveYield))?.label}
+                </div>
+              </div>
               <span className="text-xl font-black text-gray-900">{subjectiveYield}</span>
             </div>
             <input 
@@ -386,11 +407,9 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
               onChange={(e) => setSubjectiveYield(parseInt(e.target.value))}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
             />
-            <div className="flex justify-between px-1">
-              {['Neutral', 'Mild', 'Maint.', 'Deep', 'Flow'].map((label, i) => (
-                <span key={i} className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">{label}</span>
-              ))}
-            </div>
+            <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[1.5em]">
+              {state.config.scales.recovery.subjective.find(s => s.value === Math.round(subjectiveYield))?.description}
+            </p>
           </div>
 
           <button 
