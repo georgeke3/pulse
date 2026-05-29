@@ -128,55 +128,57 @@ const CalendarView = ({ onSelectDate, onOpenModule }: { onSelectDate: (date: Dat
     setCurrentMonth(new Date());
   };
 
-  const streakStats = useMemo(() => {
-    if (!activeStreak || calendarMode !== 'streaks') return null;
-    
+  const allStreakStats = useMemo(() => {
     const now = new Date();
-    let current = 0;
-    let daysWithEvent30 = 0;
-    let broken = false;
-    let currentGap = 0;
+    
+    return state.streakCategories.map(category => {
+      let current = 0;
+      let daysWithEvent30 = 0;
+      let broken = false;
+      let currentGap = 0;
 
-    // Current Streak & 30d stats
-    for (let i = 0; i < 365; i++) {
-      const d = subDays(now, i);
-      const dStr = format(d, 'yyyy-MM-dd');
-      const hasEvent = state.days[dStr]?.events.some(e => e.streakCategory === activeStreak);
-      
-      if (i < 30 && hasEvent) daysWithEvent30++;
+      // Current Streak & 30d stats
+      for (let i = 0; i < 365; i++) {
+        const d = subDays(now, i);
+        const dStr = format(d, 'yyyy-MM-dd');
+        const hasEvent = state.days[dStr]?.events.some(e => e.streakCategory === category);
+        
+        if (i < 30 && hasEvent) daysWithEvent30++;
 
-      if (!broken) {
-        if (hasEvent) {
-          current++;
-          currentGap = 0;
-        } else if (i > 0) { // Allow today to be empty if it's still early
-          currentGap++;
-          if (currentGap > 0) broken = true; 
+        if (!broken) {
+          if (hasEvent) {
+            current++;
+            currentGap = 0;
+          } else if (i > 0) { // Allow today to be empty if it's still early
+            currentGap++;
+            if (currentGap > 0) broken = true; 
+          }
         }
       }
-    }
 
-    // Bounce back check (last 30 days)
-    let tempGap = 0;
-    let resilient = true;
-    for (let i = 0; i < 30; i++) {
-      const d = subDays(now, i);
-      const dStr = format(d, 'yyyy-MM-dd');
-      const hasEvent = state.days[dStr]?.events.some(e => e.streakCategory === activeStreak);
-      if (hasEvent) {
-        tempGap = 0;
-      } else {
-        tempGap++;
-        if (tempGap > 2) resilient = false;
+      // Bounce back check (last 30 days)
+      let tempGap = 0;
+      let resilient = true;
+      for (let i = 0; i < 30; i++) {
+        const d = subDays(now, i);
+        const dStr = format(d, 'yyyy-MM-dd');
+        const hasEvent = state.days[dStr]?.events.some(e => e.streakCategory === category);
+        if (hasEvent) {
+          tempGap = 0;
+        } else {
+          tempGap++;
+          if (tempGap > 2) resilient = false;
+        }
       }
-    }
 
-    return {
-      current,
-      completion30d: Math.round((daysWithEvent30 / 30) * 100),
-      resilient
-    };
-  }, [activeStreak, state.days, calendarMode]);
+      return {
+        category,
+        current,
+        completion30d: Math.round((daysWithEvent30 / 30) * 100),
+        resilient
+      };
+    });
+  }, [state.streakCategories, state.days]);
 
   const winData = useMemo(() => {
     const end = new Date();
@@ -501,29 +503,37 @@ const CalendarView = ({ onSelectDate, onOpenModule }: { onSelectDate: (date: Dat
           </div>
         </div>
 
-        {streakStats && (
-          <div className="p-6 rounded-3xl bg-gray-900 text-white shadow-xl space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-            <div>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">{activeStreak} Streak</h3>
-              <div className="flex justify-between items-end">
-                <div className="text-4xl font-black">{streakStats.current} <span className="text-xs opacity-60 uppercase">Days</span></div>
-                <div className="text-right">
-                  <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Daily Unbroken</div>
+        {allStreakStats.length > 0 && (
+          <section className="space-y-4">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Streak Summaries</h3>
+            <div className="grid gap-3">
+              {allStreakStats.map(s => (
+                <div key={s.category} className="p-6 rounded-3xl bg-gray-900 text-white shadow-xl space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+                  <div>
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">{s.category} Streak</h3>
+                    <div className="flex justify-between items-end">
+                      <div className="text-4xl font-black">{s.current} <span className="text-xs opacity-60 uppercase">Days</span></div>
+                      <div className="text-right">
+                        <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Status</div>
+                        <div className="text-sm font-black text-purple-400">{s.resilient ? 'Unstoppable' : 'Recovering'}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
+                    <div className="space-y-1">
+                      <div className="text-[8px] font-black uppercase tracking-widest opacity-60">30D Completion</div>
+                      <div className="text-lg font-black text-purple-400">{s.completion30d}%</div>
+                    </div>
+                    <div className="space-y-1 text-right">
+                      <div className="text-[8px] font-black uppercase tracking-widest opacity-60">Bounce Back</div>
+                      <div className="text-lg font-black text-purple-400">{s.resilient ? 'Solid' : 'Low'}</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-            
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
-              <div className="space-y-1">
-                <div className="text-[8px] font-black uppercase tracking-widest opacity-60">30D Completion</div>
-                <div className="text-lg font-black text-purple-400">{streakStats.completion30d}%</div>
-              </div>
-              <div className="space-y-1 text-right">
-                <div className="text-[8px] font-black uppercase tracking-widest opacity-60">Bounce Back</div>
-                <div className="text-lg font-black text-purple-400">{streakStats.resilient ? 'Solid' : 'Low'}</div>
-              </div>
-            </div>
-          </div>
+          </section>
         )}
       </div>
 
