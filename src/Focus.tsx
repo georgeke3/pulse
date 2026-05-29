@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { format, subDays, addDays, eachDayOfInterval } from 'date-fns';
-import { Check, X, RotateCcw, Undo2, Zap, Play, Square } from 'lucide-react';
+import { Check, X, RotateCcw, Undo2, Zap, Play, Square, Loader2 } from 'lucide-react';
 import { useApp } from './store';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { clsx, type ClassValue } from 'clsx';
@@ -18,6 +18,7 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
   const [seconds, setSeconds] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
   const [journalGrounding, setJournalGrounding] = useState<string | null>(null);
+  const [loadingBlurb, setLoadingBlurb] = useState(false);
   const timerRef = useRef<any>(null);
   const startTimeRef = useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
@@ -74,6 +75,7 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
 
   const fetchLifeBlurb = async () => {
     if (!state.geminiKey) return;
+    setLoadingBlurb(true);
 
     const now = new Date();
     const start = subDays(now, 7);
@@ -128,6 +130,8 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
       setJournalGrounding(text.trim());
     } catch (e) {
       console.error("Failed to generate focus blurb", e);
+    } finally {
+      setLoadingBlurb(false);
     }
   };
 
@@ -352,12 +356,19 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
 
       {phase === 'journaling' && (
         <div className="flex-1 p-6 space-y-8 animate-in slide-in-from-bottom-4 duration-700 text-left overflow-y-auto">
-          {journalGrounding && (
-            <div className="p-6 bg-purple-50 rounded-[2.5rem] border border-purple-100 italic">
+          {(journalGrounding || loadingBlurb) && (
+            <div className="p-6 bg-purple-50 rounded-[2.5rem] border border-purple-100 italic relative min-h-[80px]">
               <span className="text-[8px] font-black uppercase tracking-widest text-purple-400 block mb-2 text-left">The Mirror</span>
-              <p className="text-sm font-bold text-purple-900 leading-relaxed">
-                "{journalGrounding}"
-              </p>
+              {loadingBlurb ? (
+                <div className="flex items-center gap-2 text-purple-300">
+                  <Loader2 size={14} className="animate-spin" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Reflecting state...</span>
+                </div>
+              ) : (
+                <p className="text-sm font-bold text-purple-900 leading-relaxed">
+                  "{journalGrounding}"
+                </p>
+              )}
             </div>
           )}
 
@@ -391,7 +402,12 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
               onChange={(e) => setSubjectiveYield(parseInt(e.target.value))}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
             />
-            <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[1.5em]">
+            <div className="flex justify-between px-1">
+              {['Neutral', 'Mild', 'Maint.', 'Deep', 'Flow'].map((label, i) => (
+                <span key={i} className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">{label}</span>
+              ))}
+            </div>
+            <p className="text-[8px] font-bold text-gray-400 leading-tight italic min-h-[1.5em] mt-1">
               {state.config.scales.recovery.subjective.find((s: any) => s.value === Math.round(subjectiveYield))?.description}
             </p>
           </div>
