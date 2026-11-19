@@ -220,7 +220,7 @@ const CalendarView = ({ onSelectDate, onOpenModule }: { onSelectDate: (date: Dat
       <header className="mb-8 space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pulse</h1>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Omokage</h1>
             <p className="text-gray-500 font-medium">{format(currentMonth, 'MMMM yyyy')}</p>
           </div>
           <div className="flex gap-2">
@@ -936,7 +936,7 @@ const MottoLibraryModal = ({ onClose, onSelect }: { onClose: () => void, onSelec
 };
 
 const SettingsView = () => {
-  const { state, updateGeminiKey, updateSystemPrompt, addStreakCategory, deleteStreakCategory, importState } = useApp();
+  const { state, updateGeminiKey, updateSystemPrompt, addStreakCategory, deleteStreakCategory, importState, cloud } = useApp();
   const [key, setKey] = useState(state.geminiKey || '');
   const [prompt, setPrompt] = useState(state.systemPrompt || '');
   const [newStreakCat, setNewStreakCategory] = useState('');
@@ -944,7 +944,7 @@ const SettingsView = () => {
   const save = () => {
     updateGeminiKey(key);
     updateSystemPrompt(prompt);
-    alert('Settings saved locally.');
+    alert(cloud.enabled ? 'Settings saved. Your Gemini key stays on this device only.' : 'Settings saved locally.');
   };
 
   const [backup, setBackup] = useState<(BuiltBackup & { message: string }) | null>(null);
@@ -996,6 +996,44 @@ const SettingsView = () => {
       </header>
 
       <div className="space-y-10 text-left">
+        {cloud.enabled && (
+          <div className="space-y-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Account &amp; Sync</p>
+            <p className="text-xs font-bold text-gray-900 break-words">{cloud.email ?? 'Signed in'}</p>
+            <p className={cn(
+              'text-[10px] font-black uppercase tracking-widest',
+              cloud.status === 'synced' ? 'text-green-600' : cloud.status === 'error' ? 'text-red-500' : 'text-purple-600'
+            )}>
+              {cloud.status === 'synced' ? 'All changes saved to the cloud' :
+               cloud.status === 'saving' || cloud.status === 'loading' ? 'Saving…' :
+               cloud.status === 'offline' ? 'Offline - saved on this device, will sync when back online' :
+               'Sync problem - changes are safe on this device'}
+              {cloud.status === 'synced' && cloud.lastSyncedAt ? ` · ${format(new Date(cloud.lastSyncedAt), 'h:mm a')}` : ''}
+            </p>
+            {cloud.error && <p className="text-[10px] font-bold text-red-500 break-words">{cloud.error}</p>}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={cloud.syncNow}
+                className="py-3 px-4 bg-white text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-200 active:scale-95 transition-all"
+              >
+                Sync now
+              </button>
+              <button
+                onClick={() => {
+                  const unsynced = cloud.status !== 'synced';
+                  const msg = unsynced
+                    ? 'Some changes have not reached the cloud yet. They stay on this device until you sign back in. Sign out anyway?'
+                    : 'Sign out of Omokage on this device?';
+                  if (confirm(msg)) void cloud.signOut();
+                }}
+                className="py-3 px-4 bg-white text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-200 active:scale-95 transition-all"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-3">
           <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Gemini API Key</label>
           <input 

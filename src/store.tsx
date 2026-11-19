@@ -1,8 +1,15 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { AppState, Config, Event, CoachingReport, EventType } from './types';
 import { format, subDays, startOfDay } from 'date-fns';
 import { parseBackup, countState } from './backup';
 import type { BackupCounts } from './backup';
+import {
+  coreHasData, diffRows, emptySynced, isEmptyChanges, pullRows, pushChanges, rowsEmpty, rowsToCore,
+  signaturesOf, sigsEqual, stateToRows,
+} from './cloudSync';
+import type { Rows, Synced, SyncCore } from './cloudSync';
+import { CloudHttpError } from './cloud';
+import { cloud as cloudApi, cloudConfigured, useCloudSession } from './cloudClient';
 
 export type ImportResult = { ok: true; counts: BackupCounts } | { ok: false; error: string };
 
@@ -168,7 +175,62 @@ const INITIAL_STATE: AppState = {
   coachingHistory: []
 };
 
+export type SyncStatus = 'local' | 'loading' | 'synced' | 'saving' | 'offline' | 'error';
+
+export interface CloudInfo {
+  enabled: boolean;
+  email: string | null;
+  status: SyncStatus;
+  error: string | null;
+  lastSyncedAt: number | null;
+  syncNow: () => void;
+  signOut: () => Promise<void>;
+}
+
+const toCore = (s: AppState): SyncCore => ({
+  days: s.days,
+  mottos: s.mottos,
+  streakCategories: s.streakCategories,
+  systemPrompt: s.systemPrompt,
+  coachingHistory: s.coachingHistory
+});
+
+const persistSynced = (userId: string, synced: Synced) => {
+  try {
+    localStorage.setItem('pulse_state_user', userId);
+    localStorage.setItem('pulse_synced', JSON.stringify(synced));
+  } catch (e) {
+    console.error('Could not persist sync state', e);
+  }
+};
+
+const SyncSplash = ({ status, error, onRetry }: { status: SyncStatus; error: string | null; onRetry: () => void }) => {
+  const failed = status === 'offline' || status === 'error';
+  return (
+    <div className="min-h-screen bg-white text-gray-900 flex flex-col items-center justify-center gap-4 p-8 text-center">
+      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">
+        {status === 'offline' ? 'Offline' : status === 'error' ? 'Sync problem' : 'Syncing your data'}
+      </p>
+      {error && <p className="text-xs font-bold text-red-500 break-words max-w-xs">{error}</p>}
+      {failed && (
+        <div className="flex gap-3">
+          <button onClick={onRetry} className="px-5 py-3 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95">
+            Retry
+          </button>
+          <button
+            onClick={() => { void cloudApi?.signOut(); }}
+            className="px-5 py-3 bg-gray-50 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-100 active:scale-95"
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface AppContextType {
+  cloud: CloudInfo;
   state: AppState;
   addEvent: (date: string, event: Omit<Event, 'id'>) => void;
   updateEvent: (date: string, event: Event) => void;
@@ -220,9 +282,201 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return INITIAL_STATE;
   });
 
+  // ---- Cloud sync (Supabase). Local-only mode (no env vars) skips all of this. ----
+  const session = useCloudSession();
+  const userId = cloudConfigured && session ? session.user.id : null;
+  const email = session?.user.email ?? null;
+
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  });
+
+  const [hydrated, setHydrated] = useState(!cloudConfigured);
+  const [status, setStatus] = useState<SyncStatus>(cloudConfigured ? 'loading' : 'local');
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+
+  const syncedRef = useRef<Synced>(emptySynced()); // what this device knows is on the server
+  const trackedRef = useRef(false); // true once we know how local data relates to the server
+  const busyRef = useRef(false);
+  const queuedRef = useRef<{ pull: boolean } | null>(null);
+  const adoptRef = useRef<{ state: AppState; synced: Synced } | null>(null);
+  const lastPullRef = useRef(0);
+
+  // Always keep the on-device copy current (offline cache + pending edits). Also finishes a
+  // "server -> device" adoption once React has actually committed the new state.
   useEffect(() => {
     localStorage.setItem('pulse_state', JSON.stringify(state));
-  }, [state]);
+    const adopt = adoptRef.current;
+    if (adopt && adopt.state === state && userId) {
+      adoptRef.current = null;
+      syncedRef.current = adopt.synced;
+      trackedRef.current = true;
+      persistSynced(userId, adopt.synced);
+      setHydrated(true);
+      setStatus('synced');
+      setSyncError(null);
+      setLastSyncedAt(Date.now());
+    }
+  }, [state, userId]);
+
+  const run = useCallback(async (pull: boolean): Promise<void> => {
+    if (!cloudApi || !userId) return;
+    if (busyRef.current) {
+      queuedRef.current = { pull: pull || (queuedRef.current?.pull ?? false) };
+      return;
+    }
+    busyRef.current = true;
+
+    const adoptServer = (base: AppState, rows: Rows) => {
+      const sigs = signaturesOf(rows);
+      if (sigsEqual(signaturesOf(stateToRows(toCore(base))), sigs)) {
+        syncedRef.current = sigs;
+        trackedRef.current = true;
+        persistSynced(userId, sigs);
+        setHydrated(true);
+        setStatus('synced');
+        setSyncError(null);
+        setLastSyncedAt(Date.now());
+        return;
+      }
+      const next: AppState = { ...base, ...rowsToCore(rows), config: DEFAULT_CONFIG };
+      adoptRef.current = { state: next, synced: sigs };
+      setState(prev => (prev === base ? next : prev));
+    };
+
+    try {
+      const base = stateRef.current;
+      adoptRef.current = null;
+
+      if (!trackedRef.current) {
+        // First contact on this device (or the cached data belonged to someone else): decide who wins.
+        const rows = await pullRows(cloudApi);
+        lastPullRef.current = Date.now();
+        const claim = localStorage.getItem('pulse_state_user');
+        const hasLocal = coreHasData(toCore(base));
+        if (rowsEmpty(rows) && hasLocal && (claim === null || claim === userId)) {
+          // Cloud is empty and this device holds local-only data: upload it below.
+          syncedRef.current = emptySynced();
+          trackedRef.current = true;
+        } else {
+          if (hasLocal) {
+            try {
+              localStorage.setItem('pulse_state_pre_cloud', JSON.stringify(base));
+            } catch (e) {
+              console.error('Could not store pre-cloud copy', e);
+            }
+          }
+          adoptServer(base, rows);
+          return;
+        }
+      }
+
+      const changes = diffRows(syncedRef.current, stateToRows(toCore(base)));
+      if (!isEmptyChanges(changes)) {
+        setStatus(s => (s === 'loading' ? s : 'saving'));
+        await pushChanges(cloudApi, userId, changes);
+        syncedRef.current = signaturesOf(stateToRows(toCore(base)));
+      }
+
+      if (pull) {
+        const fresh = await pullRows(cloudApi);
+        lastPullRef.current = Date.now();
+        // Only take the server's version if the user did not edit while we were talking to it.
+        if (stateRef.current === base && !sigsEqual(signaturesOf(fresh), syncedRef.current)) {
+          adoptServer(base, fresh);
+        }
+      }
+
+      persistSynced(userId, syncedRef.current);
+      setHydrated(true);
+      setStatus('synced');
+      setSyncError(null);
+      setLastSyncedAt(Date.now());
+    } catch (e) {
+      const offline = e instanceof TypeError; // fetch() network failure
+      console.error('Sync failed', e);
+      setStatus(offline ? 'offline' : 'error');
+      setSyncError(offline ? null : e instanceof CloudHttpError ? `${e.message} (${e.status})` : e instanceof Error ? e.message : 'Sync failed');
+      if (trackedRef.current) setHydrated(true); // we have a trustworthy local copy: let the user in
+    } finally {
+      busyRef.current = false;
+      const queued = queuedRef.current;
+      queuedRef.current = null;
+      if (queued) void runRef.current(queued.pull);
+    }
+  }, [userId]);
+
+  const runRef = useRef(run);
+  useEffect(() => {
+    runRef.current = run;
+  });
+
+  // On sign-in / app open: restore what this device knew, then push pending edits and pull.
+  useEffect(() => {
+    if (!userId) return;
+    const claim = localStorage.getItem('pulse_state_user');
+    const raw = localStorage.getItem('pulse_synced');
+    if (claim === userId && raw) {
+      try {
+        syncedRef.current = JSON.parse(raw) as Synced;
+        trackedRef.current = true;
+      } catch {
+        trackedRef.current = false;
+      }
+    }
+    void runRef.current(true);
+  }, [userId]);
+
+  // Save edits shortly after the last change.
+  useEffect(() => {
+    if (!userId || !hydrated) return;
+    const t = setTimeout(() => {
+      void runRef.current(false);
+    }, 700);
+    return () => clearTimeout(t);
+  }, [state, userId, hydrated]);
+
+  // Retry after a failure, when the network returns, and when the app comes back to the foreground.
+  useEffect(() => {
+    if (!userId || (status !== 'offline' && status !== 'error')) return;
+    const t = setTimeout(() => {
+      void runRef.current(true);
+    }, 20000);
+    return () => clearTimeout(t);
+  }, [status, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const onOnline = () => {
+      void runRef.current(true);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastPullRef.current > 60_000) void runRef.current(true);
+    };
+    window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [userId]);
+
+  const cloudInfo: CloudInfo = {
+    enabled: cloudConfigured,
+    email,
+    status,
+    error: syncError,
+    lastSyncedAt,
+    syncNow: () => {
+      setStatus(s => (s === 'loading' ? s : 'saving'));
+      void runRef.current(true);
+    },
+    signOut: async () => {
+      await cloudApi?.signOut();
+    }
+  };
 
   const addEvent = (date: string, event: Omit<Event, 'id'>) => {
     const id = crypto.randomUUID();
@@ -540,9 +794,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       importState, 
       getBanisterScore,
       getBanisterDetails,
-      moveEvent
+      moveEvent,
+      cloud: cloudInfo
     }}>
-      {children}
+      {hydrated ? children : <SyncSplash status={status} error={syncError} onRetry={cloudInfo.syncNow} />}
     </AppContext.Provider>
   );
 };

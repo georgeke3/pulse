@@ -5,17 +5,17 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/pulse/',
+  base: '/',
   plugins: [
     tailwindcss(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icons.svg'],
+      includeAssets: ['favicon.png', 'apple-touch-icon.png', 'icons.svg'],
       manifest: {
-        name: 'Pulse Resilience',
-        short_name: 'Pulse',
-        description: 'Mental Load & Resilience Tracker',
+        name: 'Omokage',
+        short_name: 'Omokage',
+        description: 'Omokage - mental load & resilience tracker',
         theme_color: '#9333ea',
         icons: [
           {
