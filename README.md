@@ -1,73 +1,38 @@
-# React + TypeScript + Vite
+# Pulse
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Mental load & resilience tracker (Training vs Recovery) with a Morning tab and Gemini coaching audits.
+Mobile-first PWA built with Vite + React + TypeScript.
 
-Currently, two official plugins are available:
+## How it is hosted
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Code:** this GitHub repo is the source of truth. Pushing to `main` deploys to production on Vercel.
+- **Data:** Supabase (Postgres) in the `georgeke-general` project, tables `pulse_*`, protected by row-level
+  security so each signed-in user only sees their own rows. Schema lives in `supabase/migrations/`.
+- **Sign-in:** Google, one tap, no password (Supabase Auth, PKCE flow).
+- **Offline:** the app keeps a copy on the device and syncs changes when the network is back.
+- **Gemini API key:** stays on the device only. It is never sent to the database or included in backups.
 
-## React Compiler
+## Configuration
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Set these in Vercel (Project Settings -> Environment Variables) and, for local dev, in `.env.local`
+(see `.env.example`). Without them the app runs local-only, like the original version.
 
-## Expanding the ESLint configuration
+| Variable | Value |
+| --- | --- |
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable (anon) key |
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Supabase dashboard setup (one time): Authentication -> Providers -> Google (client ID + secret from Google
+Cloud), and Authentication -> URL Configuration -> add the production URL to Redirect URLs.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Development
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+npm install --legacy-peer-deps
+npm run dev      # http://localhost:5173
+npm test
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Backups: Settings -> Export (share sheet / download / copy). Import accepts the same file.
+See `GEMINI.md` for project invariants (do not change the daily question IDs).
