@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { AppState, Config, Event, CoachingReport, EventType } from './types';
 import { format, subDays, startOfDay } from 'date-fns';
+import { parseBackup, countState } from './backup';
+import type { BackupCounts } from './backup';
+
+export type ImportResult = { ok: true; counts: BackupCounts } | { ok: false; error: string };
 
 export const DEFAULT_CONFIG: Config = {
   categories: {
@@ -188,7 +192,7 @@ interface AppContextType {
   saveCoachingReport: (content: string, dataSnapshot: any, mode: 'Standard' | 'Action Plan' | 'Philosophical') => string;
   updateCoachingReport: (id: string, updates: Partial<Pick<CoachingReport, 'feedback' | 'truthUtility'>>) => void;
   deleteCoachingReport: (id: string) => void;
-  importState: (json: string) => void;
+  importState: (json: string) => ImportResult;
   moveEvent: (oldDate: string, newDate: string, event: Event) => void;
 }
 
@@ -392,14 +396,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
-  const importState = (json: string) => {
+  const importState = (json: string): ImportResult => {
     try {
-      const parsed = JSON.parse(json);
-      if (parsed.days && parsed.config) {
-        setState(parsed);
+      const parsed = parseBackup(json);
+      // Safety net: keep a copy of what is being replaced so a wrong import is recoverable.
+      try {
+        localStorage.setItem('pulse_state_pre_import', JSON.stringify(state));
+      } catch (e) {
+        console.error('Could not store pre-import copy', e);
       }
+      setState(prev => ({
+        ...prev,
+        days: parsed.days,
+        mottos: parsed.mottos,
+        streakCategories: parsed.streakCategories,
+        coachingHistory: parsed.coachingHistory,
+        systemPrompt: parsed.systemPrompt ?? prev.systemPrompt,
+        geminiKey: parsed.geminiKey ?? prev.geminiKey,
+        config: DEFAULT_CONFIG
+      }));
+      return { ok: true, counts: countState(parsed) };
     } catch (e) {
       console.error('Import failed', e);
+      return { ok: false, error: e instanceof Error ? e.message : 'Unknown error' };
     }
   };
 

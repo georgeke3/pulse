@@ -9,9 +9,11 @@ import {
   ClipboardList, Plus, ChevronLeft, ChevronRight, X, Sparkles, Calendar,
   Briefcase, Heart, Users, UsersRound, Zap, CheckSquare, Wallet, 
   Footprints, Moon, Brain, Eye, Palette, Gamepad2, BookOpen, HelpCircle, 
-  Library, Edit2, Check, Settings as SettingsIcon, Download, Upload, Coffee, Trophy, Home, Activity
+  Library, Edit2, Check, Settings as SettingsIcon, Download, Upload, Coffee, Trophy, Home, Activity, Copy
 } from 'lucide-react';
 import { useApp } from './store';
+import { buildBackup, copyText, describeCounts, shareOrDownloadBackup } from './backup';
+import type { BuiltBackup } from './backup';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Event, Duration, EventType } from './types';
@@ -945,27 +947,45 @@ const SettingsView = () => {
     alert('Settings saved locally.');
   };
 
+  const [backup, setBackup] = useState<(BuiltBackup & { message: string }) | null>(null);
+
+  const deliver = async (b: BuiltBackup) => {
+    const result = await shareOrDownloadBackup(b.json, b.filename);
+    const message =
+      result === 'shared' ? 'Sent to the share sheet. Pick "Save to Files" to keep it.' :
+      result === 'downloaded' ? 'Download started. Check your Downloads / Files app.' :
+      result === 'cancelled' ? 'Share cancelled. Tap Save file again, or use Copy.' :
+      'Could not save a file here. Use Copy below.';
+    setBackup(prev => (prev ? { ...prev, message } : prev));
+  };
+
   const exportData = () => {
-    const dataStr = JSON.stringify(state, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    const exportFileDefaultName = `pulse-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
+    const built = buildBackup(state);
+    setBackup({ ...built, message: 'Preparing…' });
+    void deliver(built); // called synchronously from the tap so mobile browsers allow the share sheet
+  };
+
+  const copyBackup = async () => {
+    if (!backup) return;
+    const ok = await copyText(backup.json);
+    setBackup({ ...backup, message: ok ? 'Copied to clipboard. Paste it somewhere safe.' : 'Copy was blocked. Open "Show raw text" and copy it by hand.' });
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
       const json = event.target?.result as string;
       if (confirm('Importing will overwrite your current data. Continue?')) {
-        importState(json);
+        const result = importState(json);
+        alert(result.ok ? `Imported: ${describeCounts(result.counts)}` : `Import failed: ${result.error}`);
       }
     };
+    reader.onerror = () => alert('Could not read that file.');
     reader.readAsText(file);
+    input.value = '';
   };
 
   return (
@@ -1047,9 +1067,46 @@ const SettingsView = () => {
             <label className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-50 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-100 active:scale-95 transition-all cursor-pointer">
               <Upload size={14} />
               Import
-              <input type="file" accept=".json" onChange={handleImport} className="hidden" />
+              <input type="file" accept=".json,application/json" onChange={handleImport} className="hidden" />
             </label>
           </div>
+
+          {backup && (
+            <div className="space-y-3 p-4 rounded-2xl bg-gray-50 border border-gray-100 text-left">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Backup ready</p>
+              <p className="text-xs font-bold text-gray-900 break-words">{describeCounts(backup.counts)}</p>
+              <p className="text-[10px] font-bold text-gray-400">
+                {backup.filename} · {(backup.bytes / 1024).toFixed(1)} KB · {backup.verified ? 'check passed ✓' : 'CHECK FAILED - do not rely on this file'}
+              </p>
+              <p className="text-[10px] font-bold text-purple-600">{backup.message}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => { void deliver(backup); }}
+                  className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                >
+                  <Download size={14} />
+                  Save file
+                </button>
+                <button
+                  onClick={() => { void copyBackup(); }}
+                  className="flex items-center justify-center gap-2 py-3 px-4 bg-white text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-200 active:scale-95 transition-all"
+                >
+                  <Copy size={14} />
+                  Copy
+                </button>
+              </div>
+              <details>
+                <summary className="text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer">Show raw text</summary>
+                <textarea
+                  readOnly
+                  value={backup.json}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="mt-2 w-full h-40 p-3 rounded-xl bg-white border border-gray-200 font-mono text-[10px]"
+                />
+              </details>
+              <p className="text-[10px] font-bold text-gray-400">Your Gemini API key is never included in backups.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
