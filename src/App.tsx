@@ -938,6 +938,8 @@ const MottoLibraryModal = ({ onClose, onSelect }: { onClose: () => void, onSelec
 const SettingsView = () => {
   const { state, updateGeminiKey, updateSystemPrompt, addStreakCategory, deleteStreakCategory, importState, cloud } = useApp();
   const [key, setKey] = useState(state.geminiKey || '');
+  const [showKey, setShowKey] = useState(false);
+  const [keyCopied, setKeyCopied] = useState(false);
   const [prompt, setPrompt] = useState(state.systemPrompt || '');
   const [newStreakCat, setNewStreakCategory] = useState('');
 
@@ -1036,13 +1038,31 @@ const SettingsView = () => {
 
         <div className="space-y-3">
           <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Gemini API Key</label>
-          <input 
-            type="password"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            placeholder="paste key here..."
-            className="w-full p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={showKey ? key : key ? '•'.repeat(Math.min(key.length, 32)) : ''}
+              readOnly={!showKey && !!key}
+              onChange={(e) => setKey(e.target.value)}
+              onFocus={() => setShowKey(true)}
+              placeholder="paste key here..."
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              className="flex-1 min-w-0 p-5 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-purple-600 font-black text-sm select-text"
+            />
+            <button
+              type="button"
+              disabled={!key}
+              onClick={async () => {
+                if (await copyText(key)) { setKeyCopied(true); setTimeout(() => setKeyCopied(false), 1500); }
+              }}
+              className="px-4 bg-gray-900 text-white rounded-3xl font-black text-[10px] uppercase tracking-widest active:scale-95 disabled:opacity-30"
+            >
+              {keyCopied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">
