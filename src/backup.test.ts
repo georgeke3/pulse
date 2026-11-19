@@ -50,7 +50,7 @@ describe('backup export', () => {
     const b = buildBackup(sampleState(), new Date(2026, 10, 18, 23, 5));
     expect(b.verified).toBe(true);
     expect(b.json.includes('SECRET-KEY-123')).toBe(false);
-    expect(b.filename).toBe('pulse-backup-2026-11-18-2305.json');
+    expect(b.filename).toBe('omokage-backup-2026-11-18-2305.json');
   });
 
   it('round-trips all user data losslessly', () => {

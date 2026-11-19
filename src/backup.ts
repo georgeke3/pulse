@@ -92,7 +92,7 @@ export const describeCounts = (c: BackupCounts): string =>
 const pad = (n: number) => String(n).padStart(2, '0');
 
 export const backupFilename = (now: Date): string =>
-  `pulse-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.json`;
+  `omokage-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.json`;
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -105,8 +105,8 @@ export const parseBackup = (text: string): ParsedBackup => {
   } catch {
     throw new Error('That file is not valid JSON.');
   }
-  if (!isPlainObject(raw)) throw new Error('That file is not a Pulse backup.');
-  if (!isPlainObject(raw.days)) throw new Error('No "days" data found. Is this a Pulse backup?');
+  if (!isPlainObject(raw)) throw new Error('That file is not an Omokage backup.');
+  if (!isPlainObject(raw.days)) throw new Error('No "days" data found. Is this an Omokage backup?');
 
   const days: Record<string, DayData> = {};
   for (const [date, value] of Object.entries(raw.days)) {
@@ -140,7 +140,7 @@ export const buildBackup = (state: AppState, now: Date = new Date()): BuiltBacku
   const payload = {
     ...data,
     backupMeta: {
-      app: 'pulse',
+      app: 'omokage',
       formatVersion: BACKUP_FORMAT_VERSION,
       exportedAt: now.toISOString(),
       counts,
