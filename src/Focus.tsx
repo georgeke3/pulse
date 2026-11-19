@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { format, subDays, addDays, eachDayOfInterval } from 'date-fns';
 import { Check, X, RotateCcw, Undo2, Zap, Play, Square, Loader2 } from 'lucide-react';
 import { useApp } from './store';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateText } from './gemini';
+import { cloudConfigured } from './cloudClient';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -74,7 +75,7 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
   };
 
   const fetchLifeBlurb = async () => {
-    if (!state.geminiKey) return;
+    if (!state.geminiKey && !cloudConfigured) return;
     setLoadingBlurb(true);
 
     const now = new Date();
@@ -123,10 +124,7 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
     `;
 
     try {
-      const genAI = new GoogleGenerativeAI(state.geminiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const text = await generateText(prompt, state.geminiKey);
       setJournalGrounding(text.trim());
     } catch (e) {
       console.error("Failed to generate focus blurb", e);

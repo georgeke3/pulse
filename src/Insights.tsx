@@ -9,7 +9,8 @@ import { useApp } from './store';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Sparkles, Loader2, AlertCircle, History, Clock, X, Trash2 } from 'lucide-react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateText } from './gemini';
+import { cloudConfigured } from './cloudClient';
 import type { TruthUtility } from './types';
 
 function cn(...inputs: ClassValue[]) {
@@ -217,7 +218,7 @@ const AICoach = () => {
   const [mode, setMode] = useState<'Standard' | 'Action Plan' | 'Philosophical'>('Standard');
 
   const generateInsight = async () => {
-    if (!state.geminiKey) {
+    if (!state.geminiKey && !cloudConfigured) {
       setError("Please add your Gemini API Key in Settings (Calendar tab) first.");
       return;
     }
@@ -304,14 +305,7 @@ const AICoach = () => {
     `;
 
     try {
-      const genAI = new GoogleGenerativeAI(state.geminiKey);
-      const model = genAI.getGenerativeModel(
-        { model: "gemini-flash-latest" },
-        { apiVersion: 'v1beta' }
-      );
-
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const text = await generateText(prompt, state.geminiKey);
       
       if (!text) throw new Error("No response from AI.");
       

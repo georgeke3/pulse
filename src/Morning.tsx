@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import { format, subDays, addDays, eachDayOfInterval } from 'date-fns';
 import { Sparkles, Play, Square, Check, Loader2, Zap, X } from 'lucide-react';
 import { useApp } from './store';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateText } from './gemini';
+import { cloudConfigured } from './cloudClient';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -57,7 +58,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
   };
 
   const startMorning = async () => {
-    if (!state.geminiKey) {
+    if (!state.geminiKey && !cloudConfigured) {
       alert("Please add your Gemini API Key in Settings first.");
       return;
     }
@@ -122,10 +123,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
     `;
 
     try {
-      const genAI = new GoogleGenerativeAI(state.geminiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const text = await generateText(prompt, state.geminiKey);
       const cleanText = text.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(cleanText);
       
