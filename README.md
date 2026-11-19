@@ -1,4 +1,4 @@
-# Pulse
+# Omokage (repo: pulse)
 
 Mental load & resilience tracker (Training vs Recovery) with a Morning tab and Gemini coaching audits.
 Mobile-first PWA built with Vite + React + TypeScript.

@@ -220,7 +220,7 @@ const CalendarView = ({ onSelectDate, onOpenModule }: { onSelectDate: (date: Dat
       <header className="mb-8 space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pulse</h1>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Omokage</h1>
             <p className="text-gray-500 font-medium">{format(currentMonth, 'MMMM yyyy')}</p>
           </div>
           <div className="flex gap-2">
@@ -1023,7 +1023,7 @@ const SettingsView = () => {
                   const unsynced = cloud.status !== 'synced';
                   const msg = unsynced
                     ? 'Some changes have not reached the cloud yet. They stay on this device until you sign back in. Sign out anyway?'
-                    : 'Sign out of Pulse on this device?';
+                    : 'Sign out of Omokage on this device?';
                   if (confirm(msg)) void cloud.signOut();
                 }}
                 className="py-3 px-4 bg-white text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-200 active:scale-95 transition-all"

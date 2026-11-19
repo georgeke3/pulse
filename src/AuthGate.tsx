@@ -56,7 +56,7 @@ const CloudGate = ({ children }: { children: ReactNode }) => {
     <div className="min-h-screen bg-white text-gray-900 flex flex-col items-center justify-center p-8 text-center">
       <div className="w-full max-w-[448px] space-y-10">
         <header>
-          <h1 className="text-5xl font-black tracking-tight mb-2">Pulse</h1>
+          <h1 className="text-5xl font-black tracking-tight mb-2">Omokage</h1>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Mental Load &amp; Resilience</p>
         </header>
 
