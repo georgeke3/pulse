@@ -1,4 +1,4 @@
-import { CRIMSON, GOLD, SEPIA, type Mode } from './skins';
+import { CRIMSON, GOLD, SEPIA, SKY, type Mode } from './skins';
 import tabHome from './assets/tab-home.png';
 import tabPast from './assets/tab-past.png';
 import tabPresent from './assets/tab-present.png';
