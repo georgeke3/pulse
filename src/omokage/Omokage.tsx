@@ -12,11 +12,16 @@ import { GROUND, INK2, type Mode } from './skins';
 import './omokage.css';
 
 const TABS: { m: Mode; label: string }[] = [{ m: 'home', label: 'Home' }, { m: 'past', label: 'Past' }, { m: 'present', label: 'Present' }, { m: 'future', label: 'Future' }];
+// Every painted asset is decoded up front, so no tab pops its pictures in late the first time it opens.
+const ART = import.meta.glob('./assets/*.png', { eager: true, import: 'default' }) as Record<string, string>;
+const warmArt = () => Object.values(ART).forEach(src => { const im = new Image(); im.src = src; void im.decode?.().catch(() => undefined); });
+
 const startMode = (): Mode => { const h = new Date().getHours(); return h >= 20 || h < 4 ? 'home' : 'present'; };
 
 const Inner = () => {
   const { add } = useItems();
   const [mode, setMode] = useState<Mode>(startMode);
+  useEffect(() => { warmArt(); }, []);
   const [pulse, setPulse] = useState(false);
   const [typing, setTyping] = useState(false);
   const [dump, setDump] = useState(false);

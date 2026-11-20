@@ -11,6 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: { globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'], maximumFileSizeToCacheInBytes: 6 * 1024 * 1024 },
       includeAssets: ['favicon.png', 'apple-touch-icon.png', 'icons.svg'],
       manifest: {
         name: 'Omokage',
