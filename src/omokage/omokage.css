@@ -7,7 +7,7 @@ html, body { background: #FAF8F3; overscroll-behavior: none; }
   --sans: 'Inter', system-ui, -apple-system, sans-serif;
   --ease: cubic-bezier(.2, .8, .2, 1);
   --top: env(safe-area-inset-top); --bot: max(env(safe-area-inset-bottom), 10px);
-  position: fixed; inset: 0; max-width: 520px; margin: 0 auto; overflow: hidden;
+  position: fixed; left: 0; right: 0; top: 0; height: 100vh; height: 100lvh; max-width: 520px; margin: 0 auto; overflow: hidden;
   display: flex; flex-direction: column;
   font-family: var(--sans); color: var(--ink); background: var(--ground);
   -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
