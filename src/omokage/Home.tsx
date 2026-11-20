@@ -1,3 +1,4 @@
+import { Sym } from './Sym';
 import { useState } from 'react';
 import { useApp } from '../store';
 import { Belt, Fly, Pencil } from './Art';
@@ -113,9 +114,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode) => void; onPulse: () => vo
           <div className="caps" style={{ marginBottom: 2 }}>tonight</div>
           {rows.map(r => (
             <button key={r.label} className="todo" onClick={r.act}>
-              <span className="ring-box" style={{ boxShadow: `inset 0 0 0 1.3px ${r.c}`, background: r.done ? r.c : 'transparent' }}>
-                {r.done && <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2 L4.2 7.2 L8 2.8" stroke="#fff" strokeWidth="1.6" fill="none" /></svg>}
-              </span>
+              <Sym n="dragon" on={!!r.done} s={26} o={r.done ? 1 : .8} />
               <span className={r.done ? '' : 'it'} style={{ fontSize: 16, flex: 1, opacity: r.done ? .4 : 1, textDecoration: r.done ? 'line-through' : 'none' }}>{r.label}</span>
               <span style={{ color: INK2, fontSize: 16 }}>›</span>
             </button>

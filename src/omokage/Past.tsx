@@ -1,6 +1,7 @@
+import { Sym } from './Sym';
 import { useMemo, useState } from 'react';
 import { useApp } from '../store';
-import { Butterfly, Fly, Pencil } from './Art';
+import { Fly, Pencil } from './Art';
 import { useItems } from './items';
 import { INK, INK2, SEPIA, agoWords, dstr, fromDstr, todayStr } from './skins';
 import { Typing } from './Typing';
@@ -92,9 +93,9 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
           {CHIPS.slice(0, 5).map(c => { const on = tags.includes(c); return <button key={c} className={`chip ${on ? 'on' : ''}`} onClick={() => setTags(v => (on ? v.filter(x => x !== c) : [...v, c]))}>{c}</button>; })}
         </div>
         <button className="press" onClick={() => setTyping(true)} style={{ width: '100%', marginTop: 14, height: 48, display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1.2px dashed rgba(43,50,71,.3)', textAlign: 'left' }}>
-          <svg width="17" height="17" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M22 5 L27 10 L12 25 L5 27 L7 20Z" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" /></svg>
+          <Sym n="wisp" on={todays.length > 0} s={22} />
           <span className="it" style={{ fontSize: 16, color: INK2, flex: 1 }}>{todays.length ? 'Written tonight · add a few more lines' : 'Write a few lines…'}</span>
-          {todays.length > 0 && <Butterfly c={SEPIA} s={14} />}
+          
         </button>
       </div>
 
@@ -120,7 +121,7 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
             const k = dstr(d), n = all.some(a => a.day === k), isT = k === today;
             return (
               <div key={k} style={{ width: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                <Butterfly c={SEPIA} s={24} st={n ? 'fill' : 'outline'} dashed={!n} o={isT ? .9 : .55} />
+                <Sym n="ginkgo" on={n} s={26} o={isT ? 1 : n ? .85 : .6} />
                 <span style={{ fontSize: 10, color: isT ? INK : INK2, fontWeight: isT ? 600 : 400 }}>{d.toLocaleDateString('en', { weekday: 'narrow' })}</span>
               </div>
             );

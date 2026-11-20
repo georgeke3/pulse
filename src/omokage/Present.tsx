@@ -1,3 +1,5 @@
+import sparkF from './assets/sym-sparkle-f.png';
+import { Sym } from './Sym';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../store';
 import type { Event, EventType } from '../types';
@@ -141,7 +143,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
       <DayRibbon events={timed} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 24px', height: 22, flex: 'none' }}>
         <span className="it" style={{ fontSize: 15 }}>
-          <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: EMBER }}>{loadN}</b> load · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: SKY }}>{restN}</b> rest · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: GOLD }}>{winN}</b> win{winN === 1 ? '' : 's'}
+          <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: EMBER }}>{loadN}</b> load · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: SKY }}>{restN}</b> rest · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: GOLD }}>{winN}</b> <span style={{ display: 'inline-block', verticalAlign: '-4px' }}><Sym n="sparkle" on={winN > 0} s={16} o={winN > 0 ? 1 : .6} /></span> win{winN === 1 ? '' : 's'}
         </span>
         <span style={{ fontSize: 11, color: INK2 }}>{last ? `last · ${last.category}${last.type !== 'win' ? ' ' + Math.round(last.objectiveIntensity) : ''} · ${fmtMin(evMin(last)!, true)}` : 'nothing logged yet'}</span>
       </div>
@@ -174,7 +176,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
           );
         })}
         <button className="crest" onClick={onPulse} style={{ left: cx - crest / 2, top: cy - crest / 2, width: crest, height: crest }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5Z" fill={GOLD} /></svg>
+          <Sym n="orb" on={answered >= nq} s={26} />
           <span className="it" style={{ fontSize: 15 }}>{answered >= nq ? 'Pulse done' : 'Evening pulse'}</span>
           <span style={{ display: 'flex', gap: 3, marginTop: 3 }}>{Array.from({ length: nq }, (_, k) => <i key={k} style={{ width: 5, height: 5, borderRadius: 3, background: k < answered ? GOLD : 'rgba(43,50,71,.15)' }} />)}</span>
           <span className="caps" style={{ fontSize: 8.5, marginTop: 3 }}>{answered} of {nq}</span>
@@ -184,7 +186,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 24px', height: 40, flex: 'none' }}>
         <span className="caps">hold a node · slide</span>
         <button className="chip press" onClick={onDump} style={{ height: 36, gap: 8, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.14),0 6px 16px rgba(43,50,71,.08)' }}>
-          <svg width="15" height="15" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M26 4 C14 6 8 14 7 25 C16 23 23 16 26 4Z" stroke={INK} strokeWidth="1.6" /><path d="M7 25 L4 28 M12 19 L20 11" stroke={INK} strokeWidth="1.6" /></svg>
+          <Sym n="wisp" on={false} s={20} />
           <span className="it" style={{ fontSize: 14 }}>Dump the day</span>
         </button>
       </div>
@@ -233,7 +235,7 @@ const DayRibbon = ({ events }: { events: Event[] }) => {
         {events.length === 0 && <text x={W / 2} y={Y - 26} fontSize="12" textAnchor="middle" fill={INK2} fontFamily="Lora, serif" fontStyle="italic">your day draws itself here</text>}
         {events.map(e => {
           const x = X(evMin(e)!), lvl = Math.max(1, Math.round(e.objectiveIntensity || 1));
-          if (e.type === 'win') return <path key={e.id} d={`M${x} ${Y - 8} L${x + 2.2} ${Y - 2.2} L${x + 8} ${Y} L${x + 2.2} ${Y + 2.2} L${x} ${Y + 8} L${x - 2.2} ${Y + 2.2} L${x - 8} ${Y} L${x - 2.2} ${Y - 2.2}Z`} fill={GOLD} stroke="#fff" strokeWidth="1" />;
+          if (e.type === 'win') return <image key={e.id} href={sparkF} x={x - 11} y={Y - 13} width="22" height="26" preserveAspectRatio="xMidYMid meet" />;
           const up = e.type === 'training', cy = up ? Y - 10 - lvl * 3.6 : Y + 10 + lvl * 2.6, c = up ? EMBER : SKY;
           return (
             <g key={e.id}>

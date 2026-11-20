@@ -1,3 +1,4 @@
+import { Sym } from './Sym';
 import { useState } from 'react';
 import { Belt, Fly } from './Art';
 import { useItems, type Item } from './items';
@@ -69,7 +70,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
                 <div key={i.id} className="pinned" onClick={() => setOpen(isOpen ? null : i.id)} style={{ transform: `rotate(${TILT[k % TILT.length] * .6}deg)`, animation: `enter .4s ${Math.min(k, 8) * 35}ms both` }}>
                   {d && <div className="caps" style={{ marginBottom: 4 }}>↗ {d}</div>}
                   <div className={isQ ? 'it' : ''} style={{ fontSize: isQ ? 15 : 13.5, lineHeight: 1.4, wordBreak: 'break-word', userSelect: 'text', WebkitUserSelect: 'text' }}>{d ? i.body.replace(URL_RE, '').trim() || d : i.body}</div>
-                  <div style={{ fontSize: 10, color: INK2, marginTop: 6 }}>{ago(i.day)}</div>
+                  <div style={{ fontSize: 10, color: INK2, marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><span>{ago(i.day)}</span><Sym n="seal" on={!!i.meta?.kept} s={18} o={i.meta?.kept ? 1 : .6} /></div>
                   {isOpen && (
                     <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, paddingTop: 8, borderTop: '1px dashed rgba(43,50,71,.2)' }}>
                       {others.map(n => <button key={n} className="chip" style={{ height: 28, fontSize: 11.5, padding: '0 10px' }} onClick={() => { update(i.id, { board: n }); setOpen(null); }}>→ {n}</button>)}
@@ -124,7 +125,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
           <div className="it" style={{ fontSize: 23, lineHeight: 1.3, marginTop: 10, maxWidth: 310, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{resurface.body}</div>
           <div style={{ fontSize: 11.5, color: INK2, marginTop: 8 }}>{bOf(resurface)} · saved {ago(resurface.day)}</div>
           <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-            <button className="chip on" style={{ height: 38, padding: '0 18px' }} onClick={markSeen}>Yes, keep it</button>
+            <button className="chip on" style={{ height: 38, padding: '0 18px', gap: 8 }} onClick={() => { update(resurface.id, { meta: { ...(resurface.meta ?? {}), kept: todayStr() } }); markSeen(); }}><Sym n="seal" on s={18} /> Yes, keep it</button>
             <button className="chip" style={{ height: 38, padding: '0 18px' }} onClick={() => { remove(resurface.id); markSeen(); }}>Let it go</button>
           </div>
         </div>
