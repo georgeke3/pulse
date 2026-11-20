@@ -39,7 +39,7 @@ html, body { background: #FAF8F3; overscroll-behavior: none; }
 @keyframes breathe { from { transform: translateY(0); } to { transform: translateY(-3px); } }
 
 /* shell */
-.omk .top { position: relative; z-index: 3; flex: none; display: flex; justify-content: space-between; align-items: flex-end; padding: calc(var(--top) + 10px) 22px 6px 24px; min-height: calc(var(--top) + 54px); }
+.omk .top { position: relative; z-index: 3; flex: none; display: flex; justify-content: space-between; align-items: flex-end; padding: calc(var(--top) + 24px) 22px 6px 24px; min-height: calc(var(--top) + 68px); }
 .omk .top .t { font-family: var(--serif); font-size: 34px; line-height: 1; letter-spacing: -.015em; }
 .omk .top .s { font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--ink2); padding-bottom: 4px; }
 .omk .body { position: relative; z-index: 1; flex: 1; min-height: 0; }

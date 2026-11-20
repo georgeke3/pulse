@@ -15,7 +15,7 @@ export const Sheet = ({ mode, children }: { mode: Mode; children: ReactNode }) =
   return createPortal(
     <div className="omk omk-sheet" data-mode={mode} style={{ top: vv.top, height: vv.h < window.innerHeight - 120 ? vv.h : '100lvh', ['--sb' as string]: vv.h < window.innerHeight - 120 ? '0px' : 'var(--bot)' }}>
       <Atmos mode={mode} />
-      <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', paddingTop: 'var(--top)' }}>{children}</div>
+      <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', paddingTop: 'calc(var(--top) + 10px)' }}>{children}</div>
     </div>,
     document.body,
   );
