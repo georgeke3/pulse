@@ -15,3 +15,16 @@ createRoot(document.getElementById('root')!).render(
     </AuthGate>
   </StrictMode>,
 )
+
+// New deploys: the service worker installs in the background and takes over on the next load, which left the
+// installed app showing the old build until a second reload. Reload once as soon as a new worker takes over
+// (not on the very first install, when there was no previous worker to replace).
+if ('serviceWorker' in navigator) {
+  const had = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!had || reloaded) return;
+    reloaded = true;
+    location.reload();
+  });
+}
