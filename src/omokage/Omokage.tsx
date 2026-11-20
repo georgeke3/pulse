@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Atmos, Glyph } from './Art';
 import { Future } from './Future';
 import { haptic } from './haptics';
@@ -8,7 +8,7 @@ import { Past } from './Past';
 import { Present } from './Present';
 import { PulseFlow } from './Pulse';
 import { Typing } from './Typing';
-import { INK2, type Mode } from './skins';
+import { GROUND, INK2, type Mode } from './skins';
 import './omokage.css';
 
 const TABS: { m: Mode; label: string }[] = [{ m: 'home', label: 'Home' }, { m: 'past', label: 'Past' }, { m: 'present', label: 'Present' }, { m: 'future', label: 'Future' }];
@@ -22,6 +22,8 @@ const Inner = () => {
   const [dump, setDump] = useState(false);
   const go = (m: Mode) => { if (m !== mode) haptic(6); setMode(m); setPulse(false); setTyping(false); };
   const now = new Date();
+  // paint the page itself in the mode's ground, so nothing behind the app can ever show as a band
+  useEffect(() => { document.documentElement.style.background = GROUND[mode]; document.body.style.background = GROUND[mode]; }, [mode]);
   const sub: Record<Mode, string> = {
     home: '', past: 'what was', future: 'what may be',
     present: `${now.toLocaleDateString('en', { weekday: 'long' })}, the day so far`,

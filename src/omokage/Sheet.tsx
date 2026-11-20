@@ -12,8 +12,9 @@ export const Sheet = ({ mode, children }: { mode: Mode; children: ReactNode }) =
     f(); v?.addEventListener('resize', f); v?.addEventListener('scroll', f);
     return () => { v?.removeEventListener('resize', f); v?.removeEventListener('scroll', f); };
   }, []);
+  const kb = vv.h < window.innerHeight - 120;
   return createPortal(
-    <div className="omk omk-sheet" data-mode={mode} style={{ top: vv.top, height: vv.h < window.innerHeight - 120 ? vv.h : '100lvh', ['--sb' as string]: vv.h < window.innerHeight - 120 ? '0px' : 'var(--bot)' }}>
+    <div className="omk omk-sheet" data-mode={mode} style={kb ? { top: vv.top, bottom: 'auto', height: vv.h, ['--sb' as string]: '0px' } : { top: 0, bottom: 0, ['--sb' as string]: 'var(--bot)' }}>
       <Atmos mode={mode} />
       <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', paddingTop: 'calc(var(--top) + 10px)' }}>{children}</div>
     </div>,
