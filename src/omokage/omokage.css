@@ -1,3 +1,4 @@
+html, body { background: #E9E2D4; overscroll-behavior: none; }
 /* Omokage design system — skin pack 01 "sun-faded".
    Past = Sketchbook wind · Present = Tactician's codex · Future = Mist and crest · Home = all three. */
 
@@ -58,13 +59,13 @@
 .omk .grow { flex: 1; min-height: 0; }
 
 /* ---------- tab bar ---------- */
-.omk .tabs { position: relative; z-index: 5; flex: none; display: flex; height: calc(58px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: var(--tab); transition: background-color .5s var(--ease); box-shadow: 0 -1px 0 rgba(120, 95, 50, .25), 0 -10px 24px rgba(60, 45, 20, .06); }
+.omk .tabs { position: relative; z-index: 5; flex: none; display: flex; height: calc(56px + max(env(safe-area-inset-bottom), 8px)); padding-bottom: max(env(safe-area-inset-bottom), 8px); background: var(--tab); transition: background-color .5s var(--ease); box-shadow: 0 -1px 0 rgba(120, 95, 50, .25), 0 -10px 24px rgba(60, 45, 20, .06); }
 .omk .tabs::before { content: ''; position: absolute; left: 0; right: 0; top: 3px; height: 1px; background: linear-gradient(90deg, transparent, rgba(184, 146, 74, .45), transparent); }
 .omk .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding-top: 4px; font-size: 10.5px; letter-spacing: .04em; color: var(--fg2); transition: color .3s; position: relative; }
 .omk .tab svg { transition: transform .35s var(--ease), opacity .3s; opacity: .62; }
 .omk .tab.on { color: var(--fg); font-weight: 600; }
 .omk .tab.on svg { opacity: 1; transform: translateY(-1px) scale(1.06); }
-.omk .tab.on::after { content: ''; position: absolute; bottom: 4px; width: 5px; height: 5px; transform: rotate(45deg); background: var(--accent); }
+.omk .tab.on::after { content: ''; position: absolute; top: 2px; width: 18px; height: 2px; border-radius: 2px; background: var(--accent); }
 .omk .tab:active svg { transform: scale(.9); }
 .omk .homeseal { width: 44px; height: 44px; margin-top: -18px; border-radius: 50%; display: grid; place-items: center;
   background: radial-gradient(circle at 35% 30%, #FFFDF7, #EFE6D3 70%);
