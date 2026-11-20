@@ -42,20 +42,22 @@ html, body { margin: 0; background: #FAF8F3; overscroll-behavior: none; }
 .omk .top { position: relative; z-index: 3; flex: none; display: flex; justify-content: space-between; align-items: flex-end; padding: calc(var(--top) + 24px) 22px 6px 24px; min-height: calc(var(--top) + 68px); }
 .omk .top .t { font-family: var(--serif); font-size: 34px; line-height: 1; letter-spacing: -.015em; }
 .omk .top .s { font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--ink2); padding-bottom: 4px; }
-.omk .body { position: relative; z-index: 1; flex: 1; min-height: 0; margin-bottom: calc(54px + var(--bot)); }
+.omk .body { position: relative; z-index: 1; flex: 1; min-height: 0; margin-bottom: calc(64px + var(--bot)); }
 .omk .screen { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 8px 24px 12px; animation: enter .45s var(--ease); }
 @keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .omk .grow { flex: 1; min-height: 0; }
 .omk .scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .omk .scroll::-webkit-scrollbar { display: none; }
 
-.omk .tabs { position: fixed; left: 0; right: 0; bottom: 0; max-width: 520px; margin: 0 auto; z-index: 5; display: flex; height: calc(54px + var(--bot)); padding: 0 18px var(--bot); background: linear-gradient(to top, rgb(var(--fade)) 70%, rgba(var(--fade), 0)); }
-.omk .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 10px; letter-spacing: .06em; color: var(--ink2); }
-.omk .tab .ic { position: relative; width: 34px; height: 30px; display: grid; place-items: center; transition: transform .3s var(--ease); }
+.omk .tabs { position: fixed; left: 0; right: 0; bottom: 0; max-width: 520px; margin: 0 auto; z-index: 5; display: flex; height: calc(64px + var(--bot)); padding: 0 18px var(--bot); background: linear-gradient(to top, rgb(var(--fade)) 70%, rgba(var(--fade), 0)); }
+.omk .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10px; letter-spacing: .06em; color: var(--ink2); }
+.omk .tab .ic { position: relative; width: 48px; height: 42px; display: grid; place-items: center; transition: transform .3s var(--ease); }
 .omk .tab .ic svg { position: relative; }
 .omk .tab.on { color: var(--ink); font-weight: 600; }
 .omk .tab.on .ic::before { content: ''; position: absolute; inset: -6px -4px; border-radius: 50%; background: radial-gradient(circle, var(--wash) 0%, transparent 70%); animation: enter .4s var(--ease); }
 .omk .tab:active .ic { transform: scale(.9); }
+.omk .tabart { position: relative; width: 42px; height: 42px; object-fit: contain; opacity: .55; filter: saturate(.55); transition: opacity .3s, filter .3s, transform .35s var(--ease); -webkit-user-drag: none; }
+.omk .tabart.on { opacity: 1; filter: none; transform: translateY(-2px) scale(1.12); }
 
 /* chips & pills */
 .omk .chip { display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; height: 32px; padding: 0 14px; border-radius: 99px; font-size: 13px; box-shadow: inset 0 0 0 1px rgba(43, 50, 71, .22); color: var(--ink); transition: background-color .2s, color .2s, transform .15s; background: rgba(255, 255, 255, .35); }

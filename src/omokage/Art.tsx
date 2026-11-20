@@ -1,4 +1,8 @@
-import { CRIMSON, GOLD, INK, SEPIA, SKY, type Mode } from './skins';
+import { CRIMSON, GOLD, SEPIA, type Mode } from './skins';
+import tabHome from './assets/tab-home.png';
+import tabPast from './assets/tab-past.png';
+import tabPresent from './assets/tab-present.png';
+import tabFuture from './assets/tab-future.png';
 
 export const BF = 'M0 0 C-2 -7 -9 -13 -14 -10 C-18 -7 -15 -2 -8 1 C-13 3 -14 9 -9 10 C-5 11 -2 6 0 2 C2 6 5 11 9 10 C14 9 13 3 8 1 C15 -2 18 -7 14 -10 C9 -13 2 -7 0 0Z';
 export type BStyle = 'fill' | 'outline' | 'glow';
@@ -81,23 +85,8 @@ export const Atmos = ({ mode }: { mode: Mode }) => {
   );
 };
 
-/* ---- tab glyphs (thin, hand-inked) ---- */
-export const Glyph = ({ mode, on }: { mode: Mode; on: boolean }) => {
-  const c = on ? INK : '#646B7E', a = on ? 1 : .75;
-  if (mode === 'home') return (
-    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" opacity={a} aria-hidden="true"><circle cx="16" cy="16" r="11.5" stroke={c} strokeWidth="1.3" />
-      <path d="M16 7.5 L23.4 20.3 H8.6Z" stroke={c} strokeWidth=".9" opacity=".55" /><circle cx="16" cy="7.5" r="2.6" fill={SKY} stroke="#fff" /><circle cx="8.6" cy="20.3" r="2.6" fill={GOLD} stroke="#fff" /><circle cx="23.4" cy="20.3" r="2.6" fill={CRIMSON} stroke="#fff" /></svg>
-  );
-  if (mode === 'past') return (
-    <svg width="28" height="26" viewBox="-16 -13 32 26" opacity={a} aria-hidden="true"><path d={BF} fill={c} fillOpacity=".14" stroke={c} strokeWidth="1.1" strokeLinejoin="round" />
-      <path d="M0 -3 V8 M0 -3 C-1 -7 -3 -9 -5 -10 M0 -3 C1 -7 3 -9 5 -10" stroke={c} strokeWidth="1" fill="none" strokeLinecap="round" /></svg>
-  );
-  if (mode === 'present') return (
-    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" opacity={a} aria-hidden="true"><path d="M16 4 L25 8 V16 C25 22 21 26 16 28 C11 26 7 22 7 16 V8Z" stroke={c} strokeWidth="1.3" strokeLinejoin="round" fill={c} fillOpacity=".06" />
-      <path d="M16 9 V23 M11.5 14 H20.5" stroke={GOLD} strokeWidth="1.5" strokeLinecap="round" /></svg>
-  );
-  return (
-    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" opacity={a} aria-hidden="true"><path d="M16 3 L18.4 13.6 L29 16 L18.4 18.4 L16 29 L13.6 18.4 L3 16 L13.6 13.6Z" stroke={c} strokeWidth="1.2" strokeLinejoin="round" fill={CRIMSON} fillOpacity=".1" />
-      <path d="M24.5 4 L28 6 L24.5 8Z" fill={CRIMSON} /><path d="M24.5 4 V11" stroke={c} strokeWidth=".9" /></svg>
-  );
-};
+/* ---- tab icons: the dragon line. Home = the grown dragon, Past = its ghost, Present = still growing, Future = the next generation ---- */
+const TAB_ART: Record<Mode, string> = { home: tabHome, past: tabPast, present: tabPresent, future: tabFuture };
+export const Glyph = ({ mode, on }: { mode: Mode; on: boolean }) => (
+  <img src={TAB_ART[mode]} alt="" aria-hidden="true" draggable={false} className={`tabart ${on ? 'on' : ''}`} />
+);
