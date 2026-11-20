@@ -1,12 +1,9 @@
 import type { Mode } from './skins';
-export const Glyph = ({ mode, color, size = 26 }: { mode: Mode; color: string; size?: number }) => {
-  const p = { fill: 'none', stroke: color, strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
-      {mode === 'past' && (<g {...p}><path d="M16 8v16" /><path d="M16 12C12 5 5 6 6 12c.5 4 6 4 10 0z" /><path d="M16 12c4-7 11-6 10 0-.5 4-6 4-10 0z" /><path d="M16 20c-3 5-8 5-8 1s5-3 8-1z" /><path d="M16 20c3 5 8 5 8 1s-5-3-8-1z" /></g>)}
-      {mode === 'present' && (<g {...p}><path d="M16 4l10 4v8c0 6-4 10-10 12C10 26 6 22 6 16V8z" /><circle cx="16" cy="15" r="3" /><path d="M16 9v3M16 18v3" /></g>)}
-      {mode === 'future' && (<g {...p}><path d="M16 3c1 7 3 10 11 13-8 3-10 6-11 13-1-7-3-10-11-13 8-3 10-6 11-13z" /><circle cx="16" cy="16" r="1.6" fill={color} /></g>)}
-      {mode === 'home' && (<g><circle cx="16" cy="16" r="11" fill="none" stroke={color} strokeWidth="1.6" /><circle cx="10.5" cy="17" r="2.3" fill="#788eaa" /><circle cx="16" cy="13.5" r="2.3" fill="#b08e54" /><circle cx="21.5" cy="17" r="2.3" fill="#a65454" /></g>)}
-    </svg>
-  );
+export const Glyph = ({ mode, size = 28 }: { mode: Mode; size?: number }) => {
+  const P = { width: size, height: size, viewBox: '0 0 32 32', fill: 'none' } as const;
+  if (mode === 'home') return (<svg {...P}><circle cx="16" cy="16" r="13" stroke="#9C7B3C" strokeWidth="2" /><circle cx="16" cy="9" r="2.4" fill="#6F86A3" /><circle cx="9.5" cy="20" r="2.4" fill="#B8924A" /><circle cx="22.5" cy="20" r="2.4" fill="#9B3A44" /><path d="M16 11.6 L11 18 M16 11.6 L21 18 M12 20 H20" stroke="#34405A" strokeWidth="1" opacity=".5" /></svg>);
+  if (mode === 'past') { const f = { fill: '#8FA3B8', fillOpacity: .35, stroke: '#34405A', strokeWidth: 1.3, strokeLinejoin: 'round' as const };
+    return (<svg {...P}><path d="M16 14 C12 4 3 6 5 13 C6 18 12 18 16 16Z" {...f} /><path d="M16 14 C20 4 29 6 27 13 C26 18 20 18 16 16Z" {...f} /><path d="M16 17 C12 18 7 22 10 27 C13 29 15 23 16 19Z" {...f} /><path d="M16 17 C20 18 25 22 22 27 C19 29 17 23 16 19Z" {...f} /><path d="M16 12 V25 M16 12 C15 9 13.5 7 12 6 M16 12 C17 9 18.5 7 20 6" stroke="#34405A" strokeWidth="1.3" strokeLinecap="round" /></svg>); }
+  if (mode === 'present') return (<svg {...P}><circle cx="16" cy="16" r="13" stroke="#9C7B3C" strokeWidth="2" /><path d="M16 7 L23 10 V17 C23 21 20 24 16 26 C12 24 9 21 9 17 V10Z" fill="#3B4250" fillOpacity=".12" stroke="#3B4250" strokeWidth="1.4" strokeLinejoin="round" /><path d="M16 11 V21 M12 15 H20" stroke="#A8482A" strokeWidth="1.5" strokeLinecap="round" /></svg>);
+  return (<svg {...P}><path d="M16 3 L18.6 13.4 L29 16 L18.6 18.6 L16 29 L13.4 18.6 L3 16 L13.4 13.4Z" fill="#9B3A44" fillOpacity=".15" stroke="#1F2A44" strokeWidth="1.4" strokeLinejoin="round" /><path d="M24 5 C27 7 28 10 27 12" stroke="#5C6B82" strokeWidth="1.3" strokeLinecap="round" /><circle cx="25.5" cy="24.5" r="1.6" fill="#9B3A44" /></svg>);
 };

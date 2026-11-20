@@ -1,40 +1,33 @@
 import { useState } from 'react';
-import { Glyph } from './Glyphs';
+import { Future } from './Future';
 import { Home } from './Home';
-import { ItemsProvider } from './items';
-import { Notes } from './Notes';
+import { ItemsProvider, useItems } from './items';
+import { Past } from './Past';
 import { Present } from './Present';
 import { PulseFlow } from './Pulse';
-import { SKINS, type Mode } from './skins';
+import { Screen } from './Shell';
+import { Typing } from './Typing';
+import { longDate, type Mode } from './skins';
 
-const TABS: { m: Mode; label: string }[] = [{ m: 'home', label: 'Home' }, { m: 'past', label: 'Past' }, { m: 'present', label: 'Present' }, { m: 'future', label: 'Future' }];
-
-export const Omokage = () => {
+const Inner = () => {
   const [mode, setMode] = useState<Mode>('present');
   const [pulse, setPulse] = useState(false);
-  const S = SKINS[mode];
+  const [typing, setTyping] = useState(false);
+  const [dump, setDump] = useState(false);
+  const { add } = useItems();
+  const go = (m: Mode) => { setMode(m); setPulse(false); setTyping(false); };
+  const right = mode === 'present' ? <button onClick={() => setPulse(true)} style={{ background: 'none', border: '1px solid #9C7B3C', color: '#9C7B3C', borderRadius: 99, padding: '3px 10px', fontSize: 12, fontFamily: 'inherit' }}>Evening pulse</button> : longDate();
+  const titles: Record<Mode, string> = { home: 'Home', past: 'Past', present: 'Present', future: 'Future' };
   return (
-    <ItemsProvider>
-      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: S.paper, fontFamily: S.font, transition: 'background .25s', maxWidth: 520, margin: '0 auto', overflow: 'hidden' }}>
-        <div style={{ flex: 1, minHeight: 0, position: 'relative', paddingTop: 'env(safe-area-inset-top)' }}>
-          {mode === 'home' && <Home />}
-          {mode === 'past' && <Notes kind="past" />}
-          {mode === 'present' && <Present onPulse={() => setPulse(true)} />}
-          {mode === 'future' && <Notes kind="future" />}
-          {pulse && <PulseFlow onClose={() => setPulse(false)} />}
-        </div>
-        <nav style={{ height: 'calc(58px + env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)', background: S.tabbg, borderTop: `1px solid ${S.line}`, display: 'flex' }}>
-          {TABS.map(t => {
-            const on = mode === t.m; const c = on ? SKINS[t.m].accent : '#8b8794';
-            return (
-              <button key={t.m} onClick={() => { setMode(t.m); setPulse(false); }} style={{ flex: 1, border: 0, background: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, color: c, fontFamily: 'inherit', fontSize: 11, letterSpacing: '0.05em' }}>
-                <Glyph mode={t.m} color={c} size={t.m === 'home' ? 30 : 24} />
-                {t.label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-    </ItemsProvider>
+    <>
+      <Screen mode={mode} title={titles[mode]} right={right} onTab={go} overlay={pulse ? <PulseFlow onClose={() => setPulse(false)} /> : undefined}>
+        {mode === 'home' && <Home go={go} onPulse={() => { setMode('present'); setPulse(true); }} />}
+        {mode === 'past' && <Past typing={typing} setTyping={setTyping} />}
+        {mode === 'present' && <Present onDump={() => setDump(true)} />}
+        {mode === 'future' && <Future typing={typing} setTyping={setTyping} />}
+      </Screen>
+      {dump && <Typing mode="past" heading="Dump the day" prompt="Rough meeting at two, a nap, a walk… say it however it comes." onCancel={() => setDump(false)} onSave={t => { add({ kind: 'past', body: t, board: null, meta: { dump: true } }); setDump(false); }} />}
+    </>
   );
 };
+export const Omokage = () => <ItemsProvider><Inner /></ItemsProvider>;
