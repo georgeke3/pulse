@@ -7,14 +7,13 @@ import { Belt, Fly } from './Art';
 import { catArt } from './catArt';
 import { haptic } from './haptics';
 import { EventCard, TodayList, evDurH, evStart } from './Instances';
-import { LogSheet, MAX_STEP_X, RIM, STEP_Y, type Cell, type Draft } from './LogSheet';
+import { LogSheet, MAX_STEP_X, RIM, type Cell, type Draft } from './LogSheet';
 import { DUSK, EMBER, GOLD, INK, INK2, SKY, fmtMin, hhmm, todayStr } from './skins';
 
 interface Toast { text: string; undo?: { cat: string; type: Event['type']; time: string } }
 interface Burst { id: number; x: number; y: number; color: string }
-interface Drag { x: number; h: number; lvl: number; dur: number; stepL: number; stepR: number; y: number; lastKey: string }
+interface Drag { x: number; lvl: number; stepL: number; stepR: number; lastKey: string }
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const durEnum = (h: number): Duration => (h <= 1 ? '<1h' : h <= 3 ? 'couple hours' : h <= 7 ? 'half day' : 'whole day');
 
 const monos = (names: string[]) => names.map(n => {
   const one = n[0].toUpperCase();
@@ -48,7 +47,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
       ...load.map((n, i) => ({ name: n, type: 'training' as const, mono: lm[i] })).reverse()];
   }, [load, rest]);
 
-  const [screenRef, scr] = useSize<HTMLDivElement>();
+  const [screenRef] = useSize<HTMLDivElement>();
   const [ringRef, ring] = useSize<HTMLDivElement>();
   const drag = useRef<Drag | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -67,55 +66,50 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
   };
 
   // one drag model for both the node you pressed and the sheet itself: it continues from wherever the values were left
-  const begin = (x: number, y: number, d: Draft) => {
+  const begin = (x: number, d: Draft) => {
     const vw = document.documentElement.clientWidth;
     drag.current = {
-      x, y, h: d.h, lvl: d.lvl, dur: d.dur, lastKey: '',
+      x, lvl: d.lvl, lastKey: '',
       stepL: d.lvl > 1 ? Math.min(MAX_STEP_X, (x - 12) / (d.lvl - 1)) : MAX_STEP_X,
-      stepR: d.lvl < 10 ? Math.min(MAX_STEP_X, (vw - 12 - 56 - x) / (10 - d.lvl)) : MAX_STEP_X,
+      stepR: d.lvl < 10 ? Math.min(MAX_STEP_X, (vw - 12 - x) / (10 - d.lvl)) : MAX_STEP_X,
     };
   };
-  const move = (clientX: number, clientY: number) => {
+  const move = (clientX: number) => {
     const g = drag.current; if (!g) return;
-    const dx = clientX - g.x, dy = clientY - g.y, n = Math.round(-dy / STEP_Y);   // up = later / longer
+    const dx = clientX - g.x;
     setDraft(d => {
-      if (!d) return d;
-      const next = d.step === 'dur'
-        ? { ...d, dur: clamp(g.dur + n, 1, 12) }
-        : { ...d, h: clamp(g.h + n, 0, 23), lvl: d.cell.type === 'win' ? 1 : clamp(g.lvl + (dx < 0 ? -Math.round(-dx / g.stepL) : Math.round(dx / g.stepR)), 1, 10) };
-      const key = `${next.h}|${next.lvl}|${next.dur}`;
-      if (g.lastKey && key !== g.lastKey) haptic(4);
-      g.lastKey = key;
-      return next;
+      if (!d || d.cell.type === 'win') return d;
+      const lvl = clamp(g.lvl + (dx < 0 ? -Math.round(-dx / g.stepL) : Math.round(dx / g.stepR)), 1, 10);
+      if (g.lastKey && String(lvl) !== g.lastKey) haptic(4);
+      g.lastKey = String(lvl);
+      return { ...d, lvl };
     });
   };
   const openFor = (c: Cell) => (e: React.PointerEvent<HTMLButtonElement>) => {
     if (draft) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     const r = e.currentTarget.getBoundingClientRect(), sr = screenRef.current!.getBoundingClientRect();
-    const d: Draft = { cell: c, h: new Date().getHours(), lvl: c.type === 'win' ? 1 : lastLevel(c), dur: 1, step: 'when', from: { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 } };
-    haptic(10); setHeld(c.type + c.name); begin(e.clientX, e.clientY, d); setDraft(d);
+    const d: Draft = { cell: c, lvl: c.type === 'win' ? 1 : lastLevel(c), note: '', from: { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 } };
+    haptic(10); setHeld(c.type + c.name); begin(e.clientX, d); setDraft(d);
   };
   const editEvent = (ev: Event) => {
-    const s = evStart(ev) ?? new Date().getHours() * 60, c = cells.find(x => x.type === ev.type && x.name === ev.category) ?? { name: ev.category, type: ev.type, mono: ev.category[0] };
+    const c = cells.find(x => x.type === ev.type && x.name === ev.category) ?? { name: ev.category, type: ev.type, mono: ev.category[0] };
     setDetail(null); setListOpen(false);
-    setDraft({ cell: c, h: Math.floor(s / 60), origH: Math.floor(s / 60), origRem: s % 60, lvl: ev.type === 'win' ? 1 : Math.max(1, Math.min(10, Math.round(ev.objectiveIntensity))), dur: evDurH(ev) ?? 1, step: 'when', editId: ev.id });
+    setDraft({ cell: c, lvl: ev.type === 'win' ? 1 : Math.max(1, Math.min(10, Math.round(ev.objectiveIntensity))), note: ev.notes ?? '', editId: ev.id });
   };
   const commit = () => {
     const d = draft; if (!d) return;
-    const isWin = d.cell.type === 'win', rem = d.editId && d.origH === d.h ? d.origRem ?? 0 : 0, min = d.h * 60 + rem, time = hhmm(min);
-    const fields = {
-      objectiveIntensity: isWin ? 1 : d.lvl, intensity: isWin ? 1 : Math.max(1, Math.min(4, Math.ceil(d.lvl / 2.5))),
-      duration: isWin ? ('<1h' as Duration) : durEnum(d.dur),
-    };
+    const isWin = d.cell.type === 'win', notes = d.note.trim() || undefined;
+    const fields = { objectiveIntensity: isWin ? 1 : d.lvl, intensity: isWin ? 1 : Math.max(1, Math.min(4, Math.ceil(d.lvl / 2.5))), notes };
     if (d.editId) {
       const old = events.find(e => e.id === d.editId);
-      if (old) updateEvent(today, { ...old, ...fields, custom_data: { ...old.custom_data, time, ...(isWin ? {} : { durationH: d.dur }) } });
+      if (old) updateEvent(today, { ...old, ...fields });
       setToast({ text: 'Saved' });
     } else {
-      addEvent(today, { type: d.cell.type, category: d.cell.name, ...fields, custom_data: { time, ...(isWin ? {} : { durationH: d.dur }) }, date: today });
+      const now = new Date(), min = now.getHours() * 60 + now.getMinutes(), time = hhmm(min);
+      addEvent(today, { type: d.cell.type, category: d.cell.name, ...fields, duration: '<1h' as Duration, custom_data: { time }, date: today });
       if (d.from) { const b = { id: Date.now(), x: d.from.x, y: d.from.y, color: RIM[d.cell.type][0] }; setBursts(v => [...v, b]); setTimeout(() => setBursts(v => v.filter(x => x.id !== b.id)), 1700); }
-      setToast({ text: `${d.cell.name}${isWin ? '' : ` · ${d.lvl}`} · ${fmtMin(min)}`, undo: { cat: d.cell.name, type: d.cell.type, time } });
+      setToast({ text: `${d.cell.name}${isWin ? '' : ` · ${d.lvl}`}`, undo: { cat: d.cell.name, type: d.cell.type, time } });
     }
     haptic(14); setDraft(null);
   };
@@ -172,7 +166,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
             <span key={id}>
               <button className={`node ${held === id ? 'held' : ''}`} aria-label={`Log ${c.name}`}
                 style={{ left: x, top: y, ['--r' as string]: r, ['--f' as string]: f, ['--sz' as string]: `${sz}px` }}
-                onPointerDown={openFor(c)} onPointerMove={e => move(e.clientX, e.clientY)} onPointerUp={() => { drag.current = null; setHeld(null); }} onPointerCancel={() => { drag.current = null; setHeld(null); }} onContextMenu={e => e.preventDefault()}>
+                onPointerDown={openFor(c)} onPointerMove={e => move(e.clientX)} onPointerUp={() => { drag.current = null; setHeld(null); }} onPointerCancel={() => { drag.current = null; setHeld(null); }} onContextMenu={e => e.preventDefault()}>
                 <i />{catArt(c.type, c.name)
                   ? <img className="catart" src={catArt(c.type, c.name)} alt="" draggable={false} style={{ marginTop: n ? -5 : 0 }} />
                   : <b style={{ fontSize: c.mono.length > 1 ? 12.5 : 16, marginTop: n ? -4 : 0 }}>{c.mono}</b>}
@@ -199,11 +193,10 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
       </div>
 
       {draft && (
-        <LogSheet d={draft} w={scr.w} h={scr.h} anchors={state.config.scales[draft.cell.type === 'recovery' ? 'recovery' : 'training'].objective}
-          onDown={e => { begin(e.clientX, e.clientY, draft); e.currentTarget.setPointerCapture(e.pointerId); }}
-          onMove={e => move(e.clientX, e.clientY)} onUp={() => { drag.current = null; }}
-          onNext={() => (draft.step === 'when' && draft.cell.type !== 'win' ? setDraft({ ...draft, step: 'dur' }) : commit())}
-          onBack={() => setDraft({ ...draft, step: 'when' })} onClose={() => setDraft(null)} />
+        <LogSheet d={draft} anchors={state.config.scales[draft.cell.type === 'recovery' ? 'recovery' : 'training'].objective}
+          onDown={e => { begin(e.clientX, draft); e.currentTarget.setPointerCapture(e.pointerId); }}
+          onMove={e => move(e.clientX)} onUp={() => { drag.current = null; }}
+          onNote={t => setDraft(v => (v ? { ...v, note: t } : v))} onConfirm={commit} onClose={() => setDraft(null)} />
       )}
       {listOpen && <TodayList events={events} onOpen={id => { setListOpen(false); setDetail(id); }} onClose={() => setListOpen(false)} />}
       {detailEv && (

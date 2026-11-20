@@ -38,8 +38,8 @@ export const EventCard = ({ e, anchorLabel, onEdit, onDelete, onClose }: { e: Ev
           {e.type !== 'win' && <div style={{ textAlign: 'right' }}><div className="serif" style={{ fontSize: 30, color: rim, lineHeight: 1 }}>{level(e)}</div><div className="caps" style={{ fontSize: 8.5, marginTop: 4 }}>of 10</div></div>}
         </div>
         <div className="it" style={{ fontSize: 17, marginTop: 14 }}>{when(e)}</div>
-        <div style={{ fontSize: 12.5, color: INK2, marginTop: 4 }}>{d ? durLabel(d) : 'duration not set'}{anchorLabel ? ` · ${anchorLabel}` : ''}</div>
-        {e.notes && <div className="it" style={{ fontSize: 14.5, marginTop: 10, color: '#3A4156' }}>{e.notes}</div>}
+        {(d || anchorLabel) && <div style={{ fontSize: 12.5, color: INK2, marginTop: 4 }}>{[d ? durLabel(d) : '', anchorLabel ?? ''].filter(Boolean).join(' · ')}</div>}
+        {e.notes && <div className="it" style={{ fontSize: 16, marginTop: 12, lineHeight: 1.45, color: '#3A4156' }}>{e.notes}</div>}
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <button className="chip press" style={{ height: 48, flex: 1, color: sure ? '#fff' : CRIMSON, background: sure ? CRIMSON : 'rgba(255,255,255,.35)', boxShadow: sure ? 'none' : `inset 0 0 0 1px ${CRIMSON}66` }}
             onClick={() => (sure ? onDelete() : setSure(true))}>{sure ? 'Tap again to delete' : 'Delete'}</button>

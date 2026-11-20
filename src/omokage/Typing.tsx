@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Mic } from './Mic';
 import { Sheet } from './Sheet';
 import { INK2, type Mode } from './skins';
 
@@ -30,6 +31,7 @@ export const Typing = ({ mode, label, prompt, chips, initialTags, placeholder, o
             return <button key={c} className={`chip ${on ? 'on' : ''}`} style={{ flex: 'none', height: 32 }} onMouseDown={e => e.preventDefault()} onClick={() => setTags(v => (on ? v.filter(x => x !== c) : [...v, c]))}>{c}</button>;
           })}
         </div>
+        <Mic size={40} onText={x => setT(v => (v.trim() ? `${v.trimEnd()} ${x}` : x))} />
         <button className="ink-btn press" onMouseDown={e => e.preventDefault()} onClick={() => ok && onSave(t.trim(), tags)} style={{ height: 40, padding: '0 20px', fontSize: 14, fontWeight: 600, opacity: ok ? 1 : .35 }}>Save</button>
       </div>
     </Sheet>
