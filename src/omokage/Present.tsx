@@ -2,28 +2,25 @@ import sparkF from './assets/sym-sparkle-f.png';
 import { Drg, Sym } from './Sym';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../store';
-import type { Event, EventType } from '../types';
+import type { Duration, Event } from '../types';
 import { Belt, Fly } from './Art';
 import { catArt } from './catArt';
 import { haptic } from './haptics';
-import { DUSK, EMBER, GOLD, INK, INK2, SKY, fmtClock, fmtMin, hhmm, nowHalfHour, parseHM, todayStr } from './skins';
+import { EventCard, TodayList, evDurH, evStart } from './Instances';
+import { LogSheet, MAX_STEP_X, RIM, STEP_Y, type Cell, type Draft } from './LogSheet';
+import { DUSK, EMBER, GOLD, INK, INK2, SKY, fmtMin, hhmm, todayStr } from './skins';
 
-const STEP_Y = 34;     // px of vertical travel per 30 minutes
-const MAX_STEP_X = 34; // px per intensity level; shrinks near the edges so 1–10 is always reachable
-const HOLD_MS = 170;
-
-interface Cell { name: string; type: EventType; mono: string }
-interface Press { cell: Cell; x: number; y: number; active: boolean; timer: number; startMin: number; startLvl: number; stepL: number; stepR: number; el: HTMLElement; lastKey: string; raw: number; lvl: number }
-interface Scrub { cell: Cell; startMin: number; startLvl: number; raw: number; lvl: number }
-interface Toast { text: string; undo?: { cat: string; type: EventType; time: string } }
+interface Toast { text: string; undo?: { cat: string; type: Event['type']; time: string } }
 interface Burst { id: number; x: number; y: number; color: string }
+interface Drag { x: number; h: number; lvl: number; dur: number; stepL: number; stepR: number; y: number; lastKey: string }
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const durEnum = (h: number): Duration => (h <= 1 ? '<1h' : h <= 3 ? 'couple hours' : h <= 7 ? 'half day' : 'whole day');
 
-const RIM: Record<EventType, [string, string]> = { training: [EMBER, '#F3C9B4'], recovery: [SKY, '#C9D7E9'], win: [GOLD, '#F1DDAE'] };
 const monos = (names: string[]) => names.map(n => {
   const one = n[0].toUpperCase();
   return names.filter(o => o[0].toUpperCase() === one).length > 1 ? one + (n[1] ?? '').toLowerCase() : one;
 });
-const evMin = (e: Event) => parseHM(e.custom_data?.time);
+const evMin = evStart;
 const useSize = <T extends HTMLElement>() => {
   const ref = useRef<T>(null);
   const [s, setS] = useState({ w: 345, h: 380 });
@@ -36,7 +33,7 @@ const useSize = <T extends HTMLElement>() => {
 };
 
 export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () => void }) => {
-  const { state, addEvent, deleteEvent } = useApp();
+  const { state, addEvent, updateEvent, deleteEvent } = useApp();
   const today = todayStr();
   const events = state.days[today]?.events ?? [];
   const timed = events.filter(e => evMin(e) !== null).sort((a, b) => evMin(a)! - evMin(b)!);
@@ -53,9 +50,11 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
 
   const [screenRef, scr] = useSize<HTMLDivElement>();
   const [ringRef, ring] = useSize<HTMLDivElement>();
-  const press = useRef<Press | null>(null);
-  const [scrub, setScrub] = useState<Scrub | null>(null);
+  const drag = useRef<Drag | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [held, setHeld] = useState<string | null>(null);
+  const [detail, setDetail] = useState<string | null>(null);
+  const [listOpen, setListOpen] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
   const [bursts, setBursts] = useState<Burst[]>([]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4800); return () => clearTimeout(t); }, [toast]);
@@ -66,59 +65,67 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
         if (e.type === c.type && e.category === c.name && e.objectiveIntensity > 0) return Math.max(1, Math.min(10, Math.round(e.objectiveIntensity)));
     return 3;
   };
-  const activate = () => {
-    const p = press.current; if (!p || p.active) return;
-    p.active = true; haptic(10);
-    setHeld(p.cell.type + p.cell.name);
-    setScrub({ cell: p.cell, startMin: p.startMin, startLvl: p.startLvl, raw: 0, lvl: p.startLvl });
-  };
-  const onDown = (c: Cell) => (e: React.PointerEvent<HTMLButtonElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const startLvl = c.type === 'win' ? 1 : lastLevel(c);
+
+  // one drag model for both the node you pressed and the sheet itself: it continues from wherever the values were left
+  const begin = (x: number, y: number, d: Draft) => {
     const vw = document.documentElement.clientWidth;
-    press.current = {
-      cell: c, x: e.clientX, y: e.clientY, active: false, el: e.currentTarget, lastKey: '', raw: 0, lvl: startLvl,
-      startMin: last ? evMin(last)! : nowHalfHour(), startLvl,
-      stepL: startLvl > 1 ? Math.min(MAX_STEP_X, (e.clientX - 12) / (startLvl - 1)) : MAX_STEP_X,
-      stepR: startLvl < 10 ? Math.min(MAX_STEP_X, (vw - 12 - e.clientX) / (10 - startLvl)) : MAX_STEP_X,
-      timer: window.setTimeout(activate, HOLD_MS),
+    drag.current = {
+      x, y, h: d.h, lvl: d.lvl, dur: d.dur, lastKey: '',
+      stepL: d.lvl > 1 ? Math.min(MAX_STEP_X, (x - 12) / (d.lvl - 1)) : MAX_STEP_X,
+      stepR: d.lvl < 10 ? Math.min(MAX_STEP_X, (vw - 12 - 56 - x) / (10 - d.lvl)) : MAX_STEP_X,
     };
   };
-  const onMove = (e: React.PointerEvent) => {
-    const p = press.current; if (!p) return;
-    const dx = e.clientX - p.x, dy = e.clientY - p.y;
-    if (!p.active) { if (Math.hypot(dx, dy) > 10) { clearTimeout(p.timer); activate(); } else return; }
-    const raw = Math.max(-40, Math.min(40, -dy / STEP_Y));   // up = later, like an iOS picker
-    const lvl = p.cell.type === 'win' ? 1 : Math.max(1, Math.min(10, p.startLvl + (dx < 0 ? -Math.round(-dx / p.stepL) : Math.round(dx / p.stepR))));
-    const key = `${Math.round(raw)}|${lvl}`;
-    if (key !== p.lastKey) { if (p.lastKey) haptic(4); p.lastKey = key; }
-    p.raw = raw; p.lvl = lvl;
-    setScrub(s => s && { ...s, raw, lvl });
-  };
-  const finish = (cancel: boolean) => () => {
-    const p = press.current; press.current = null; setHeld(null); setScrub(null);
-    if (!p) return;
-    clearTimeout(p.timer);
-    if (cancel) return;
-    if (!p.active) { setToast({ text: 'Hold a node, then slide' }); return; }
-    const min = p.startMin + Math.round(p.raw) * 30, time = hhmm(min), isWin = p.cell.type === 'win';
-    addEvent(today, {
-      type: p.cell.type, category: p.cell.name, objectiveIntensity: isWin ? 1 : p.lvl,
-      intensity: isWin ? 1 : Math.max(1, Math.min(4, Math.ceil(p.lvl / 2.5))),
-      duration: '<1h', custom_data: { time }, date: today,
+  const move = (clientX: number, clientY: number) => {
+    const g = drag.current; if (!g) return;
+    const dx = clientX - g.x, dy = clientY - g.y, n = Math.round(-dy / STEP_Y);   // up = later / longer
+    setDraft(d => {
+      if (!d) return d;
+      const next = d.step === 'dur'
+        ? { ...d, dur: clamp(g.dur + n, 1, 12) }
+        : { ...d, h: clamp(g.h + n, 0, 23), lvl: d.cell.type === 'win' ? 1 : clamp(g.lvl + (dx < 0 ? -Math.round(-dx / g.stepL) : Math.round(dx / g.stepR)), 1, 10) };
+      const key = `${next.h}|${next.lvl}|${next.dur}`;
+      if (g.lastKey && key !== g.lastKey) haptic(4);
+      g.lastKey = key;
+      return next;
     });
-    haptic(14);
-    const r = p.el.getBoundingClientRect(), sr = screenRef.current!.getBoundingClientRect();
-    const b = { id: Date.now(), x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2, color: RIM[p.cell.type][0] };
-    setBursts(v => [...v, b]); setTimeout(() => setBursts(v => v.filter(x => x.id !== b.id)), 1700);
-    setToast({ text: `${p.cell.name}${isWin ? '' : ` · ${p.lvl}`} · ${fmtMin(min)}`, undo: { cat: p.cell.name, type: p.cell.type, time } });
+  };
+  const openFor = (c: Cell) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (draft) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const r = e.currentTarget.getBoundingClientRect(), sr = screenRef.current!.getBoundingClientRect();
+    const d: Draft = { cell: c, h: new Date().getHours(), lvl: c.type === 'win' ? 1 : lastLevel(c), dur: 1, step: 'when', from: { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 } };
+    haptic(10); setHeld(c.type + c.name); begin(e.clientX, e.clientY, d); setDraft(d);
+  };
+  const editEvent = (ev: Event) => {
+    const s = evStart(ev) ?? new Date().getHours() * 60, c = cells.find(x => x.type === ev.type && x.name === ev.category) ?? { name: ev.category, type: ev.type, mono: ev.category[0] };
+    setDetail(null); setListOpen(false);
+    setDraft({ cell: c, h: Math.floor(s / 60), origH: Math.floor(s / 60), origRem: s % 60, lvl: ev.type === 'win' ? 1 : Math.max(1, Math.min(10, Math.round(ev.objectiveIntensity))), dur: evDurH(ev) ?? 1, step: 'when', editId: ev.id });
+  };
+  const commit = () => {
+    const d = draft; if (!d) return;
+    const isWin = d.cell.type === 'win', rem = d.editId && d.origH === d.h ? d.origRem ?? 0 : 0, min = d.h * 60 + rem, time = hhmm(min);
+    const fields = {
+      objectiveIntensity: isWin ? 1 : d.lvl, intensity: isWin ? 1 : Math.max(1, Math.min(4, Math.ceil(d.lvl / 2.5))),
+      duration: isWin ? ('<1h' as Duration) : durEnum(d.dur),
+    };
+    if (d.editId) {
+      const old = events.find(e => e.id === d.editId);
+      if (old) updateEvent(today, { ...old, ...fields, custom_data: { ...old.custom_data, time, ...(isWin ? {} : { durationH: d.dur }) } });
+      setToast({ text: 'Saved' });
+    } else {
+      addEvent(today, { type: d.cell.type, category: d.cell.name, ...fields, custom_data: { time, ...(isWin ? {} : { durationH: d.dur }) }, date: today });
+      if (d.from) { const b = { id: Date.now(), x: d.from.x, y: d.from.y, color: RIM[d.cell.type][0] }; setBursts(v => [...v, b]); setTimeout(() => setBursts(v => v.filter(x => x.id !== b.id)), 1700); }
+      setToast({ text: `${d.cell.name}${isWin ? '' : ` · ${d.lvl}`} · ${fmtMin(min)}`, undo: { cat: d.cell.name, type: d.cell.type, time } });
+    }
+    haptic(14); setDraft(null);
   };
   const undo = () => {
     const u = toast?.undo; if (!u) return;
-    const ev = [...(state.days[today]?.events ?? [])].reverse().find(e => e.category === u.cat && e.type === u.type && e.custom_data?.time === u.time);
+    const ev = [...events].reverse().find(e => e.category === u.cat && e.type === u.type && e.custom_data?.time === u.time);
     if (ev) deleteEvent(today, ev.id);
     setToast({ text: 'Removed' });
   };
+  const detailEv = detail ? events.find(e => e.id === detail) : undefined;
 
   // ring geometry: equal arc-length spacing on an ellipse around the crest
   const N = cells.length;
@@ -140,11 +147,11 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
 
   return (
     <div className="screen" ref={screenRef} style={{ padding: '0 0 10px' }}>
-      <DayRibbon events={timed} />
+      <DayRibbon events={timed} onOpen={setDetail} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 24px', height: 22, flex: 'none' }}>
-        <span className="it" style={{ fontSize: 15 }}>
-          <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: EMBER }}>{loadN}</b> load · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: SKY }}>{restN}</b> rest · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: GOLD }}>{winN}</b> <span style={{ display: 'inline-block', verticalAlign: '-4px' }}><Sym n="sparkle" on={winN > 0} s={16} o={winN > 0 ? 1 : .6} /></span> win{winN === 1 ? '' : 's'}
-        </span>
+        <button className="it press" onClick={() => setListOpen(true)} aria-label="List today's instances" style={{ fontSize: 15, textAlign: 'left' }}>
+          <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: EMBER }}>{loadN}</b> load · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: SKY }}>{restN}</b> rest · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: GOLD }}>{winN}</b> <span style={{ display: 'inline-block', verticalAlign: '-4px' }}><Sym n="sparkle" on={winN > 0} s={16} o={winN > 0 ? 1 : .6} /></span> win{winN === 1 ? '' : 's'} <span style={{ color: INK2 }}>›</span>
+        </button>
         <span style={{ fontSize: 11, color: INK2 }}>{last ? `last · ${last.category}${last.type !== 'win' ? ' ' + Math.round(last.objectiveIntensity) : ''} · ${fmtMin(evMin(last)!, true)}` : 'nothing logged yet'}</span>
       </div>
 
@@ -165,7 +172,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
             <span key={id}>
               <button className={`node ${held === id ? 'held' : ''}`} aria-label={`Log ${c.name}`}
                 style={{ left: x, top: y, ['--r' as string]: r, ['--f' as string]: f, ['--sz' as string]: `${sz}px` }}
-                onPointerDown={onDown(c)} onPointerMove={onMove} onPointerUp={finish(false)} onPointerCancel={finish(true)} onContextMenu={e => e.preventDefault()}>
+                onPointerDown={openFor(c)} onPointerMove={e => move(e.clientX, e.clientY)} onPointerUp={() => { drag.current = null; setHeld(null); }} onPointerCancel={() => { drag.current = null; setHeld(null); }} onContextMenu={e => e.preventDefault()}>
                 <i />{catArt(c.type, c.name)
                   ? <img className="catart" src={catArt(c.type, c.name)} alt="" draggable={false} style={{ marginTop: n ? -5 : 0 }} />
                   : <b style={{ fontSize: c.mono.length > 1 ? 12.5 : 16, marginTop: n ? -4 : 0 }}>{c.mono}</b>}
@@ -184,14 +191,26 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 24px', height: 40, flex: 'none' }}>
-        <span className="caps">hold a node · slide</span>
+        <span className="caps">tap or hold a circle</span>
         <button className="chip press" onClick={onDump} style={{ height: 36, gap: 8, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.14),0 6px 16px rgba(43,50,71,.08)' }}>
           <Sym n="wisp" on={false} s={20} />
           <span className="it" style={{ fontSize: 14 }}>Dump the day</span>
         </button>
       </div>
 
-      {scrub && <ScrubVeil s={scrub} w={scr.w} h={scr.h} anchors={state.config.scales[scrub.cell.type === 'recovery' ? 'recovery' : 'training'].objective} hasLast={!!last} />}
+      {draft && (
+        <LogSheet d={draft} w={scr.w} h={scr.h} anchors={state.config.scales[draft.cell.type === 'recovery' ? 'recovery' : 'training'].objective}
+          onDown={e => { begin(e.clientX, e.clientY, draft); e.currentTarget.setPointerCapture(e.pointerId); }}
+          onMove={e => move(e.clientX, e.clientY)} onUp={() => { drag.current = null; }}
+          onNext={() => (draft.step === 'when' && draft.cell.type !== 'win' ? setDraft({ ...draft, step: 'dur' }) : commit())}
+          onBack={() => setDraft({ ...draft, step: 'when' })} onClose={() => setDraft(null)} />
+      )}
+      {listOpen && <TodayList events={events} onOpen={id => { setListOpen(false); setDetail(id); }} onClose={() => setListOpen(false)} />}
+      {detailEv && (
+        <EventCard e={detailEv}
+          anchorLabel={detailEv.type === 'win' ? undefined : state.config.scales[detailEv.type === 'recovery' ? 'recovery' : 'training'].objective.find(x => x.value === Math.round(detailEv.objectiveIntensity))?.label}
+          onEdit={() => editEvent(detailEv)} onDelete={() => { deleteEvent(today, detailEv.id); setDetail(null); setToast({ text: 'Removed' }); }} onClose={() => setDetail(null)} />
+      )}
 
       {bursts.map(b => (
         <div key={b.id} className="burst" style={{ left: b.x, top: b.y }}>
@@ -206,7 +225,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
         </div>
       ))}
 
-      {toast && (
+      {toast && !draft && !detailEv && !listOpen && (
         <div className="toast" key={toast.text} role="status">
           <svg width="16" height="16" viewBox="-16 -13 32 26" aria-hidden="true"><Fly x={0} y={0} c={EMBER} /></svg>
           <span>{toast.undo ? <>Logged <span className="it">{toast.text}</span></> : toast.text}</span>
@@ -218,7 +237,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
 };
 
 /* The day drawn as a ribbon: load above, rest below, wins as stars, butterflies trailing after now. */
-const DayRibbon = ({ events }: { events: Event[] }) => {
+const DayRibbon = ({ events, onOpen }: { events: Event[]; onOpen: (id: string) => void }) => {
   const W = 393, Y = 58;
   const mins = events.map(e => evMin(e)!);
   const lo = Math.min(360, ...mins.map(m => Math.floor(m / 180) * 180)), hi = 1440;
@@ -235,12 +254,14 @@ const DayRibbon = ({ events }: { events: Event[] }) => {
         {events.length === 0 && <text x={W / 2} y={Y - 26} fontSize="12" textAnchor="middle" fill={INK2} fontFamily="Lora, serif" fontStyle="italic">your day draws itself here</text>}
         {events.map(e => {
           const x = X(evMin(e)!), lvl = Math.max(1, Math.round(e.objectiveIntensity || 1));
-          if (e.type === 'win') return <image key={e.id} href={sparkF} x={x - 11} y={Y - 13} width="22" height="26" preserveAspectRatio="xMidYMid meet" />;
+          if (e.type === 'win') return <g key={e.id} onClick={() => onOpen(e.id)} style={{ cursor: 'pointer' }}><image href={sparkF} x={x - 11} y={Y - 13} width="22" height="26" preserveAspectRatio="xMidYMid meet" /><circle cx={x} cy={Y} r="16" fill="transparent" /></g>;
           const up = e.type === 'training', cy = up ? Y - 10 - lvl * 3.6 : Y + 10 + lvl * 2.6, c = up ? EMBER : SKY;
           return (
-            <g key={e.id}>
+            <g key={e.id} onClick={() => onOpen(e.id)} style={{ cursor: 'pointer' }}>
+              {evDurH(e) ? <line x1={x} x2={X(evMin(e)! + evDurH(e)! * 60)} y1={Y} y2={Y} stroke={c} strokeWidth="5" strokeLinecap="round" opacity=".32" /> : null}
               <path d={`M${x} ${Y} Q ${x + 6} ${(Y + cy) / 2} ${x} ${cy}`} stroke={c} strokeWidth="1" fill="none" opacity=".5" />
               <circle cx={x} cy={cy} r={3 + lvl * .45} fill={c} stroke="#fff" strokeWidth="1.5" />
+              <circle cx={x} cy={(Y + cy) / 2} r="17" fill="transparent" />
             </g>
           );
         })}
@@ -252,58 +273,6 @@ const DayRibbon = ({ events }: { events: Event[] }) => {
           </g>
         )}
       </svg>
-    </div>
-  );
-};
-
-/* Frosted veil while holding a node: a time tape (up = later) and a 1–10 arc of growing beads. */
-const ScrubVeil = ({ s, w, h, anchors, hasLast }: { s: Scrub; w: number; h: number; anchors: { value: number; label: string; description: string }[]; hasLast: boolean }) => {
-  const isWin = s.cell.type === 'win';
-  const step = Math.round(s.raw), frac = s.raw - step, cur = s.startMin + step * 30;
-  const a = anchors.find(x => x.value === s.lvl);
-  const [rim, fill] = RIM[s.cell.type];
-  const tY = Math.round(h * .40), bY = Math.round(h * .69);
-  const bx = (v: number) => 24 + (v - 1) * ((w - 48) / 9);
-  const by = (v: number) => bY - Math.sin((v - 1) / 9 * Math.PI) * 18;
-  const big = fmtClock(cur);
-  return (
-    <div className="veil">
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 4, textAlign: 'center', padding: '0 30px' }}>
-        <div className="caps">logging</div>
-        <div className="serif" style={{ fontSize: 36, marginTop: 2 }}>{s.cell.name}</div>
-        <div className="it" style={{ fontSize: 13.5, color: INK2, marginTop: 4, lineHeight: 1.4, minHeight: 38 }}>{isWin ? 'A small victory, kept.' : a ? `${a.label}: ${a.description}` : ''}</div>
-      </div>
-      {[-3, -2, -1, 1, 2, 3].map(k => {
-        const o = k - frac, y = tY + o * STEP_Y + Math.sign(o) * 18, m = s.startMin + (step + k) * 30;
-        return <div key={k} className="tape" style={{ top: y, fontSize: 13, color: INK2, opacity: Math.max(0, .8 - Math.abs(k - frac) * .22) }}>{fmtClock(m).t}{step + k === 0 ? (hasLast ? ' · last' : ' · now') : ''}</div>;
-      })}
-      <div className="tape" style={{ top: tY }}>
-        <span className="serif" style={{ fontSize: 38, letterSpacing: '-.01em' }}>{big.t}</span><span className="it" style={{ fontSize: 16, color: INK2 }}> {big.ap}</span>
-      </div>
-      {step !== 0 && <div style={{ position: 'absolute', left: w / 2 + 92, top: tY - 6, fontSize: 10, letterSpacing: '.12em', color: GOLD }}>{step > 0 ? '+' : '−'}{Math.abs(step) * 30 >= 60 ? `${(Math.abs(step) * 30 / 60).toFixed(Math.abs(step) % 2 ? 1 : 0)} H` : '30 MIN'}</div>}
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} aria-hidden="true">
-        <path d={`M${w / 2 - 46} ${tY - 28} Q${w / 2} ${tY - 40} ${w / 2 + 46} ${tY - 28}`} stroke={GOLD} fill="none" />
-        <path d={`M${w / 2 - 46} ${tY + 32} Q${w / 2} ${tY + 44} ${w / 2 + 46} ${tY + 32}`} stroke={GOLD} fill="none" />
-        {!isWin && <>
-          <path d={`M${bx(1)} ${bY} Q${w / 2} ${bY - 36} ${bx(10)} ${bY}`} stroke={INK} strokeWidth=".7" fill="none" opacity=".25" />
-          {Array.from({ length: 10 }, (_, i) => {
-            const v = i + 1, on = v <= s.lvl, r = 4 + v * .9;
-            return (
-              <g key={v}>
-                <circle cx={bx(v)} cy={by(v)} r={r} fill={on ? rim : 'rgba(43,50,71,.14)'} opacity={on ? .35 + v * .065 : 1} />
-                <text x={bx(v)} y={by(v) + r + 15} fontSize={v === s.lvl ? 12 : 10} fontWeight={v === s.lvl ? 600 : 400} textAnchor="middle" fill={v === s.lvl ? INK : INK2} fontFamily="Inter, sans-serif">{v}</text>
-              </g>
-            );
-          })}
-        </>}
-      </svg>
-      <div className="node held" style={{ left: isWin ? w / 2 : Math.max(40, Math.min(w - 40, bx(s.lvl))), top: isWin ? bY - 10 : by(s.lvl) - 52, ['--r' as string]: rim, ['--f' as string]: fill, ['--sz' as string]: '60px', fontSize: 22, transition: 'left .12s', boxShadow: `0 0 0 1.5px ${rim},0 0 0 6px #FBFAF7,0 0 0 7px rgba(200,161,90,.6),0 18px 30px rgba(43,50,71,.22)` }}>
-        <i />{catArt(s.cell.type, s.cell.name) ? <img className="catart" src={catArt(s.cell.type, s.cell.name)} alt="" style={{ width: 48, height: 48 }} /> : <b>{s.cell.mono}</b>}
-      </div>
-      {!isWin && <div style={{ position: 'absolute', left: 0, right: 0, top: bY + 52, textAlign: 'center' }}><span className="serif" style={{ fontSize: 22, color: rim }}>{s.lvl}</span><span className="it" style={{ fontSize: 15 }}> · {a?.label ?? ''}</span></div>}
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 14, textAlign: 'center', fontSize: 11, color: INK2, lineHeight: 1.7 }}>
-        ↑ later &nbsp;·&nbsp; ↓ earlier{!isWin && <> &nbsp;·&nbsp; ← → intensity</>}<br /><span className="it" style={{ fontSize: 12.5 }}>let go to log, undo after</span>
-      </div>
     </div>
   );
 };
