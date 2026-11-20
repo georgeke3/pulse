@@ -1,82 +1,140 @@
 import { useState } from 'react';
-import { useItems } from './items';
-import { SERIF, SKINS, todayStr } from './skins';
+import { useItems, type Item } from './items';
+import { ago, todayStr } from './skins';
 import { Typing } from './Typing';
 
-const S = SKINS.future;
-const BK = 'omokage_boards', HK = 'omokage_resurface_hidden';
+const BK = 'omokage_boards', HK = 'omokage_resurface_seen';
 const loadBoards = (): string[] => { try { return JSON.parse(localStorage.getItem(BK) || '[]'); } catch { return []; } };
+const URL_RE = /(https?:\/\/[^\s]+)/i;
+const domain = (s: string) => { const m = s.match(URL_RE); if (!m) return null; try { return new URL(m[1]).hostname.replace(/^www\./, ''); } catch { return null; } };
+const TINTS = ['rgba(255,255,255,.72)', 'rgba(155,58,68,.10)', 'rgba(227,214,190,.75)', 'rgba(143,163,184,.28)'];
 
 export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: boolean) => void }) => {
-  const { items, add, remove } = useItems();
+  const { items, add, remove, update } = useItems();
   const [custom, setCustom] = useState<string[]>(loadBoards);
   const [board, setBoard] = useState<string | null>(null);
   const [naming, setNaming] = useState(false);
-  const [hiddenDay, setHiddenDay] = useState(() => localStorage.getItem(HK));
+  const [open, setOpen] = useState<string | null>(null);
+  const [seen, setSeen] = useState(() => localStorage.getItem(HK));
   const mine = items.filter(i => i.kind === 'future');
-  const names = ['Inbox', ...custom.filter(c => c !== 'Inbox'), ...Array.from(new Set(mine.map(i => i.board || 'Inbox'))).filter(b => b !== 'Inbox' && !custom.includes(b))];
-  const count = (b: string) => mine.filter(i => (i.board || 'Inbox') === b).length;
+  const bOf = (i: Item) => i.board || 'Inbox';
+  const names = ['Inbox', ...custom.filter(c => c !== 'Inbox'), ...Array.from(new Set(mine.map(bOf))).filter(b => b !== 'Inbox' && !custom.includes(b))];
+  const inBoard = (b: string) => mine.filter(i => bOf(i) === b);
   const stale = mine.filter(i => Date.now() - new Date(i.at).getTime() > 14 * 864e5);
-  const resurface = hiddenDay === todayStr() ? null : stale.length ? stale[new Date().getDate() % stale.length] : null;
-  const hide = () => { localStorage.setItem(HK, todayStr()); setHiddenDay(todayStr()); };
-  const addBoard = (n: string) => { const v = [...custom, n]; setCustom(v); localStorage.setItem(BK, JSON.stringify(v)); setNaming(false); };
+  const resurface = seen === todayStr() || !stale.length ? null : stale[new Date().getDate() % stale.length];
+  const markSeen = () => { localStorage.setItem(HK, todayStr()); setSeen(todayStr()); };
+  const addBoard = (n: string) => { const v = Array.from(new Set([...custom, n])); setCustom(v); localStorage.setItem(BK, JSON.stringify(v)); setNaming(false); };
+  const target = board ?? 'Inbox';
+
+  const typingSheet = typing && (
+    <Typing mode="future" heading="Future" prompt={`Into ${target}: an idea, a link, a question.`} placeholder="What if…"
+      onCancel={() => setTyping(false)} onSave={t => { add({ kind: 'future', body: t, board: target }); setTyping(false); }} />
+  );
 
   if (board) {
-    const list = mine.filter(i => (i.board || 'Inbox') === board);
+    const list = inBoard(board);
     return (
-      <>
-        <div style={{ flex: 1, padding: '6px 16px', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button onClick={() => setBoard(null)} style={{ background: 'none', border: 0, padding: '4px 0', fontSize: 13, color: S.mute, fontFamily: 'inherit' }}>‹ Boards</button>
-            <span style={{ fontFamily: SERIF, fontSize: 18 }}>{board}</span>
-            <button onClick={() => setTyping(true)} style={{ background: S.ink, color: '#D3DAE3', border: 0, borderRadius: 99, padding: '6px 14px', fontSize: 13, fontFamily: 'inherit' }}>+ Add</button>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {list.length === 0 && <div style={{ color: S.mute, fontSize: 13, textAlign: 'center', marginTop: 30 }}>Nothing here yet. Add an idea, link or question.</div>}
-            {list.map(i => (
-              <div key={i.id} style={{ border: `1.5px dashed ${S.dash}`, borderRadius: 10, padding: '8px 10px', background: S.card, display: 'flex', gap: 8 }}>
-                <div style={{ flex: 1, fontSize: 14, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{i.body}<div style={{ fontSize: 11, color: S.mute, marginTop: 2 }}>{i.day}</div></div>
-                <button onClick={() => remove(i.id)} aria-label="delete" style={{ background: 'none', border: 0, color: S.mute, fontSize: 18, alignSelf: 'flex-start', padding: 0 }}>×</button>
-              </div>
-            ))}
+      <div className="screen" style={{ paddingBottom: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button className="press" onClick={() => { setBoard(null); setOpen(null); }} style={{ fontSize: 13, color: 'var(--fg2)', padding: '4px 0' }}>‹ Boards</button>
+          <span className="serif" style={{ fontSize: 20 }}>{board}</span>
+          <span className="caps">{list.length} saved</span>
+        </div>
+        <div className="scroll grow" style={{ paddingBottom: 6 }}>
+          {list.length === 0 && <div className="quote mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>A blank sky. Add the first thing.</div>}
+          <div className="masonry">
+            {list.map((i, k) => {
+              const d = domain(i.body), isQ = i.body.trim().endsWith('?'), isOpen = open === i.id;
+              return (
+                <div key={i.id} className="tile mist" onClick={() => setOpen(isOpen ? null : i.id)}
+                  style={{ background: TINTS[k % TINTS.length], transform: `rotate(${(k % 3 - 1) * .5}deg)`, animation: `enter .4s ${Math.min(k, 8) * 35}ms both` }}>
+                  {isQ && <div className="caps" style={{ color: '#9B3A44', marginBottom: 3 }}>Question</div>}
+                  {d && <div className="caps" style={{ marginBottom: 3 }}>↗ {d}</div>}
+                  <div className={isQ ? 'quote' : ''} style={{ fontSize: isQ ? 15 : 13.5, wordBreak: 'break-word', userSelect: 'text' }}>{d ? i.body.replace(URL_RE, '').trim() || d : i.body}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--fg2)', marginTop: 5 }}>{ago(i.day)}</div>
+                  {isOpen && (
+                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, paddingTop: 8, borderTop: '1px dashed rgba(92,107,130,.35)' }}>
+                      {names.filter(n => n !== board).map(n => <button key={n} className="chip press" style={{ height: 26, fontSize: 11.5, padding: '0 9px' }} onClick={() => { update(i.id, { board: n }); setOpen(null); }}>→ {n}</button>)}
+                      {d && <a className="chip press" style={{ height: 26, fontSize: 11.5, padding: '0 9px', display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }} href={i.body.match(URL_RE)![1]} target="_blank" rel="noreferrer">Open</a>}
+                      <button className="chip press" style={{ height: 26, fontSize: 11.5, padding: '0 9px', color: '#9B3A44' }} onClick={() => remove(i.id)}>Delete</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-        {typing && <Typing mode="future" heading="Future" prompt={`Add to ${board}`} onCancel={() => setTyping(false)} onSave={t => { add({ kind: 'future', body: t, board }); setTyping(false); }} />}
-      </>
+        <CaptureBar label={`Add to ${board}`} onTap={() => setTyping(true)} />
+        {typingSheet}
+      </div>
     );
   }
 
   return (
-    <>
-      <div style={{ flex: 1, padding: '6px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
-        <div style={{ fontSize: 12, color: S.mute }}>Boards</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          {names.map(b => (
-            <button key={b} onClick={() => setBoard(b)} style={{ height: 78, border: `1.5px dashed ${S.dash}`, borderRadius: 10, background: S.card, padding: '10px 12px', textAlign: 'left', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: 'inherit', color: S.ink }}>
-              <span style={{ fontFamily: SERIF, fontSize: 17 }}>{b}{b === 'Inbox' && count(b) ? ` · ${count(b)}` : ''}</span>
-              <span style={{ fontSize: 12, color: S.mute }}>{count(b)} saved</span>
-            </button>
-          ))}
-          {naming
-            ? <form onSubmit={e => { e.preventDefault(); const v = String(new FormData(e.currentTarget).get('n') || '').trim(); if (v) addBoard(v); else setNaming(false); }} style={{ height: 78, border: `1.5px dashed ${S.dash}`, borderRadius: 10, padding: 8, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <input name="n" autoFocus placeholder="Board name" style={{ border: 0, background: 'transparent', fontSize: 16, fontFamily: SERIF, color: S.ink, outline: 'none' }} /><span style={{ fontSize: 11, color: S.mute }}>return to save</span>
-              </form>
-            : <button onClick={() => setNaming(true)} style={{ height: 78, border: `1.5px dashed ${S.dash}`, borderRadius: 10, background: 'transparent', color: S.mute, fontSize: 14, fontFamily: 'inherit' }}>+ New board</button>}
-        </div>
-        <button onClick={() => { setBoard('Inbox'); setTyping(true); }} style={{ height: 44, borderRadius: 10, border: 0, background: S.ink, color: '#D3DAE3', fontSize: 14, fontFamily: 'inherit' }}>+ Quick save to Inbox</button>
-        <div style={{ flex: 1 }} />
-        {resurface && (
-          <div style={{ border: `1.5px dashed ${S.dash}`, borderRadius: 10, padding: '8px 10px', background: S.card, marginBottom: 12 }}>
-            <div style={{ fontSize: 12, color: S.mute }}>Still excited about this?</div>
-            <div style={{ fontFamily: SERIF, fontSize: 17, lineHeight: 1.3, margin: '2px 0 8px' }}>{resurface.body.slice(0, 110)}</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={hide} style={{ flex: 1, height: 36, borderRadius: 99, border: 0, background: S.ink, color: '#D3DAE3', fontFamily: 'inherit', fontSize: 14 }}>Yes</button>
-              <button onClick={hide} style={{ flex: 1, height: 36, borderRadius: 99, border: 0, background: S.chip, color: S.ink, fontFamily: 'inherit', fontSize: 14 }}>Not now</button>
-            </div>
-          </div>
-        )}
+    <div className="screen">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span className="caps">Boards</span>
+        <span style={{ fontSize: 11.5, color: 'var(--fg2)' }}>{mine.length} ideas kept</span>
       </div>
-      {typing && <Typing mode="future" heading="Future" prompt="Add to Inbox" onCancel={() => setTyping(false)} onSave={t => { add({ kind: 'future', body: t, board: 'Inbox' }); setTyping(false); }} />}
-    </>
+      <div className="boards">
+        {names.map((b, k) => {
+          const list = inBoard(b), isInbox = b === 'Inbox';
+          return (
+            <button key={b} className="board mist press" onClick={() => setBoard(b)} style={{ animation: `enter .4s ${k * 40}ms both` }}>
+              <span className="peek">{list.slice(0, 3).map((x, n) => <i key={x.id} style={{ background: TINTS[(n + 1) % TINTS.length], transform: `translateY(${n * 4}px)` }} />)}</span>
+              <span className="nm">{b}{isInbox && list.length > 0 && <span style={{ marginLeft: 7, display: 'inline-block', minWidth: 18, height: 18, borderRadius: 9, background: '#9B3A44', color: '#fff', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, lineHeight: '18px', textAlign: 'center', verticalAlign: 3, padding: '0 5px' }}>{list.length}</span>}</span>
+              <span className="ct">{isInbox ? (list.length ? 'to sort' : 'all sorted') : `${list.length} saved`}{list[0] ? ` · ${ago(list[0].day)}` : ''}</span>
+            </button>
+          );
+        })}
+        {naming
+          ? <form className="board mist" onSubmit={e => { e.preventDefault(); const v = String(new FormData(e.currentTarget).get('n') || '').trim(); if (v) addBoard(v); else setNaming(false); }}>
+              <input name="n" autoFocus placeholder="Name a board" onBlur={e => { if (!e.currentTarget.value.trim()) setNaming(false); }} style={{ border: 0, background: 'transparent', fontSize: 18, fontFamily: 'var(--serif)', outline: 'none', width: '100%' }} />
+              <span className="ct">return to create</span>
+            </form>
+          : <button className="board press" onClick={() => setNaming(true)} style={{ border: '1.3px dashed rgba(92,107,130,.55)', borderRadius: 12, alignItems: 'center', justifyContent: 'center', color: 'var(--fg2)', fontSize: 14 }}>+ New board</button>}
+      </div>
+
+      {mine.length > 0 && (
+        <div>
+          <div className="caps" style={{ marginBottom: 6 }}>Lately</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[...mine].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3).map((i, k) => (
+              <button key={i.id} className="mist press" onClick={() => setBoard(bOf(i))} style={{ flex: 1, minWidth: 0, height: 92, padding: '9px 10px', gap: 4, textAlign: 'left', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: TINTS[(k + 1) % TINTS.length], transform: `rotate(${(k - 1) * .8}deg)` }}>
+                <span className={i.body.trim().endsWith('?') ? 'quote' : ''} style={{ fontSize: 12.5, lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{domain(i.body) ? '↗ ' + domain(i.body) : i.body}</span>
+                <span style={{ fontSize: 10, color: 'var(--fg2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 'none' }}>{bOf(i)} · {ago(i.day)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grow" />
+
+      {resurface && (
+        <div className="mist" style={{ padding: '11px 13px 12px', animation: 'enter .5s .15s both' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span className="caps">Still excited about this?</span>
+            <span style={{ fontSize: 11, color: 'var(--fg2)' }}>{bOf(resurface)} · {ago(resurface.day)}</span>
+          </div>
+          <div className="quote" style={{ fontSize: 17, lineHeight: 1.35, margin: '5px 0 10px' }}>{resurface.body.slice(0, 120)}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="press" onClick={markSeen} style={{ flex: 1, height: 38, borderRadius: 99, background: '#1F2A44', color: '#E6EBF1', fontSize: 14, fontWeight: 500 }}>Yes, keep it</button>
+            <button className="press" onClick={() => { remove(resurface.id); markSeen(); }} style={{ flex: 1, height: 38, borderRadius: 99, background: 'rgba(255,255,255,.6)', fontSize: 14 }}>Let it go</button>
+          </div>
+        </div>
+      )}
+
+      <CaptureBar label="Save an idea, link or question" onTap={() => setTyping(true)} />
+      {typingSheet}
+    </div>
   );
 };
+
+const CaptureBar = ({ label, onTap }: { label: string; onTap: () => void }) => (
+  <button className="press" onClick={onTap} style={{ flex: 'none', height: 50, borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12, padding: '0 8px 0 16px', color: '#E6EBF1', background: 'linear-gradient(180deg,#2A3656,#1F2A44)', boxShadow: '0 8px 18px rgba(31,42,68,.28), inset 0 0 0 1px rgba(255,255,255,.08)', position: 'relative', zIndex: 2 }}>
+    <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden><path d="M16 3 L18.6 13.4 L29 16 L18.6 18.6 L16 29 L13.4 18.6 L3 16 L13.4 13.4Z" fill="#E7A1A8" /></svg>
+    <span style={{ fontSize: 14.5, flex: 1, textAlign: 'left' }}>{label}</span>
+    <span style={{ width: 34, height: 34, borderRadius: 10, background: '#9B3A44', display: 'grid', placeItems: 'center', fontSize: 20, lineHeight: 1 }}>+</span>
+  </button>
+);

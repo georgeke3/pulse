@@ -15,8 +15,9 @@ export default defineConfig({
       manifest: {
         name: 'Omokage',
         short_name: 'Omokage',
-        description: 'Omokage - mental load & resilience tracker',
-        theme_color: '#9333ea',
+        description: 'Omokage: past, present and future',
+        theme_color: '#E9DDC3',
+        background_color: '#E9DDC3',
         icons: [
           {
             src: 'pwa-192x192.png',
