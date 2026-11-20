@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { cloud, initCloud, useCloudSession } from './cloudClient';
+import { Loading, SignIn } from './omokage/Loading';
 
 /**
  * Shows the app only for a signed-in user. One tap on "Continue with Google" - no password, no typing.
@@ -42,36 +43,7 @@ const CloudGate = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  if (!ready) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Signing in…</p>
-      </div>
-    );
-  }
-
+  if (!ready) return <Loading label="signing in…" />;
   if (session) return <>{children}</>;
-
-  return (
-    <div className="min-h-screen bg-white text-gray-900 flex flex-col items-center justify-center p-8 text-center">
-      <div className="w-full max-w-[448px] space-y-10">
-        <header>
-          <h1 className="text-5xl font-black tracking-tight mb-2">Omokage</h1>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Mental Load &amp; Resilience</p>
-        </header>
-
-        <div className="space-y-4">
-          <button
-            onClick={() => { void signIn(); }}
-            disabled={busy}
-            className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-base active:scale-95 transition-all shadow-lg disabled:opacity-50"
-          >
-            {busy ? 'Opening Google…' : 'Continue with Google'}
-          </button>
-          {error && <p className="text-xs font-bold text-red-500 break-words">{error}</p>}
-          <p className="text-[10px] font-bold text-gray-400">Your data is stored privately in your own account.</p>
-        </div>
-      </div>
-    </div>
-  );
+  return <SignIn busy={busy} error={error} onSignIn={() => { void signIn(); }} />;
 };
