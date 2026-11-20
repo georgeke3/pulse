@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import wispO from './assets/sym-wisp1-o.png';
 import wispF from './assets/sym-wisp1-f.png';
 import dragonO from './assets/sym-dragon-o.png';
@@ -29,4 +30,20 @@ export const Sym = ({ n, on, s = 22, o = 1 }: { n: SymName; on: boolean; s?: num
     draggable={false}
     style={{ width: s, height: s, objectFit: 'contain', opacity: o, flex: 'none', display: 'block' }}
   />
+);
+
+import drSwirl from './assets/dr-swirl.png';
+import drGhost from './assets/dr-ghost.png';
+import drRiderG from './assets/dr-riderg.png';
+import drRiderW from './assets/dr-riderw.png';
+import drPeek from './assets/dr-peek.png';
+import drLegs from './assets/dr-legs.png';
+import drTiny from './assets/dr-tiny.png';
+
+export type DrgName = 'swirl' | 'ghost' | 'riderg' | 'riderw' | 'peek' | 'legs' | 'tiny';
+const DRG: Record<DrgName, string> = { swirl: drSwirl, ghost: drGhost, riderg: drRiderG, riderw: drRiderW, peek: drPeek, legs: drLegs, tiny: drTiny };
+
+/** The dragon line as small illustrations. Width-based; height follows the picture. */
+export const Drg = ({ n, w, o = 1, style }: { n: DrgName; w: number; o?: number; style?: CSSProperties }) => (
+  <img src={DRG[n]} alt="" aria-hidden="true" draggable={false} style={{ width: w, height: 'auto', opacity: o, display: 'block', flex: 'none', pointerEvents: 'none', ...style }} />
 );

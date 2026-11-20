@@ -1,4 +1,4 @@
-import { Sym } from './Sym';
+import { Drg, Sym } from './Sym';
 import { useState } from 'react';
 import { Belt, Fly } from './Art';
 import { useItems, type Item } from './items';
@@ -62,7 +62,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
           <span className="caps">{list.length} saved</span>
         </div>
         <div className="scroll grow" style={{ position: 'relative', margin: '0 -24px', padding: '14px 24px 16px' }}>
-          {list.length === 0 && <div className="it mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>A clear sky. Pin the first thing.</div>}
+          {list.length === 0 && <div className="it mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>A clear sky. Pin the first thing.<Drg n="legs" w={140} style={{ margin: '18px auto 0' }} /></div>}
           <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
             {[0, 1].map(col => <div key={col} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, paddingTop: col ? 14 : 0 }}>{list.map((i, k) => k % 2 !== col ? null : (() => {
               const d = domain(i.body), isQ = i.body.trim().endsWith('?'), isOpen = open === i.id;
@@ -94,7 +94,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
     <div className="screen">
       <Decor />
       <button className="press" onClick={() => setBoard('Inbox')} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10, paddingTop: 12, textAlign: 'left' }}>
-        <Pennant n={inbox.length} />
+        {inbox.length ? <Pennant n={inbox.length} /> : <Drg n="tiny" w={34} />}
         <span className="it" style={{ fontSize: 15 }}>{inbox.length ? 'in the inbox, waiting for a home' : 'the inbox is clear'}</span>
       </button>
 
@@ -121,8 +121,9 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
 
       {resurface ? (
         <div style={{ position: 'relative', marginTop: 18, animation: 'enter .5s .15s both' }}>
+          <Drg n="peek" w={84} style={{ position: 'absolute', right: 0, top: -44 }} />
           <div className="caps">still excited about this?</div>
-          <div className="it" style={{ fontSize: 23, lineHeight: 1.3, marginTop: 10, maxWidth: 310, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{resurface.body}</div>
+          <div className="it" style={{ fontSize: 23, lineHeight: 1.3, marginTop: 10, maxWidth: 262, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{resurface.body}</div>
           <div style={{ fontSize: 11.5, color: INK2, marginTop: 8 }}>{bOf(resurface)} · saved {ago(resurface.day)}</div>
           <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
             <button className="chip on" style={{ height: 38, padding: '0 18px', gap: 8 }} onClick={() => { update(resurface.id, { meta: { ...(resurface.meta ?? {}), kept: todayStr() } }); markSeen(); }}><Sym n="seal" on s={18} /> Yes, keep it</button>
@@ -133,6 +134,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
         <div style={{ position: 'relative', marginTop: 24 }}>
           <div className="caps">to begin</div>
           <div className="it" style={{ fontSize: 21, lineHeight: 1.35, marginTop: 10, maxWidth: 300, color: INK }}>Save anything that pulls at you: a place, a question, a someday.</div>
+          <Drg n="legs" w={150} o={.9} style={{ margin: '22px 0 0 auto' }} />
         </div>
       ) : null}
 

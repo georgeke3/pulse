@@ -1,4 +1,4 @@
-import { Sym } from './Sym';
+import { Drg, Sym } from './Sym';
 import { useMemo, useState } from 'react';
 import { useApp } from '../store';
 import { Fly, Pencil } from './Art';
@@ -112,7 +112,14 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
         </button>
       )}
 
-      <div className="grow" />
+      {!memory && (
+        <div style={{ position: 'relative', marginTop: 26, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, animation: 'enter .5s both' }}>
+          <Drg n="ghost" w={150} o={.85} />
+          <span className="it" style={{ fontSize: 14, color: INK2 }}>nothing in the sketchbook yet</span>
+        </div>
+      )}
+
+      <div className="grow" style={memory ? { display: 'flex', alignItems: 'center', justifyContent: 'center' } : undefined}>{memory && <Drg n="swirl" w={26} o={.7} />}</div>
 
       <div style={{ position: 'relative' }}>
         <div className="caps">this week, in pages</div>
