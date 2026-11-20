@@ -1,3 +1,4 @@
+import { Loading, SyncNotice } from './omokage/Loading';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { AppState, Config, Event, CoachingReport, EventType } from './types';
 import { format, subDays, startOfDay } from 'date-fns';
@@ -206,27 +207,8 @@ const persistSynced = (userId: string, synced: Synced) => {
 
 const SyncSplash = ({ status, error, onRetry }: { status: SyncStatus; error: string | null; onRetry: () => void }) => {
   const failed = status === 'offline' || status === 'error';
-  return (
-    <div className="min-h-screen bg-white text-gray-900 flex flex-col items-center justify-center gap-4 p-8 text-center">
-      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">
-        {status === 'offline' ? 'Offline' : status === 'error' ? 'Sync problem' : 'Syncing your data'}
-      </p>
-      {error && <p className="text-xs font-bold text-red-500 break-words max-w-xs">{error}</p>}
-      {failed && (
-        <div className="flex gap-3">
-          <button onClick={onRetry} className="px-5 py-3 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95">
-            Retry
-          </button>
-          <button
-            onClick={() => { void cloudApi?.signOut(); }}
-            className="px-5 py-3 bg-gray-50 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-100 active:scale-95"
-          >
-            Sign out
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  if (!failed) return <Loading label="syncing your data…" />;
+  return <SyncNotice label={status === 'offline' ? 'you seem to be offline' : 'sync hit a snag'} error={error} onRetry={onRetry} onSignOut={() => { void cloudApi?.signOut(); }} />;
 };
 
 interface AppContextType {

@@ -44,3 +44,19 @@ export const SignIn = ({ busy, error, onSignIn }: { busy: boolean; error: string
     <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: INK2, margin: 0 }}>Your data is stored privately in your own account.</p>
   </Ground>
 );
+
+/** Offline / sync-problem state: the same world, with a retry. */
+export const SyncNotice = ({ label, error, onRetry, onSignOut }: { label: string; error: string | null; onRetry: () => void; onSignOut: () => void }) => {
+  const btn = { height: 46, padding: '0 22px', borderRadius: 23, fontFamily: 'Lora, serif', fontStyle: 'italic', fontSize: 16, border: 0 } as const;
+  return (
+    <Ground>
+      <img className="omk-a" src={hook} alt="" aria-hidden="true" draggable={false} style={{ width: 110, height: 'auto', animation: 'omk-bob 3.4s ease-in-out infinite' }} />
+      <div style={{ fontFamily: 'Lora, serif', fontStyle: 'italic', fontSize: 18 }}>{label}</div>
+      {error && <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#A8323E', maxWidth: 300, wordBreak: 'break-word', margin: 0 }}>{error}</p>}
+      <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+        <button onClick={onRetry} style={{ ...btn, background: INK, color: '#fff' }}>Retry</button>
+        <button onClick={onSignOut} style={{ ...btn, background: '#fff', color: INK, boxShadow: '0 0 0 1px rgba(43,50,71,.16)' }}>Sign out</button>
+      </div>
+    </Ground>
+  );
+};
