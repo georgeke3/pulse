@@ -68,6 +68,7 @@ html, body { margin: 0; background: #FAF8F3; overscroll-behavior: none; }
 /* Present: ring nodes */
 .omk .node { position: absolute; width: var(--sz, 42px); height: var(--sz, 42px); margin: calc(var(--sz, 42px) / -2) 0 0 calc(var(--sz, 42px) / -2); border-radius: 50%; display: grid; place-items: center; font-family: var(--serif); font-size: 16px; font-weight: 600; background: #FFFEFB; box-shadow: 0 0 0 1.2px var(--r), 0 5px 12px rgba(43, 50, 71, .10); touch-action: none; transition: transform .2s var(--ease), opacity .2s; z-index: 2; }
 .omk .node i { position: absolute; inset: 5px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0%, var(--f) 120%); opacity: .9; }
+.omk .node .catart { position: relative; width: 34px; height: 34px; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
 .omk .node b { position: relative; font-weight: 600; color: var(--r); line-height: 1; }
 .omk .node .pips { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
 .omk .node .pips s { width: 3.5px; height: 3.5px; border-radius: 2px; background: var(--r); display: block; animation: pop .4s var(--ease); }

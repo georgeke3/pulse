@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../store';
 import type { Event, EventType } from '../types';
 import { Belt, Fly } from './Art';
+import { catArt } from './catArt';
 import { haptic } from './haptics';
 import { DUSK, EMBER, GOLD, INK, INK2, SKY, fmtClock, fmtMin, hhmm, nowHalfHour, parseHM, todayStr } from './skins';
 
@@ -163,7 +164,9 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
               <button className={`node ${held === id ? 'held' : ''}`} aria-label={`Log ${c.name}`}
                 style={{ left: x, top: y, ['--r' as string]: r, ['--f' as string]: f, ['--sz' as string]: `${sz}px` }}
                 onPointerDown={onDown(c)} onPointerMove={onMove} onPointerUp={finish(false)} onPointerCancel={finish(true)} onContextMenu={e => e.preventDefault()}>
-                <i /><b style={{ fontSize: c.mono.length > 1 ? 12.5 : 16, marginTop: n ? -4 : 0 }}>{c.mono}</b>
+                <i />{catArt(c.type, c.name)
+                  ? <img className="catart" src={catArt(c.type, c.name)} alt="" draggable={false} style={{ marginTop: n ? -5 : 0 }} />
+                  : <b style={{ fontSize: c.mono.length > 1 ? 12.5 : 16, marginTop: n ? -4 : 0 }}>{c.mono}</b>}
                 {n > 0 && <span className="pips">{Array.from({ length: Math.min(n, 4) }, (_, i) => <s key={i} />)}</span>}
               </button>
               <span className="nl" style={lab}>{c.name.length > 10 ? c.name.split(' ')[0] : c.name}</span>
@@ -293,7 +296,7 @@ const ScrubVeil = ({ s, w, h, anchors, hasLast }: { s: Scrub; w: number; h: numb
         </>}
       </svg>
       <div className="node held" style={{ left: isWin ? w / 2 : Math.max(40, Math.min(w - 40, bx(s.lvl))), top: isWin ? bY - 10 : by(s.lvl) - 52, ['--r' as string]: rim, ['--f' as string]: fill, ['--sz' as string]: '60px', fontSize: 22, transition: 'left .12s', boxShadow: `0 0 0 1.5px ${rim},0 0 0 6px #FBFAF7,0 0 0 7px rgba(200,161,90,.6),0 18px 30px rgba(43,50,71,.22)` }}>
-        <i /><b>{s.cell.mono}</b>
+        <i />{catArt(s.cell.type, s.cell.name) ? <img className="catart" src={catArt(s.cell.type, s.cell.name)} alt="" style={{ width: 48, height: 48 }} /> : <b>{s.cell.mono}</b>}
       </div>
       {!isWin && <div style={{ position: 'absolute', left: 0, right: 0, top: bY + 52, textAlign: 'center' }}><span className="serif" style={{ fontSize: 22, color: rim }}>{s.lvl}</span><span className="it" style={{ fontSize: 15 }}> · {a?.label ?? ''}</span></div>}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 14, textAlign: 'center', fontSize: 11, color: INK2, lineHeight: 1.7 }}>
