@@ -49,6 +49,7 @@ html, body { margin: 0; background: #FAF8F3; overscroll-behavior: none; }
 .omk .scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .omk .scroll::-webkit-scrollbar { display: none; }
 
+.omk[data-pinned] .tabs { position: absolute; }
 .omk .tabs { position: fixed; left: 0; right: 0; bottom: 0; max-width: 520px; margin: 0 auto; z-index: 5; display: flex; height: calc(64px + var(--bot)); padding: 0 18px var(--bot); background: linear-gradient(to top, rgb(var(--fade)) 70%, rgba(var(--fade), 0)); }
 .omk .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10px; letter-spacing: .06em; color: var(--ink2); }
 .omk .tab .ic { position: relative; width: 48px; height: 42px; display: grid; place-items: center; transition: transform .3s var(--ease); }

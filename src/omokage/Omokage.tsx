@@ -33,6 +33,19 @@ const Inner = () => {
   // (bottom bar floats ~59pt high over a dead band). Toggling display on the full-height shell after the
   // keyboard closes makes WebKit re-measure. Only fires when the viewport is actually stuck small.
   const shell = useRef<HTMLDivElement>(null);
+  // Installed iOS apps sometimes come back with a viewport ~60pt short (after a reload, or after the keyboard). Fixed
+  // and 100dvh layouts then float the tab bar over a dead band. In the installed app, size the shell from the
+  // screen itself instead, and pin the tab bar inside it, so a short viewport can't move anything.
+  const standalone = typeof navigator !== 'undefined' && ((navigator as Navigator & { standalone?: boolean }).standalone === true || window.matchMedia('(display-mode: standalone)').matches);
+  const [fullH, setFullH] = useState<number | null>(null);
+  useEffect(() => {
+    if (!standalone) return;
+    const f = () => setFullH(window.innerHeight > window.innerWidth ? Math.max(window.innerHeight, window.screen.height, window.screen.width) : null);
+    f();
+    ['resize', 'orientationchange', 'pageshow', 'focusout'].forEach(ev => window.addEventListener(ev, f));
+    document.addEventListener('visibilitychange', f);
+    return () => { ['resize', 'orientationchange', 'pageshow', 'focusout'].forEach(ev => window.removeEventListener(ev, f)); document.removeEventListener('visibilitychange', f); };
+  }, [standalone]);
   useEffect(() => {
     let maxVH = window.innerHeight;
     const onResize = () => { maxVH = Math.max(maxVH, window.innerHeight); };
@@ -54,7 +67,7 @@ const Inner = () => {
   };
 
   return (
-    <div className="omk" data-mode={mode} ref={shell}>
+    <div className="omk" data-mode={mode} ref={shell} style={fullH ? { height: fullH, ['--bot' as string]: 'max(env(safe-area-inset-bottom), 28px)' } : undefined} data-pinned={fullH ? '1' : undefined}>
       <Atmos mode={mode} />
       <header className="top">
         {mode === 'home'
