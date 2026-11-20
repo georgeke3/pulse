@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Atmos, Glyph } from './Art';
 import { Future } from './Future';
 import { haptic } from './haptics';
@@ -24,13 +24,32 @@ const Inner = () => {
   const now = new Date();
   // paint the page itself in the mode's ground, so nothing behind the app can ever show as a band
   useEffect(() => { document.documentElement.style.background = GROUND[mode]; document.body.style.background = GROUND[mode]; }, [mode]);
+  // iOS home-screen apps shrink the viewport the first time the keyboard opens and never give it back
+  // (bottom bar floats ~59pt high over a dead band). Toggling display on the full-height shell after the
+  // keyboard closes makes WebKit re-measure. Only fires when the viewport is actually stuck small.
+  const shell = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let maxVH = window.innerHeight;
+    const onResize = () => { maxVH = Math.max(maxVH, window.innerHeight); };
+    const heal = () => {
+      const el = shell.current; if (!el) return;
+      const typing = document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement;
+      if (typing || maxVH - window.innerHeight <= 4) return;
+      el.style.display = 'none'; void el.offsetHeight; el.style.display = '';
+    };
+    const onBlur = () => { setTimeout(heal, 150); setTimeout(heal, 600); };
+    window.addEventListener('resize', onResize);
+    document.addEventListener('focusout', onBlur);
+    document.addEventListener('visibilitychange', onBlur);
+    return () => { window.removeEventListener('resize', onResize); document.removeEventListener('focusout', onBlur); document.removeEventListener('visibilitychange', onBlur); };
+  }, []);
   const sub: Record<Mode, string> = {
     home: '', past: 'what was', future: 'what may be',
     present: `${now.toLocaleDateString('en', { weekday: 'long' })}, the day so far`,
   };
 
   return (
-    <div className="omk" data-mode={mode}>
+    <div className="omk" data-mode={mode} ref={shell}>
       <Atmos mode={mode} />
       <header className="top">
         {mode === 'home'

@@ -1,5 +1,5 @@
 /* Omokage — redesign 04 "White wind". Past: sketchbook wind · Present: tactician's codex · Future: mist and crest · Home: all three. */
-html, body { background: #FAF8F3; overscroll-behavior: none; }
+html, body { margin: 0; background: #FAF8F3; overscroll-behavior: none; }
 
 .omk {
   --ink: #2B3247; --ink2: #646B7E; --sky: #6F8FB5; --ember: #D07A55; --gold: #C8A15A; --sepia: #B08A64; --crimson: #A8323E; --dusk: #9AABC0;
@@ -7,7 +7,7 @@ html, body { background: #FAF8F3; overscroll-behavior: none; }
   --sans: 'Inter', system-ui, -apple-system, sans-serif;
   --ease: cubic-bezier(.2, .8, .2, 1);
   --top: env(safe-area-inset-top); --bot: max(env(safe-area-inset-bottom), 10px);
-  position: fixed; inset: 0; max-width: 520px; margin: 0 auto; overflow: hidden;
+  position: relative; height: 100dvh; max-width: 520px; margin: 0 auto; overflow: hidden;
   display: flex; flex-direction: column;
   font-family: var(--sans); color: var(--ink); background: var(--ground);
   -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
@@ -111,7 +111,7 @@ html, body { background: #FAF8F3; overscroll-behavior: none; }
 .omk .ring-box { width: 20px; height: 20px; border-radius: 50%; flex: none; display: grid; place-items: center; }
 
 /* full-screen sheets (pulse, writing) */
-.omk-sheet { position: fixed; left: 0; right: 0; max-width: 520px; margin: 0 auto; z-index: 100; display: flex; flex-direction: column; overflow: hidden; animation: sheet .35s var(--ease); }
+.omk-sheet { position: fixed; left: 0; right: 0; height: auto; max-width: 520px; margin: 0 auto; z-index: 100; display: flex; flex-direction: column; overflow: hidden; animation: sheet .35s var(--ease); }
 @keyframes sheet { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 .omk-sheet textarea { flex: 1; min-height: 0; resize: none; outline: none; border: 0; background: transparent; font-family: var(--serif); font-size: 18px; line-height: 1.6; padding: 0; color: var(--ink); }
 .omk-sheet textarea::placeholder { color: rgba(100, 107, 126, .6); font-style: italic; }
