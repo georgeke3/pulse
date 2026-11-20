@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../store';
-import { Butterfly } from './Art';
+import { Butterfly, Fly, Pencil } from './Art';
 import { useItems } from './items';
-import { ago, fromDstr, todayStr } from './skins';
+import { INK, INK2, SEPIA, agoWords, dstr, fromDstr, todayStr } from './skins';
 import { Typing } from './Typing';
 
 const QUESTIONS = [
@@ -14,7 +14,7 @@ const QUESTIONS = [
   'What are you quietly proud of?',
   'What would you tell yourself a year ago?',
 ];
-const CHIPS = ['Mila', 'Kat', 'work', 'sleep', 'gym', 'money', 'friends'];
+const CHIPS = ['Mila', 'Kat', 'work', 'sleep', 'gym', 'friends', 'money'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 interface Entry { id: string; day: string; body: string; tags?: string[] }
 
@@ -27,6 +27,17 @@ export const usePastEntries = () => {
     return [...mine, ...legacy].sort((a, b) => b.day.localeCompare(a.day));
   }, [items, state.days]);
 };
+const oneLine = (s: string) => s.split('\n').map(x => x.trim()).filter(Boolean).join('. ').replace(/\.\./g, '.');
+
+const Decor = ({ flies = true }: { flies?: boolean }) => (
+  <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }} viewBox="0 0 393 740" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <Pencil d="M-30 590 C 90 540, 170 600, 270 530 S 400 420, 440 400" />
+    {flies && <>
+    <Fly x={318} y={92} s={.8} c={SEPIA} o={.8} st="outline" /><Fly x={350} y={64} s={.6} c={SEPIA} o={.6} st="outline" d={1} />
+    <Fly x={370} y={28} s={.45} c={SEPIA} o={.45} st="outline" d={2} /><Fly x={360} y={118} s={.34} c={SEPIA} o={.3} st="outline" d={.5} />
+    </>}
+  </svg>
+);
 
 export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: boolean) => void }) => {
   const { add } = useItems();
@@ -38,35 +49,32 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
   const [year, setYear] = useState(years[0]);
   const [month, setMonth] = useState<string | null>(null);
   const todays = all.filter(a => a.day === today);
-
-  // "On this day": same day-of-month in an earlier month, else the nearest older entry
   const memory = useMemo(() => {
-    const dd = today.slice(8);
-    const older = all.filter(a => a.day < today);
+    const dd = today.slice(8), older = all.filter(a => a.day < today);
     return older.find(a => a.day.slice(8) === dd) ?? older.find(a => Math.abs(+a.day.slice(8) - +dd) <= 2) ?? older[Math.floor(older.length / 3)];
   }, [all, today]);
-
   const perMonth = (m: number) => all.filter(a => a.day.startsWith(`${year}-${String(m + 1).padStart(2, '0')}`)).length;
+  const week = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 6 + i); return d; });
 
   if (month) {
     const list = all.filter(a => a.day.startsWith(month));
-    const label = fromDstr(month + '-01').toLocaleDateString('en', { month: 'long', year: 'numeric' });
     return (
       <div className="screen" style={{ paddingBottom: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-          <button className="press" onClick={() => setMonth(null)} style={{ fontSize: 13, color: 'var(--fg2)', padding: '4px 0' }}>‹ Browse</button>
-          <span className="serif" style={{ fontSize: 19 }}>{label}</span>
+        <Decor flies={false} />
+        <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 10 }}>
+          <button className="press" onClick={() => setMonth(null)} style={{ fontSize: 13, color: INK2, padding: '4px 0' }}>‹ Browse</button>
+          <span className="it" style={{ fontSize: 19 }}>{fromDstr(month + '-01').toLocaleDateString('en', { month: 'long', year: 'numeric' })}</span>
           <span className="caps">{list.length} {list.length === 1 ? 'page' : 'pages'}</span>
         </div>
-        <div className="scroll grow" style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 14 }}>
-          {list.length === 0 && <div className="quote mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>An empty page, for now.</div>}
+        <div className="scroll grow" style={{ position: 'relative', margin: '0 -24px', padding: '10px 24px 20px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {list.length === 0 && <div className="it mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>An empty page, for now.</div>}
           {list.map((a, i) => (
-            <div key={a.id} className="sketch entry" style={{ transform: `rotate(${(i % 3 - 1) * .35}deg)`, animation: `enter .4s ${Math.min(i, 6) * 40}ms both` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span className="serif" style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--fg2)' }}>{fromDstr(a.day).toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'short' })}</span>
-                <span style={{ display: 'flex', gap: 4 }}>{(a.tags ?? []).map(t => <span key={t} className="tag">{t}</span>)}</span>
+            <div key={a.id} className="torn" style={{ transform: `rotate(${(i % 3 - 1) * .7}deg)`, animation: `enter .4s ${Math.min(i, 6) * 40}ms both`, flex: 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                <span className="it" style={{ fontSize: 13, color: INK2 }}>{fromDstr(a.day).toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'short' })}</span>
+                <span style={{ display: 'flex', gap: 4 }}>{(a.tags ?? []).map(t => <span key={t} className="caps" style={{ fontSize: 8.5 }}>{t}</span>)}</span>
               </div>
-              <p>{a.body}</p>
+              <p className="serif" style={{ fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text', WebkitUserSelect: 'text', color: '#3A4156' }}>{a.body}</p>
             </div>
           ))}
         </div>
@@ -76,71 +84,69 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
 
   return (
     <div className="screen">
-      <div className="sketch" style={{ padding: '11px 13px 12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="caps">Tonight’s question</span>
-          <Butterfly c="#C4643F" s={18} />
+      <Decor />
+      <div style={{ position: 'relative', paddingTop: 14 }}>
+        <div className="caps">tonight’s question</div>
+        <div className="it" style={{ fontSize: 27, lineHeight: 1.28, marginTop: 10, maxWidth: 300 }}>{q}</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 16 }}>
+          {CHIPS.slice(0, 5).map(c => { const on = tags.includes(c); return <button key={c} className={`chip ${on ? 'on' : ''}`} onClick={() => setTags(v => (on ? v.filter(x => x !== c) : [...v, c]))}>{c}</button>; })}
         </div>
-        <div className="quote" style={{ fontSize: 22, lineHeight: 1.3, margin: '4px 0 10px' }}>“{q}”</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-          {CHIPS.slice(0, 5).map(c => { const on = tags.includes(c);
-            return <button key={c} className={`chip press ${on ? 'on' : ''}`} onClick={() => setTags(v => on ? v.filter(x => x !== c) : [...v, c])}>{c}</button>; })}
-        </div>
-        <button className="press" onClick={() => setTyping(true)} style={{ width: '100%', height: 58, borderRadius: '6px 14px 8px 12px', border: '1.3px dashed var(--line)', background: 'rgba(255,255,255,.55)', display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', textAlign: 'left' }}>
-          <svg width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden><path d="M22 5 L27 10 L12 25 L5 27 L7 20Z" stroke="#34405A" strokeWidth="1.6" strokeLinejoin="round" /><path d="M19 8 L24 13" stroke="#34405A" strokeWidth="1.6" /></svg>
-          <span className="mute" style={{ fontSize: 14 }}>{todays.length ? `Written tonight · add more` : 'Tap to write'}</span>
-          {todays.length > 0 && <span style={{ marginLeft: 'auto', color: '#C4643F', fontSize: 15 }}>✓</span>}
+        <button className="press" onClick={() => setTyping(true)} style={{ width: '100%', marginTop: 14, height: 48, display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1.2px dashed rgba(43,50,71,.3)', textAlign: 'left' }}>
+          <svg width="17" height="17" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M22 5 L27 10 L12 25 L5 27 L7 20Z" stroke={INK} strokeWidth="1.5" strokeLinejoin="round" /></svg>
+          <span className="it" style={{ fontSize: 16, color: INK2, flex: 1 }}>{todays.length ? 'Written tonight · add a few more lines' : 'Write a few lines…'}</span>
+          {todays.length > 0 && <Butterfly c={SEPIA} s={14} />}
         </button>
       </div>
 
       {memory && (
-        <button className="sketch press" onClick={() => { setYear(memory.day.slice(0, 4)); setMonth(memory.day.slice(0, 7)); }}
-          style={{ padding: '10px 13px', textAlign: 'left', background: 'linear-gradient(170deg, #FBF7EE, #F1EADC)', transform: 'rotate(-.4deg)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span className="caps">A page from {ago(memory.day)}</span>
-            <span className="serif" style={{ fontSize: 12, fontStyle: 'italic', color: 'var(--fg2)' }}>{fromDstr(memory.day).toLocaleDateString('en', { day: 'numeric', month: 'short' })}</span>
+        <button className="press" onClick={() => { setYear(memory.day.slice(0, 4)); setMonth(memory.day.slice(0, 7)); }} style={{ position: 'relative', marginTop: 34, textAlign: 'left', display: 'block', width: '100%' }}>
+          <span className="tape-strip" style={{ left: 'calc(50% - 50px)', top: -9, transform: 'rotate(-4deg)' }} />
+          <div className="torn" style={{ transform: 'rotate(-1.2deg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span className="caps">a page from {agoWords(memory.day)}</span>
+              <span className="it" style={{ fontSize: 12, color: INK2 }}>{fromDstr(memory.day).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
+            </div>
+            <div className="it" style={{ fontSize: 15, lineHeight: 1.55, marginTop: 8, color: '#3A4156', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>“{oneLine(memory.body)}”</div>
           </div>
-          <div className="quote" style={{ fontSize: 14.5, lineHeight: 1.45, marginTop: 4, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{memory.body.split('\n').join(' · ')}</div>
         </button>
       )}
 
       <div className="grow" />
 
-      <div>
-        <div className="caps" style={{ marginBottom: 6 }}>This week, in pages</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          {Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 6 + i); const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            const n = all.filter(a => a.day === k).length, isT = k === today;
+      <div style={{ position: 'relative' }}>
+        <div className="caps">this week, in pages</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
+          {week.map(d => {
+            const k = dstr(d), n = all.some(a => a.day === k), isT = k === today;
             return (
-              <div key={k} style={{ width: 44, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                <span style={{ width: 38, height: 38, borderRadius: '50%', display: 'grid', placeItems: 'center', border: `1.3px ${n ? 'solid' : 'dashed'} ${n ? '#6F86A3' : 'rgba(143,163,184,.7)'}`, background: n ? 'rgba(143,163,184,.18)' : 'transparent', boxShadow: isT ? '0 0 0 2px #F2EEE6, 0 0 0 3.3px #C4643F' : undefined }}>
-                  {n ? <Butterfly c={isT ? '#C4643F' : '#6F86A3'} s={20} /> : <span style={{ fontSize: 11, color: 'var(--fg2)' }}>·</span>}
-                </span>
-                <span style={{ fontSize: 10, color: 'var(--fg2)', fontWeight: isT ? 600 : 400 }}>{d.toLocaleDateString('en', { weekday: 'short' })}</span>
+              <div key={k} style={{ width: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                <Butterfly c={SEPIA} s={24} st={n ? 'fill' : 'outline'} dashed={!n} o={isT ? .9 : .55} />
+                <span style={{ fontSize: 10, color: isT ? INK : INK2, fontWeight: isT ? 600 : 400 }}>{d.toLocaleDateString('en', { weekday: 'narrow' })}</span>
               </div>
-            ); })}
+            );
+          })}
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span className="caps">Browse the past</span>
-        <span style={{ display: 'flex', gap: 6 }}>{years.map(y => <button key={y} className={`chip press ${y === year ? 'on' : ''}`} style={{ height: 28, fontSize: 12.5 }} onClick={() => setYear(y)}>{y}</button>)}</span>
-      </div>
-      <div className="months">
-        {MONTHS.map((m, i) => {
-          const n = perMonth(i), cur = year === String(now.getFullYear()) && i === now.getMonth();
-          const future = year === String(now.getFullYear()) && i > now.getMonth();
-          return (
-            <button key={m} className="mon" disabled={future} onClick={() => setMonth(`${year}-${String(i + 1).padStart(2, '0')}`)}
-              style={{ background: n ? `rgba(227,214,190,${Math.min(.9, .25 + n / 40)})` : 'transparent', opacity: future ? .35 : 1, boxShadow: cur ? 'inset 0 0 0 1.5px #C4643F' : undefined, borderStyle: cur ? 'solid' : 'dashed' }}>
-              <span style={{ fontWeight: cur ? 600 : 400 }}>{m}</span>
-              <span className="ink">{Array.from({ length: Math.min(5, Math.ceil(n / 5)) }, (_, k) => <i key={k} />)}</span>
-            </button>
-          );
-        })}
+      <div style={{ position: 'relative', marginTop: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <span className="caps">browse the past</span>
+          <span style={{ display: 'flex', gap: 12 }}>{years.slice(0, 3).map(y => <button key={y} className="it" onClick={() => setYear(y)} style={{ fontSize: 13, fontWeight: y === year ? 600 : 400, color: y === year ? INK : INK2, padding: '4px 0' }}>{y}</button>)}</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', rowGap: 4, marginTop: 8 }}>
+          {MONTHS.map((m, i) => {
+            const n = perMonth(i), cur = year === String(now.getFullYear()) && i === now.getMonth(), fut = year === String(now.getFullYear()) && i > now.getMonth();
+            return (
+              <button key={m} disabled={fut} onClick={() => setMonth(`${year}-${String(i + 1).padStart(2, '0')}`)} style={{ height: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: fut ? .3 : 1 }}>
+                <span className={cur ? 'it' : ''} style={{ fontSize: 14, fontWeight: cur ? 600 : 400, color: cur ? SEPIA : INK }}>{m}</span>
+                <span style={{ display: 'flex', gap: 2, height: 4 }}>{Array.from({ length: Math.min(5, Math.ceil(n / 5)) }, (_, k) => <i key={k} style={{ width: 4, height: 4, borderRadius: 2, background: SEPIA }} />)}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {typing && <Typing mode="past" heading="Past" prompt={q} chips={CHIPS} initialTags={tags} placeholder="Whatever comes…"
+      {typing && <Typing mode="past" label="past · writing" prompt={q} chips={CHIPS} initialTags={tags} placeholder="Whatever comes…"
         onCancel={() => setTyping(false)} onSave={(t, tg) => { add({ kind: 'past', body: t, board: null, meta: { tags: tg, question: q } }); setTags([]); setTyping(false); }} />}
     </div>
   );

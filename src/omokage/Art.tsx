@@ -1,66 +1,103 @@
-import type { Mode } from './skins';
+import { CRIMSON, GOLD, INK, SEPIA, SKY, type Mode } from './skins';
 
-/** Faint watermark emblem behind each mode (refs: crest, sword emblem, support ring). */
-export const Watermark = ({ mode }: { mode: Mode }) => {
-  const ink = { present: '#6B4F1E', past: '#34405A', future: '#1F2A44', home: '#6B4F1E' }[mode];
-  const common = { fill: 'none', stroke: ink, strokeWidth: 1.2 } as const;
-  if (mode === 'present') return (
-    <svg className="watermark" viewBox="0 0 200 240" style={{ width: 340, left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }} aria-hidden>
-      <path d="M100 12 L172 38 V112 C172 160 140 198 100 222 C60 198 28 160 28 112 V38Z" {...common} strokeWidth={2} />
-      <path d="M100 26 L160 48 V112 C160 152 134 184 100 206 C66 184 40 152 40 112 V48Z" {...common} />
-      <path d="M100 40 V196 M86 70 H114 M92 70 L100 54 L108 70 M100 196 l-6 -10 h12z" {...common} strokeWidth={2} />
-      <path d="M64 120 C76 104 90 110 100 124 C110 110 124 104 136 120" {...common} />
-      <circle cx="100" cy="148" r="16" {...common} />
-    </svg>
-  );
+export const BF = 'M0 0 C-2 -7 -9 -13 -14 -10 C-18 -7 -15 -2 -8 1 C-13 3 -14 9 -9 10 C-5 11 -2 6 0 2 C2 6 5 11 9 10 C14 9 13 3 8 1 C15 -2 18 -7 14 -10 C9 -13 2 -7 0 0Z';
+export type BStyle = 'fill' | 'outline' | 'glow';
+
+/** A butterfly as an SVG <g>, for use inside an <svg>. */
+export const Fly = ({ x, y, s = 1, r = 0, c = '#9AABC0', o = 1, st = 'fill', d = 0 }: { x: number; y: number; s?: number; r?: number; c?: string; o?: number; st?: BStyle; d?: number }) => (
+  <g transform={`translate(${x},${y}) rotate(${r}) scale(${s})`} opacity={o}>
+    <g className="bf" style={{ animationDelay: `${d}s` }}>
+      {st === 'outline' && <><path d={BF} fill={c} fillOpacity=".08" stroke={c} strokeWidth={1.1 / s} strokeLinejoin="round" /><path d="M0 -3 V7" stroke={c} strokeWidth={1 / s} /></>}
+      {st === 'glow' && <><path d={BF} fill="#fff" opacity=".9" /><path d={BF} fill={c} opacity=".45" /></>}
+      {st === 'fill' && <path d={BF} fill={c} />}
+    </g>
+  </g>
+);
+
+/** Standalone butterfly icon. */
+export const Butterfly = ({ c = SKY, s = 16, st = 'fill', dashed = false, o = 1 }: { c?: string; s?: number; st?: BStyle; dashed?: boolean; o?: number }) => (
+  <svg width={s * 1.2} height={s} viewBox="-16 -13 32 26" aria-hidden="true">
+    <path d={BF} fill={st === 'outline' ? 'none' : c} fillOpacity={o} stroke={dashed ? 'rgba(43,50,71,.3)' : c} strokeWidth="1" strokeDasharray={dashed ? '2 2' : undefined} />
+  </svg>
+);
+
+export const Belt = ({ d, c = GOLD, w = 9, o = .32, stitch = true }: { d: string; c?: string; w?: number; o?: number; stitch?: boolean }) => (
+  <g className="ribbon">
+    <path d={d} fill="none" stroke={c} strokeWidth={w} strokeLinecap="round" opacity={o} />
+    {stitch && <path d={d} fill="none" stroke="#fff" strokeWidth="1" strokeDasharray="3 5" opacity=".9" />}
+  </g>
+);
+export const Pencil = ({ d, c = SEPIA, o = .45 }: { d: string; c?: string; o?: number }) => (
+  <g>
+    <path d={d} fill="none" stroke={c} strokeWidth="1" opacity={o} strokeLinecap="round" />
+    <path d={d} fill="none" stroke={c} strokeWidth=".7" opacity={o * .7} transform="translate(2,7)" strokeDasharray="14 3 30 2" />
+    <path d={d} fill="none" stroke={c} strokeWidth="5" opacity=".06" transform="translate(1,3)" />
+  </g>
+);
+export const Sparkles = ({ pts, c = '#fff' }: { pts: [number, number, number, number][]; c?: string }) => (
+  <>{pts.map(([x, y, s, o], i) => <path key={i} className="spark" style={{ animationDelay: `${i * .7}s` }} transform={`translate(${x},${y}) scale(${s})`} d="M0 -6 L1.3 -1.3 L6 0 L1.3 1.3 L0 6 L-1.3 1.3 L-6 0 L-1.3 -1.3Z" fill={c} opacity={o} />)}</>
+);
+
+const hatch = (x0: number, y0: number, n: number, o: number) => Array.from({ length: n }, (_, i) => <line key={i} x1={x0 + i * 7} y1={y0 - i * 2} x2={x0 - 30 + i * 7} y2={y0 + 60 - i * 2} stroke={SEPIA} strokeWidth=".7" opacity={o} />);
+
+/** Full-screen atmosphere behind each mode. Drawn on a 393×852 board, scaled to cover. */
+export const Atmos = ({ mode }: { mode: Mode }) => {
+  const box = { className: 'atmos', viewBox: '0 0 393 852', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': true } as const;
   if (mode === 'past') return (
-    <svg className="watermark" viewBox="0 0 200 200" style={{ width: 360, right: -90, top: 120, transform: 'rotate(-14deg)' }} aria-hidden>
-      <path d="M100 90 C80 30 20 30 28 78 C34 108 70 110 100 100Z M100 90 C120 30 180 30 172 78 C166 108 130 110 100 100Z" {...common} strokeWidth={1.6} />
-      <path d="M100 104 C78 112 48 132 62 162 C76 176 92 140 100 116Z M100 104 C122 112 152 132 138 162 C124 176 108 140 100 116Z" {...common} strokeWidth={1.6} />
-      <path d="M100 76 V150 M100 76 C96 60 88 50 80 44 M100 76 C104 60 112 50 120 44" {...common} />
-      <path d="M44 60 C60 66 76 74 92 88 M156 60 C140 66 124 74 108 88" {...common} strokeDasharray="3 4" />
+    <>
+      <svg {...box}>
+        <defs>
+          <filter id="omk-grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" stitchTiles="stitch" /><feColorMatrix values="0 0 0 0 .42  0 0 0 0 .33  0 0 0 0 .22  0 0 0 .5 0" /></filter>
+          <radialGradient id="omk-vig" cx="50%" cy="45%" r="75%"><stop offset="65%" stopColor={SEPIA} stopOpacity="0" /><stop offset="100%" stopColor={SEPIA} stopOpacity=".16" /></radialGradient>
+        </defs>
+        <rect width="393" height="852" filter="url(#omk-grain)" opacity=".16" />
+        <rect width="393" height="852" fill="url(#omk-vig)" />
+        {hatch(330, 760, 8, .22)}{hatch(-10, 100, 7, .18)}
+      </svg>
+    </>
+  );
+  if (mode === 'present') return (
+    <svg {...box}>
+      {Array.from({ length: 27 }, (_, i) => <line key={i} x1="0" x2="393" y1={120 + i * 28} y2={120 + i * 28} stroke={GOLD} strokeWidth=".5" opacity=".10" />)}
+      <line x1="22" x2="22" y1="0" y2="852" stroke={CRIMSON} strokeWidth=".6" opacity=".14" />
+      <circle cx="330" cy="120" r="150" fill="none" stroke={GOLD} strokeWidth=".6" opacity=".18" />
+      <circle cx="330" cy="120" r="110" fill="none" stroke={GOLD} strokeWidth=".6" opacity=".12" strokeDasharray="2 6" />
+      <path d="M330 -30 V270 M180 120 H480" stroke={GOLD} strokeWidth=".5" opacity=".14" />
     </svg>
   );
   if (mode === 'future') return (
-    <svg className="watermark" viewBox="0 0 200 200" style={{ width: 420, left: '50%', top: '38%', transform: 'translate(-50%,-50%) rotate(8deg)', opacity: .09 }} aria-hidden>
-      <path d="M100 6 L112 88 L194 100 L112 112 L100 194 L88 112 L6 100 L88 88Z" {...common} strokeWidth={1.6} />
-      <path d="M100 40 L106 94 L160 100 L106 106 L100 160 L94 106 L40 100 L94 94Z" {...common} />
-      <circle cx="100" cy="100" r="70" {...common} strokeDasharray="2 6" />
-      <circle cx="100" cy="100" r="88" {...common} />
-    </svg>
+    <>
+      <div className="atmos" style={{ background: 'linear-gradient(170deg,#F4F7FB 0%,#E6ECF4 45%,#D5DEEA 100%)' }} />
+      <div className="mistband" style={{ left: -120, top: '28%', width: 640, height: 90 }} />
+      <div className="mistband" style={{ left: -160, top: '70%', width: 700, height: 80, opacity: .8 }} />
+      <svg {...box}><Sparkles pts={[[60, 180, .8, .9], [340, 250, .6, .8], [120, 420, .5, .7], [372, 520, .9, .9], [40, 610, .6, .6], [300, 96, .45, .8], [230, 780, .5, .6]]} /><Sparkles c={CRIMSON} pts={[[86, 300, .4, .5], [270, 420, .35, .4]]} /></svg>
+    </>
   );
   return (
-    <svg className="watermark" viewBox="0 0 200 200" style={{ width: 380, left: '50%', top: '58%', transform: 'translate(-50%,-50%)', opacity: .08 }} aria-hidden>
-      <circle cx="100" cy="100" r="80" {...common} strokeWidth={1.6} />
-      <circle cx="100" cy="100" r="64" {...common} strokeDasharray="3 5" />
-      {[0, 120, 240].map(a => { const r = (a - 90) * Math.PI / 180; return <circle key={a} cx={100 + 80 * Math.cos(r)} cy={100 + 80 * Math.sin(r)} r="12" fill="#F2EEE6" stroke={ink} strokeWidth="1.6" />; })}
-      <path d="M100 20 L169 140 L31 140Z" {...common} />
-    </svg>
+    <>
+      <div className="atmos" style={{ background: 'linear-gradient(160deg,#F7F1E5 0%,#FBFAF6 42%,#FDFDFB 55%,#E6ECF4 100%)' }} />
+      <svg {...box}><Sparkles pts={[[330, 700, .6, .9], [370, 620, .45, .8], [290, 790, .4, .7]]} />{hatch(-10, 560, 6, .16)}</svg>
+    </>
   );
 };
 
-/** Trailing ribbons — "wind" — in the three mode colours. */
-export const Wisps = ({ h = 90, strong = false }: { h?: number; strong?: boolean }) => (
-  <svg className="wisps" viewBox="0 0 360 90" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: h }} aria-hidden>
-    <path d="M-20 64 C50 22 110 92 182 50 S300 8 380 40" stroke="#6F86A3" strokeWidth={strong ? 2.4 : 1.8} opacity=".5" />
-    <path d="M-20 76 C70 42 132 98 204 64 S312 30 380 60" stroke="#C9A86A" strokeWidth={strong ? 2.6 : 2} opacity=".6" />
-    <path d="M-20 48 C50 72 122 20 192 38 S322 72 380 22" stroke="#9B3A44" strokeWidth={strong ? 1.8 : 1.4} opacity=".42" />
-  </svg>
-);
-
-/** Little butterfly used in bursts and as an ornament. */
-export const Butterfly = ({ c = '#6F86A3', s = 14 }: { c?: string; s?: number }) => (
-  <svg width={s} height={s} viewBox="0 0 32 32" aria-hidden>
-    <path d="M16 15 C12 4 3 6 5 13 C6 18 12 18 16 16Z M16 15 C20 4 29 6 27 13 C26 18 20 18 16 16Z" fill={c} fillOpacity=".55" stroke={c} strokeWidth="1.2" />
-    <path d="M16 17 C12 18 7 22 10 27 C13 29 15 23 16 19Z M16 17 C20 18 25 22 22 27 C19 29 17 23 16 19Z" fill={c} fillOpacity=".4" stroke={c} strokeWidth="1.2" />
-  </svg>
-);
-
-export const Ground = ({ mode }: { mode: Mode }) => (
-  <>
-    <div className="ground g-grad" />
-    <Watermark mode={mode} />
-    <div className="ground g-grain" />
-    <div className="ground g-vignette" />
-  </>
-);
+/* ---- tab glyphs (thin, hand-inked) ---- */
+export const Glyph = ({ mode, on }: { mode: Mode; on: boolean }) => {
+  const c = on ? INK : '#646B7E', a = on ? 1 : .75;
+  if (mode === 'home') return (
+    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" opacity={a} aria-hidden="true"><circle cx="16" cy="16" r="11.5" stroke={c} strokeWidth="1.3" />
+      <path d="M16 7.5 L23.4 20.3 H8.6Z" stroke={c} strokeWidth=".9" opacity=".55" /><circle cx="16" cy="7.5" r="2.6" fill={SKY} stroke="#fff" /><circle cx="8.6" cy="20.3" r="2.6" fill={GOLD} stroke="#fff" /><circle cx="23.4" cy="20.3" r="2.6" fill={CRIMSON} stroke="#fff" /></svg>
+  );
+  if (mode === 'past') return (
+    <svg width="28" height="26" viewBox="-16 -13 32 26" opacity={a} aria-hidden="true"><path d={BF} fill={c} fillOpacity=".14" stroke={c} strokeWidth="1.1" strokeLinejoin="round" />
+      <path d="M0 -3 V8 M0 -3 C-1 -7 -3 -9 -5 -10 M0 -3 C1 -7 3 -9 5 -10" stroke={c} strokeWidth="1" fill="none" strokeLinecap="round" /></svg>
+  );
+  if (mode === 'present') return (
+    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" opacity={a} aria-hidden="true"><path d="M16 4 L25 8 V16 C25 22 21 26 16 28 C11 26 7 22 7 16 V8Z" stroke={c} strokeWidth="1.3" strokeLinejoin="round" fill={c} fillOpacity=".06" />
+      <path d="M16 9 V23 M11.5 14 H20.5" stroke={GOLD} strokeWidth="1.5" strokeLinecap="round" /></svg>
+  );
+  return (
+    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" opacity={a} aria-hidden="true"><path d="M16 3 L18.4 13.6 L29 16 L18.4 18.4 L16 29 L13.6 18.4 L3 16 L13.6 13.6Z" stroke={c} strokeWidth="1.2" strokeLinejoin="round" fill={CRIMSON} fillOpacity=".1" />
+      <path d="M24.5 4 L28 6 L24.5 8Z" fill={CRIMSON} /><path d="M24.5 4 V11" stroke={c} strokeWidth=".9" /></svg>
+  );
+};

@@ -1,46 +1,37 @@
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import type { Mode } from './skins';
+import { Sheet } from './Sheet';
+import { INK2, type Mode } from './skins';
 
-/**
- * Full-screen writing sheet pinned to the visual viewport: the header and prompt stay put,
- * the text area shrinks, and Save/Skip ride the top edge of the keyboard. Nothing jumps.
- */
-export const Typing = ({ mode, heading, prompt, chips, initialTags, placeholder, onSave, onCancel }: {
-  mode: Mode; heading: string; prompt: string; chips?: string[]; initialTags?: string[]; placeholder?: string;
+/** Writing sheet: prompt stays put at the top, text fills the middle, chips + Save ride the keyboard. */
+export const Typing = ({ mode, label, prompt, chips, initialTags, placeholder, onSave, onCancel }: {
+  mode: Mode; label: string; prompt: string; chips?: string[]; initialTags?: string[]; placeholder?: string;
   onSave: (t: string, tags: string[]) => void; onCancel: () => void;
 }) => {
   const [t, setT] = useState('');
   const [tags, setTags] = useState<string[]>(initialTags ?? []);
-  const [vv, setVv] = useState({ h: window.innerHeight, top: 0 });
   const ta = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    const v = window.visualViewport;
-    const f = () => { setVv({ h: v ? v.height : window.innerHeight, top: v ? v.offsetTop : 0 }); if (window.scrollY) window.scrollTo(0, 0); };
-    f(); v?.addEventListener('resize', f); v?.addEventListener('scroll', f);
-    const id = setTimeout(() => ta.current?.focus(), 60);
-    return () => { clearTimeout(id); v?.removeEventListener('resize', f); v?.removeEventListener('scroll', f); };
-  }, []);
-  const card = mode === 'future' ? 'mist' : mode === 'present' ? 'codex' : 'sketch';
+  useEffect(() => { const id = setTimeout(() => ta.current?.focus(), 80); return () => clearTimeout(id); }, []);
   const ok = t.trim().length > 0;
-  return createPortal(
-    <div className="omk omk-type" data-mode={mode} style={{ top: vv.top, height: vv.h }}>
-      <div className="ground g-grad" /><div className="ground g-grain" />
-      <div className="top" style={{ zIndex: 2 }}>
-        <span className="title">{heading}<small>writing</small></span>
-        <button className="press" onClick={onCancel} style={{ fontSize: 13, color: 'var(--fg2)', paddingBottom: 3 }}>Cancel</button>
+  return (
+    <Sheet mode={mode}>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 22px 0', fontSize: 14, color: INK2 }}>
+        <button className="press" onClick={onCancel} style={{ padding: '6px 0' }}>Cancel</button>
+        <span className="caps">{label}</span>
+        <span style={{ width: 44 }} />
       </div>
-      <div style={{ position: 'relative', zIndex: 2, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 14px 8px' }}>
-        <div className="quote" style={{ fontSize: 20, lineHeight: 1.35 }}>{prompt}</div>
-        <textarea ref={ta} className={card} value={t} onChange={e => setT(e.target.value)} placeholder={placeholder ?? 'Write freely…'} style={{ background: 'var(--card)', color: 'var(--fg)' }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div className="scroll" style={{ flex: 1, display: 'flex', gap: 6, overflowX: 'auto' }}>
-            {(chips ?? []).map(c => { const on = tags.includes(c);
-              return <button key={c} className={`chip press ${on ? 'on' : ''}`} style={{ flex: 'none', height: 30 }} onMouseDown={e => e.preventDefault()} onClick={() => setTags(v => on ? v.filter(x => x !== c) : [...v, c])}>{c}</button>; })}
-          </div>
-          <button className="send press" onMouseDown={e => e.preventDefault()} onClick={() => ok && onSave(t.trim(), tags)} style={{ background: 'var(--fg)', color: 'var(--ground)', opacity: ok ? 1 : .35 }}>Save</button>
+      <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 24px 10px' }}>
+        <div className="it" style={{ fontSize: 22, lineHeight: 1.3, color: INK2 }}>{prompt}</div>
+        <textarea ref={ta} value={t} onChange={e => setT(e.target.value)} placeholder={placeholder ?? 'Write freely…'} aria-label={prompt} />
+      </div>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px calc(8px + var(--sb))', background: 'rgba(255,255,255,.55)', boxShadow: '0 -1px 0 rgba(43,50,71,.08)' }}>
+        <div className="scroll" style={{ flex: 1, display: 'flex', gap: 6, overflowX: 'auto' }}>
+          {(chips ?? []).map(c => {
+            const on = tags.includes(c);
+            return <button key={c} className={`chip ${on ? 'on' : ''}`} style={{ flex: 'none', height: 32 }} onMouseDown={e => e.preventDefault()} onClick={() => setTags(v => (on ? v.filter(x => x !== c) : [...v, c]))}>{c}</button>;
+          })}
         </div>
+        <button className="ink-btn press" onMouseDown={e => e.preventDefault()} onClick={() => ok && onSave(t.trim(), tags)} style={{ height: 40, padding: '0 20px', fontSize: 14, fontWeight: 600, opacity: ok ? 1 : .35 }}>Save</button>
       </div>
-    </div>
-  , document.body);
+    </Sheet>
+  );
 };
