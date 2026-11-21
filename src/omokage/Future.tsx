@@ -1,7 +1,7 @@
 import { Drg, Sym } from './Sym';
 import { useState } from 'react';
 import { Belt, Fly } from './Art';
-import { addImage, dropImages, useImg, type ImgRef } from './images';
+import { addImage, copyImages, dropImages, useImg, type ImgRef } from './images';
 import { imgsOf, useItems, type Item } from './items';
 import { CRIMSON, INK, INK2, SKY, ago, todayStr } from './skins';
 import { Typing } from './Typing';
@@ -58,9 +58,35 @@ const Pics = ({ item, onOpen }: { item: Item; onOpen: (k: number) => void }) => 
   );
 };
 const shotsOf = (list: Item[]): Shot[] => list.flatMap(i => imgsOf(i).map(r => ({ ref: r, text: i.body.replace(URL_RE, '').trim(), day: i.day })));
-const Grid = ({ shots, onOpen }: { shots: Shot[]; onOpen: (k: number) => void }) => (
-  <div className="pg">{shots.map((s, k) => <Tile key={s.ref.id} r={s.ref} onClick={() => onOpen(k)} />)}</div>
-);
+const Grid = ({ shots, onOpen }: { shots: Shot[]; onOpen: (k: number) => void }) => {
+  const [sel, setSel] = useState<Set<string> | null>(null);
+  const [note, setNote] = useState('');
+  const flip = (id: string) => setSel(v => { const n = new Set(v); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const copy = () => {
+    const ids = shots.filter(s => sel?.has(s.ref.id)).map(s => s.ref.id);
+    if (!ids.length) return;
+    setNote('Copying…');
+    copyImages(ids).then(r => { setNote(r === 'copied' ? `Copied ${ids.length}` : 'Shared'); setSel(null); }, () => setNote('Couldn’t copy')).finally(() => setTimeout(() => setNote(''), 2200));
+  };
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 18, padding: '2px 24px 8px', margin: '0 -24px' }}>
+        {note && <span className="caps" style={{ marginRight: 'auto' }}>{note}</span>}
+        {sel ? <>
+          <button className="press caps" onClick={() => setSel(sel.size === shots.length ? new Set() : new Set(shots.map(s => s.ref.id)))}>{sel.size === shots.length ? 'none' : 'all'}</button>
+          <button className="press caps" onClick={copy} disabled={!sel.size} style={{ opacity: sel.size ? 1 : .4 }}>Copy {sel.size || ''}</button>
+          <button className="press caps" onClick={() => setSel(null)}>done</button>
+        </> : <button className="press caps" onClick={() => setSel(new Set())}>select</button>}
+      </div>
+      <div className="pg">{shots.map((s, k) => (
+        <span key={s.ref.id} style={{ position: 'relative', display: 'block' }}>
+          <Tile r={s.ref} onClick={() => (sel ? flip(s.ref.id) : onOpen(k))} />
+          {sel && <span style={{ position: 'absolute', right: 6, top: 6, width: 22, height: 22, borderRadius: 11, display: 'grid', placeItems: 'center', fontSize: 13, pointerEvents: 'none', background: sel.has(s.ref.id) ? '#2B3247' : 'rgba(255,255,255,.7)', color: '#fff', boxShadow: 'inset 0 0 0 1.5px #fff' }}>{sel.has(s.ref.id) ? '✓' : ''}</span>}
+        </span>
+      ))}</div>
+    </>
+  );
+};
 
 export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: boolean) => void }) => {
   const { items, add, remove, update } = useItems();

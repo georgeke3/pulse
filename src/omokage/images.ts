@@ -1,4 +1,4 @@
-// Photos: processed on the phone, kept in IndexedDB (so they show instantly and work offline), and uploaded to a private
+// Photos: the original file is kept byte-for-byte (no recompression); only a small thumbnail is generated for browsing. Kept in IndexedDB (so they show instantly and work offline), and uploaded to a private
 // Supabase Storage bucket in the background. An item only stores small refs (id + size) in meta.images.
 import { useEffect, useState } from 'react';
 import { cloud } from '../cloudClient';
@@ -28,10 +28,10 @@ const toJpeg = async (src: ImageBitmap, max: number, q: number): Promise<Blob> =
   return new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error('encode failed'))), 'image/jpeg', q));
 };
 
-/** Shrinks a picked or pasted image (full ≤ 2048px, thumb ≤ 480px), stores both locally, and queues the upload. */
+/** Keeps the picked or pasted file exactly as it came (original bytes), makes a small thumbnail for browsing, and queues the upload. */
 export const addImage = async (file: Blob): Promise<ImgRef> => {
   const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' } as ImageBitmapOptions);
-  const [full, thumb] = await Promise.all([toJpeg(bmp, 2048, .85), toJpeg(bmp, 480, .78)]);
+  const thumb = await toJpeg(bmp, 480, .78), full: Blob = file;
   const ref: ImgRef = { id: crypto.randomUUID(), w: bmp.width, h: bmp.height };
   bmp.close?.();
   await putRec({ id: ref.id, full, thumb, up: 0 });
@@ -100,4 +100,36 @@ export const useImg = (id: string | undefined, kind: 'full' | 'thumb' = 'thumb')
     };
   }, [id, kind]);
   return id ? url : null;
+};
+
+const toPng = async (b: Blob): Promise<Blob> => {
+  const bmp = await createImageBitmap(b, { imageOrientation: 'from-image' } as ImageBitmapOptions);
+  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+  c.getContext('2d')!.drawImage(bmp, 0, 0); bmp.close?.();
+  return new Promise((res, rej) => c.toBlob(x => (x ? res(x) : rej(new Error('encode failed'))), 'image/png'));
+};
+const ext = (t: string) => (t.split('/')[1] || 'jpg').replace('jpeg', 'jpg').replace(/\+.*/, '');
+/** Original bytes of a photo (from this phone, or downloaded once). */
+export const getOriginal = (id: string) => fetchBlob(id, 'full');
+
+/**
+ * Puts the original photos on the clipboard (one or many). Browsers only accept PNG on the clipboard, so JPEGs are
+ * converted losslessly to PNG for that. If the clipboard refuses several images, falls back to the share sheet,
+ * which hands over the untouched original files (and has Copy / Save to Photos).
+ */
+export const copyImages = async (ids: string[]): Promise<'copied' | 'shared'> => {
+  const blob = (id: string) => getOriginal(id).then(b => { if (!b) throw new Error('photo not available'); return b; });
+  const png = (id: string) => blob(id).then(b => (b.type === 'image/png' ? b : toPng(b)));
+  const CI = (window as unknown as { ClipboardItem?: typeof ClipboardItem }).ClipboardItem;
+  let err: unknown;
+  if (CI && navigator.clipboard?.write) {
+    try {
+      // promises keep the tap's permission alive while the photos load
+      await navigator.clipboard.write(ids.map(id => new CI({ 'image/png': png(id) })));
+      return 'copied';
+    } catch (e) { err = e; }
+  }
+  const files = await Promise.all(ids.map(async (id, k) => { const b = await blob(id); return new File([b], `photo-${k + 1}.${ext(b.type)}`, { type: b.type || 'image/jpeg' }); }));
+  if (navigator.canShare?.({ files })) { await navigator.share({ files }); return 'shared'; }
+  throw err ?? new Error('copy not supported');
 };

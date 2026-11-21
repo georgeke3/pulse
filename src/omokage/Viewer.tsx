@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { haptic } from './haptics';
-import { useImg, type ImgRef } from './images';
+import { copyImages, useImg, type ImgRef } from './images';
 import { ago } from './skins';
 
 export interface Shot { ref: ImgRef; text: string; day: string }
@@ -24,6 +24,7 @@ const Slide = ({ s, live, zoomRef }: { s: Shot; live: boolean; zoomRef: React.Re
 /** Full-screen photo viewer: swipe between photos, pinch or double-tap to zoom, drag to pan, swipe down to close. */
 export const Viewer = ({ shots, start, onClose }: { shots: Shot[]; start: number; onClose: () => void }) => {
   const [idx, setIdx] = useState(clamp(start, 0, shots.length - 1));
+  const [note, setNote] = useState('');
   const box = useRef<HTMLDivElement>(null), track = useRef<HTMLDivElement>(null), zoomEl = useRef<HTMLDivElement>(null), bg = useRef<HTMLDivElement>(null);
   const z = useRef({ s: 1, x: 0, y: 0 });                 // zoom of the current photo
   const idxR = useRef(idx); idxR.current = idx;
@@ -126,8 +127,9 @@ export const Viewer = ({ shots, start, onClose }: { shots: Shot[]; start: number
       </div>
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '40px 20px calc(12px + var(--bot, 0px))', display: 'flex', flexDirection: 'column', gap: 12, background: 'linear-gradient(transparent, rgba(14,17,24,.82))', pointerEvents: 'none' }}>
         {(cur.text || cur.day) && <div style={{ color: 'rgba(255,255,255,.9)', fontFamily: 'Lora, serif', fontStyle: 'italic', fontSize: 15, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{cur.text || `saved ${ago(cur.day)}`}</div>}
-        <div style={{ display: 'flex', pointerEvents: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', pointerEvents: 'auto' }}>
           <button className="chip press" onClick={onClose} style={{ height: 54, flex: '0 0 30%', fontSize: 15, background: 'rgba(255,255,255,.14)', color: '#fff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.3)' }}>Close</button>
+          <button className="chip press" onClick={() => { setNote('Copying…'); copyImages([cur.ref.id]).then(r => setNote(r === 'copied' ? 'Copied' : 'Shared'), () => setNote('Couldn’t copy')).finally(() => setTimeout(() => setNote(''), 1800)); }} style={{ height: 54, flex: '0 0 30%', fontSize: 15, background: '#fff', color: '#0E1118' }}>{note || 'Copy'}</button>
         </div>
       </div>
     </div>,
