@@ -5,13 +5,15 @@ import { useStimuli } from './stimuli';
 import { Mic } from './Mic';
 import { Sheet } from './Sheet';
 import { EMBER, GOLD, INK, INK2, SKY } from './skins';
+import { haptic } from './haptics';
+import { BANDS, bandOf, snap } from './load';
 
 export const STEP_Y = 16;
 export const MAX_STEP_X = 34;  // px per intensity level (shrinks near the edges)
 export const RIM: Record<EventType, [string, string]> = { training: [EMBER, '#F3C9B4'], recovery: [SKY, '#C9D7E9'], win: [GOLD, '#F1DDAE'] };
 
 export interface Cell { name: string; type: EventType; mono: string; id?: string; art?: string; label?: string }
-export interface Draft { cell: Cell; lvl: number; note: string; editId?: string; from?: { x: number; y: number }; kx?: number | null }
+export interface Draft { cell: Cell; lvl: number; pct: number; note: string; editId?: string; from?: { x: number; y: number }; kx?: number | null }
 /** x of intensity bead v (1-10) in a zone w px wide. While dragging, the knob follows the thumb freely (kx) and the level is whichever bead it is nearest. */
 export const beadX = (v: number, w: number) => 34 + (v - 1) * ((w - 68) / 9);
 
@@ -22,12 +24,53 @@ interface Props {
   anchors: { value: number; label: string; description: string }[];
   onDown: (e: RPE<HTMLDivElement>) => void; onMove: (e: RPE<HTMLDivElement>) => void; onUp: () => void;
   onNote: (t: string) => void; onConfirm: () => void; onClose: () => void;
+  /** share of the day's capacity (load or recovery), and what the rest of the day already adds up to on that side */
+  onPct: (p: number) => void; before: number;
 }
 
-const ZH = 208;  // height of the scrubbing zone
+const ZH = 160;  // height of the intensity scrubbing zone
+
+/** Load (or recovery) as a share of the day: 5% steps, with the day's running total rising as you scrub. */
+const LoadScrub = ({ type, pct, before, rim, onPct }: { type: 'training' | 'recovery'; pct: number; before: number; rim: string; onPct: (p: number) => void }) => {
+  const box = useRef<HTMLDivElement>(null), last = useRef(pct);
+  last.current = pct;
+  const at = (x: number) => {
+    const el = box.current; if (!el) return;
+    const r = el.getBoundingClientRect(), lo = 34, hi = r.width - 34;
+    const p = snap(((x - r.left - lo) / (hi - lo)) * 100);
+    if (p !== last.current) { last.current = p; haptic(5); onPct(p); }
+  };
+  const total = before + pct, scale = Math.max(100, total), word = type === 'recovery' ? 'recovery' : 'load';
+  const bands = BANDS[type];
+  return (
+    <div ref={box} onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); at(e.clientX); }} onPointerMove={e => { if (e.buttons || e.pointerType === 'touch') at(e.clientX); }}
+      style={{ position: 'relative', flex: 'none', padding: '6px 34px 10px', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }} aria-label={`${word} ${pct} percent of the day`}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+        <span className="caps">{word} · share of the day</span>
+        <span><span className="serif" style={{ fontSize: 22, color: rim }}>{pct}%</span></span>
+      </div>
+      <div className="it" style={{ fontSize: 13.5, color: INK2, marginTop: 1, textAlign: 'right' }}>{bandOf(type, pct).label}</div>
+      <div style={{ position: 'relative', height: 34, marginTop: 2 }}>
+        <div style={{ position: 'absolute', left: 0, right: 0, top: 15, height: 4, borderRadius: 2, background: 'rgba(43,50,71,.12)' }} />
+        <div style={{ position: 'absolute', left: 0, width: `${pct}%`, top: 15, height: 4, borderRadius: 2, background: rim }} />
+        {bands.slice(0, -1).map(b => <i key={b.to} style={{ position: 'absolute', left: `${b.to}%`, top: 10, width: 1.2, height: 14, background: 'rgba(43,50,71,.28)' }} />)}
+        <span style={{ position: 'absolute', left: `${pct}%`, top: 17, width: 26, height: 26, marginLeft: -13, marginTop: -13, borderRadius: '50%', background: '#fff', boxShadow: `0 0 0 2px ${rim}, 0 4px 10px rgba(43,50,71,.18)` }} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+        <span style={{ fontSize: 11.5, color: INK2, flex: 'none' }}>day total</span>
+        <div style={{ position: 'relative', flex: 1, height: 8, borderRadius: 4, background: 'rgba(43,50,71,.08)', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(before / scale) * 100}%`, background: rim, opacity: .35 }} />
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${(before / scale) * 100}%`, width: `${(pct / scale) * 100}%`, background: rim, transition: 'width .12s' }} />
+          {scale > 100 && <i style={{ position: 'absolute', top: -2, bottom: -2, left: `${(100 / scale) * 100}%`, width: 1.5, background: INK }} />}
+        </div>
+        <span style={{ flex: 'none', fontSize: 13, color: total > 100 ? INK : INK2, fontWeight: total > 100 ? 600 : 400 }}>{before ? `${before}% → ` : ''}<b className="serif" style={{ color: rim, fontWeight: 600 }}>{total}%</b></span>
+      </div>
+    </div>
+  );
+};
 
 /** The logging sheet: scrub the intensity, say or type what happened, confirm. Nothing saves until you press the button. */
-export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, onClose }: Props) => {
+export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, onClose, onPct, before }: Props) => {
   const stim = useStimuli();
   const isWin = d.cell.type === 'win', [rim, fill] = RIM[d.cell.type];
   const a = anchors.find(x => x.value === d.lvl);
@@ -44,7 +87,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
   const ta = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => { const t = ta.current; if (!t) return; t.style.height = 'auto'; t.style.height = `${Math.min(t.scrollHeight, 150)}px`; }, [d.note, open]);
   const openComposer = () => { ta.current?.focus({ preventScroll: true }); setOpen(true); };
-  const bY = 120;
+  const bY = 100;
   const bx = (v: number) => beadX(v, zw);
   const by = (v: number) => bY - Math.sin((v - 1) / 9 * Math.PI) * 16;
   const dragging = d.kx != null;
@@ -62,7 +105,8 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
         <div className="it" style={{ fontSize: 13, color: INK2, marginTop: 3, lineHeight: 1.35, height: 36, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{isWin ? 'A small victory, kept.' : a ? `${a.label}: ${a.description}` : ''}</div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 18 }}>
+      <div style={{ display: 'flex' }}>
       <div ref={zone} onPointerDown={isWin ? undefined : onDown} onPointerMove={isWin ? undefined : onMove} onPointerUp={isWin ? undefined : onUp} onPointerCancel={isWin ? undefined : onUp}
         style={{ position: 'relative', flex: 1, height: isWin ? 110 : ZH, touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}>
         {isWin ? (
@@ -84,13 +128,14 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
               })}
             </svg>
             <div className="node held" style={{ left: kx, top: ky - 50, ['--r' as string]: rim, ['--f' as string]: fill, ['--sz' as string]: '56px', transition: dragging ? 'none' : 'left .22s cubic-bezier(.2,.9,.3,1), top .22s cubic-bezier(.2,.9,.3,1)', pointerEvents: 'none', boxShadow: `0 0 0 1.5px ${rim},0 0 0 6px #FBFAF7,0 0 0 7px rgba(200,161,90,.6),0 16px 28px rgba(43,50,71,.2)` }}><i />{face}</div>
-            <div style={{ position: 'absolute', left: 0, right: 0, top: bY + 44, textAlign: 'center', pointerEvents: 'none' }}>
-              <span className="serif" style={{ fontSize: 21, color: rim }}>{d.lvl}</span><span className="it" style={{ fontSize: 15 }}> · {a?.label ?? ''}</span>
-              <div style={{ fontSize: 11, color: INK2, marginTop: 2 }}>drag ← → anywhere here</div>
+            <div style={{ position: 'absolute', left: 0, right: 0, top: bY + 34, textAlign: 'center', pointerEvents: 'none' }}>
+              <span className="caps" style={{ marginRight: 6 }}>intensity</span><span className="serif" style={{ fontSize: 21, color: rim }}>{d.lvl}</span><span className="it" style={{ fontSize: 15 }}> · {a?.label ?? ''}</span>
             </div>
           </>
         )}
       </div>
+      </div>
+      {!isWin && <LoadScrub type={d.cell.type === 'recovery' ? 'recovery' : 'training'} pct={d.pct} before={before} rim={rim} onPct={onPct} />}
       </div>
 
       <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px 12px' }}>

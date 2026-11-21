@@ -10,7 +10,8 @@ import { WIN_ICON } from './icons';
 import { haptic } from './haptics';
 import { EventCard, TodayList, evStart } from './Instances';
 import { LogSheet, RIM, beadX, type Cell, type Draft } from './LogSheet';
-import { EMBER, GOLD, INK, INK2, SKY, fmtMin, hhmm, todayStr } from './skins';
+import { EMBER, GOLD, INK, INK2, SKY, fmtMin, fromDstr, hhmm, todayStr } from './skins';
+import { heat, loadOf, sideTotal } from './load';
 
 interface Toast { text: string; undo?: { cat: string; type: Event['type']; time: string } }
 interface Burst { id: number; x: number; y: number; color: string }
@@ -28,9 +29,11 @@ const useSize = <T extends HTMLElement>() => {
   return [ref, s] as const;
 };
 
-export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () => void }) => {
+/** The day's ring. `day` is today unless Home opened an earlier day; then a bar at the top leads back to today. */
+export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onExitDay: () => void; onDump: () => void; onPulse: () => void }) => {
   const { state, addEvent, updateEvent, deleteEvent } = useApp();
-  const today = todayStr();
+  const today = day, isToday = day === todayStr();
+  const told = !!state.days[day]?.note?.trim();
   const events = state.days[today]?.events ?? [];
   const timed = events.filter(e => evMin(e) !== null).sort((a, b) => evMin(a)! - evMin(b)!);
   const last = timed.length ? timed[timed.length - 1] : null;
@@ -62,6 +65,11 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
         if (mine(e, c) && e.objectiveIntensity > 0) return Math.max(1, Math.min(10, Math.round(e.objectiveIntensity)));
     return 3;
   };
+  const lastPct = (c: Cell) => {
+    for (const d of Object.keys(state.days).sort().reverse())
+      for (const e of [...state.days[d].events].reverse()) { const p = mine(e, c) ? loadOf(e) : null; if (p) return p; }
+    return 20;
+  };
 
   // one drag model for both the node you pressed and the sheet itself: it continues from wherever the values were left
   // the knob follows the thumb 1:1 (so speed never changes), the level is the nearest bead, and each crossing ticks right here in the touch handler
@@ -84,13 +92,13 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
     if (draft) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     const r = e.currentTarget.getBoundingClientRect(), sr = screenRef.current!.getBoundingClientRect();
-    const d: Draft = { cell: c, lvl: c.type === 'win' ? 1 : lastLevel(c), note: '', from: { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 } };
+    const d: Draft = { cell: c, lvl: c.type === 'win' ? 1 : lastLevel(c), pct: c.type === 'win' ? 0 : lastPct(c), note: '', from: { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 } };
     haptic(10); setHeld(c.type + c.name); begin(e.clientX, d); setDraft(d);
   };
   const editEvent = (ev: Event) => {
     const c = cells.find(x => mine(ev, x)) ?? { name: ev.category, type: ev.type, mono: monoOf(ev.category), art: stim.art(ev.type, ev.category) };
     setDetail(null); setListOpen(false);
-    setDraft({ cell: c, lvl: ev.type === 'win' ? 1 : Math.max(1, Math.min(10, Math.round(ev.objectiveIntensity))), note: ev.notes ?? '', editId: ev.id });
+    setDraft({ cell: c, lvl: ev.type === 'win' ? 1 : Math.max(1, Math.min(10, Math.round(ev.objectiveIntensity))), pct: loadOf(ev) ?? lastPct(c), note: ev.notes ?? '', editId: ev.id });
   };
   const commit = () => {
     const d = draft; if (!d) return;
@@ -98,13 +106,13 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
     const fields = { objectiveIntensity: isWin ? 1 : d.lvl, intensity: isWin ? 1 : Math.max(1, Math.min(4, Math.ceil(d.lvl / 2.5))), notes };
     if (d.editId) {
       const old = events.find(e => e.id === d.editId);
-      if (old) updateEvent(today, { ...old, ...fields });
+      if (old) updateEvent(today, { ...old, ...fields, custom_data: { ...old.custom_data, ...(isWin ? {} : { load: d.pct }) } });
       setToast({ text: 'Saved' });
     } else {
       const now = new Date(), min = now.getHours() * 60 + now.getMinutes(), time = hhmm(min);
-      addEvent(today, { type: d.cell.type, category: d.cell.name, ...fields, duration: '<1h' as Duration, custom_data: { time, ...(d.cell.id ? { sid: d.cell.id } : {}) }, date: today });
+      addEvent(today, { type: d.cell.type, category: d.cell.name, ...fields, duration: '<1h' as Duration, custom_data: { time, ...(d.cell.id ? { sid: d.cell.id } : {}), ...(isWin ? {} : { load: d.pct }) }, date: today });
       if (d.from) { const b = { id: Date.now(), x: d.from.x, y: d.from.y, color: RIM[d.cell.type][0] }; setBursts(v => [...v, b]); setTimeout(() => setBursts(v => v.filter(x => x.id !== b.id)), 1700); }
-      setToast({ text: `${d.cell.name}${isWin ? '' : ` · ${d.lvl}`}`, undo: { cat: d.cell.name, type: d.cell.type, time } });
+      setToast({ text: `${d.cell.name}${isWin ? '' : ` · ${d.pct}%`}`, undo: { cat: d.cell.name, type: d.cell.type, time } });
     }
     haptic(14); setDraft(null);
   };
@@ -123,15 +131,21 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
 
   const mine = (e: Event, c: Cell) => (c.id && e.custom_data?.sid ? e.custom_data.sid === c.id : e.type === c.type && e.category === c.name);
   const counts = (c: Cell) => events.filter(e => mine(e, c)).length;
-  const loadN = events.filter(e => e.type === 'training').length, restN = events.filter(e => e.type === 'recovery').length, winN = events.filter(e => e.type === 'win').length;
+  const loadN = sideTotal(events, 'training'), restN = sideTotal(events, 'recovery'), winN = events.filter(e => e.type === 'win').length;
 
   return (
     <div className="screen" ref={screenRef} style={{ padding: '0 0 10px' }}>
+      {!isToday && (
+        <div style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, margin: '0 16px 10px', padding: '6px 6px 6px 14px', borderRadius: 22, background: INK, color: '#fff' }}>
+          <span className="it" style={{ fontSize: 14 }}>{fromDstr(day).toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+          <button className="chip press" onClick={onExitDay} style={{ height: 32, background: '#fff', color: INK, fontSize: 13 }}>Back to today</button>
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 24px', height: 22, flex: 'none' }}>
         <button className="it press" onClick={() => setListOpen(true)} aria-label="List today's instances" style={{ fontSize: 15, textAlign: 'left' }}>
-          <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: EMBER }}>{loadN}</b> load · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: SKY }}>{restN}</b> rest · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: GOLD }}>{winN}</b> <span style={{ display: 'inline-block', verticalAlign: '-4px' }}><Sym n="sparkle" on={winN > 0} s={16} o={winN > 0 ? 1 : .6} /></span> win{winN === 1 ? '' : 's'} <span style={{ color: INK2 }}>›</span>
+          <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: EMBER }}>{loadN}%</b> load · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: SKY }}>{restN}%</b> rest · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: GOLD }}>{winN}</b> <span style={{ display: 'inline-block', verticalAlign: '-4px' }}><Sym n="sparkle" on={winN > 0} s={16} o={winN > 0 ? 1 : .6} /></span> win{winN === 1 ? '' : 's'} <span style={{ color: INK2 }}>›</span>
         </button>
-        <span style={{ fontSize: 11, color: INK2 }}>{last ? `last · ${last.category}${last.type !== 'win' ? ' ' + Math.round(last.objectiveIntensity) : ''} · ${fmtMin(evMin(last)!, true)}` : 'nothing logged yet'}</span>
+        <span style={{ fontSize: 11, color: INK2 }}>{last ? `last · ${last.category} · ${fmtMin(evMin(last)!, true)}` : 'nothing logged yet'}</span>
       </div>
 
       <div ref={ringRef} className="grow" style={{ position: 'relative' }}>
@@ -146,15 +160,17 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
             if (c.type === 'win') return null;
             const ev = events.filter(e => mine(e, c)); if (!ev.length) return null;
             const { x, y } = cellPts[k] ?? { x: 0, y: 0 }, d = Math.hypot(cx - x, cy - y) || 1, base = Math.atan2(cy - y, cx - x);
-            const room = Math.max(10, d - crest / 2 - sz / 2 - 8), [rim, fill] = RIM[c.type];
+            const room = Math.max(10, d - crest / 2 - sz / 2 - 8), rim = RIM[c.type][0], side = c.type === 'recovery' ? 'recovery' : 'training';
             return ev.map((e, j) => {
               const th = base + (j - (ev.length - 1) / 2) * Math.min(.2, .9 / ev.length);   // several events on one circle fan out
-              const L = sz / 2 + 4 + (Math.max(1, Math.min(10, e.objectiveIntensity || 1)) / 10) * room;
+              // length = load (share of the day), colour = intensity; instances logged before load existed get a short neutral spoke
+              const p = loadOf(e), L = sz / 2 + 4 + (p == null ? .16 : Math.max(.06, Math.min(1, p / 100))) * room;
+              const fill = p == null ? 'rgba(43,50,71,.18)' : heat(side, e.objectiveIntensity || 1);
               const dx = Math.cos(th), dy = Math.sin(th), px = -dy, py = dx, w = 3 + L * .035;
               const tx = x + dx * L, ty = y + dy * L, mx = x + dx * L * .5, my = y + dy * L * .5;
               return (
-                <g key={e.id} onClick={() => { haptic(8); setDetail(e.id); }} style={{ pointerEvents: 'auto', cursor: 'pointer' }} role="button" aria-label={`${c.name} ${Math.round(e.objectiveIntensity)}, open`}>
-                  <path d={`M${x} ${y} Q ${mx + px * w} ${my + py * w} ${tx} ${ty} Q ${mx - px * w} ${my - py * w} ${x} ${y} Z`} fill={fill} stroke={rim} strokeWidth=".8" opacity=".6" />
+                <g key={e.id} onClick={() => { haptic(8); setDetail(e.id); }} style={{ pointerEvents: 'auto', cursor: 'pointer' }} role="button" aria-label={`${c.name} ${p ?? '?'} percent, intensity ${Math.round(e.objectiveIntensity)}, open`}>
+                  <path d={`M${x} ${y} Q ${mx + px * w} ${my + py * w} ${tx} ${ty} Q ${mx - px * w} ${my - py * w} ${x} ${y} Z`} fill={fill} stroke={rim} strokeWidth=".6" opacity=".85" />
                   <line x1={x + dx * (sz / 2)} y1={y + dy * (sz / 2)} x2={tx} y2={ty} stroke="transparent" strokeWidth="20" strokeLinecap="round" />
                 </g>
               );
@@ -183,7 +199,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
           );
         })}
         <button className="crest" onClick={onPulse} style={{ left: cx - crest / 2, top: cy - crest / 2, width: crest, height: crest }}>
-          {answered === 0 ? <Sym n="orb" on={false} s={26} /> : <Drg n={answered >= nq ? 'riderg' : 'riderw'} w={42} />}
+          <Drg n="riderg" w={42} o={answered >= nq ? 1 : .32} />
           <span className="it" style={{ fontSize: 15 }}>{answered >= nq ? 'Pulse done' : 'Evening pulse'}</span>
           <span style={{ display: 'flex', gap: 3, marginTop: 3 }}>{Array.from({ length: nq }, (_, k) => <i key={k} style={{ width: 5, height: 5, borderRadius: 3, background: k < answered ? GOLD : 'rgba(43,50,71,.15)' }} />)}</span>
           <span className="caps" style={{ fontSize: 8.5, marginTop: 3 }}>{answered} of {nq}</span>
@@ -195,8 +211,8 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
           <span className="it" style={{ fontSize: 14 }}>Circles</span>
         </button>
         <button className="chip press" onClick={onDump} style={{ height: 36, gap: 8, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.14),0 6px 16px rgba(43,50,71,.08)' }}>
-          <Sym n="wisp" on={false} s={20} />
-          <span className="it" style={{ fontSize: 14 }}>Dump the day</span>
+          <Sym n="wisp" on={told} s={20} />
+          <span className="it" style={{ fontSize: 14 }}>{told ? 'The day, told' : 'Dump the day'}</span>
         </button>
       </div>
 
@@ -204,10 +220,11 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
         <LogSheet d={draft} anchors={state.config.scales[draft.cell.type === 'recovery' ? 'recovery' : 'training'].objective}
           onDown={e => { begin(e.clientX, draft); e.currentTarget.setPointerCapture(e.pointerId); }}
           onMove={e => move(e.clientX)} onUp={release}
-          onNote={t => setDraft(v => (v ? { ...v, note: t } : v))} onConfirm={commit} onClose={() => setDraft(null)} />
+          onNote={t => setDraft(v => (v ? { ...v, note: t } : v))} onConfirm={commit}
+          onPct={p => setDraft(v => (v ? { ...v, pct: p } : v))} before={draft.cell.type === 'win' ? 0 : sideTotal(events, draft.cell.type, draft.editId)} onClose={() => setDraft(null)} />
       )}
       {managing && <Circles onClose={() => setManaging(false)} />}
-      {listOpen && <TodayList events={events} onOpen={id => { setListOpen(false); setDetail(id); }} onClose={() => setListOpen(false)} />}
+      {listOpen && <TodayList events={events} title={isToday ? 'Today' : fromDstr(day).toLocaleDateString('en', { weekday: 'long' })} onOpen={id => { setListOpen(false); setDetail(id); }} onClose={() => setListOpen(false)} />}
       {detailEv && (
         <EventCard e={detailEv}
           anchorLabel={detailEv.type === 'win' ? undefined : state.config.scales[detailEv.type === 'recovery' ? 'recovery' : 'training'].objective.find(x => x.value === Math.round(detailEv.objectiveIntensity))?.label}

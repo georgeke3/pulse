@@ -10,8 +10,8 @@ const Thumb = ({ id, onRemove }: { id: string; onRemove: () => void }) => {
   return <span className="th">{u && <img src={u} alt="" />}<b role="button" aria-label="Remove photo" onClick={onRemove}>✕</b></span>;
 };
 
-export const Typing = ({ mode, label, prompt, chips, initialTags, placeholder, photos, initialImages, onSave, onCancel }: {
-  mode: Mode; label: string; prompt: string; chips?: string[]; initialTags?: string[]; placeholder?: string;
+export const Typing = ({ mode, label, prompt, chips, initialTags, initialText, placeholder, photos, initialImages, onSave, onCancel }: {
+  mode: Mode; label: string; prompt: string; chips?: string[]; initialTags?: string[]; initialText?: string; placeholder?: string;
   /** Offer photo attach (album picker, paste); onSave then also receives the photos. */
   photos?: boolean; initialImages?: ImgRef[];
   onSave: (t: string, tags: string[], imgs: ImgRef[]) => void; onCancel: () => void;
@@ -41,7 +41,7 @@ export const Typing = ({ mode, label, prompt, chips, initialTags, placeholder, p
   };
   const removeImg = (id: string) => { setImgs(v => v.filter(x => x.id !== id)); void dropImages([id]); };
   const cancel = () => { if (photos) void dropImages(imgs.map(x => x.id).filter(id => !(initialImages ?? []).some(i => i.id === id))); onCancel(); };
-  const [t, setT] = useState('');
+  const [t, setT] = useState(initialText ?? '');
   const [tags, setTags] = useState<string[]>(initialTags ?? []);
   const ta = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { const id = setTimeout(() => ta.current?.focus(), 80); return () => clearTimeout(id); }, []);

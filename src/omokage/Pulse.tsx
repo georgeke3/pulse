@@ -24,9 +24,9 @@ const parse = (p: string) => {
 };
 const ROMAN = ['I', 'II', 'III', 'IV'];
 
-export const PulseFlow = ({ onClose }: { onClose: () => void }) => {
+export const PulseFlow = ({ day, onClose }: { day?: string; onClose: () => void }) => {
   const { state, updateAnswers } = useApp();
-  const today = todayStr();
+  const today = day ?? todayStr();
   const qs = state.config.daily_questions;
   const [ans, setAns] = useState<Record<string, number>>({ ...(state.days[today]?.answers ?? {}) });
   const firstOpen = qs.findIndex(q => !ans[q.id]);

@@ -9,7 +9,8 @@ import { Present } from './Present';
 import { StimuliProvider } from './stimuli';
 import { PulseFlow } from './Pulse';
 import { Typing } from './Typing';
-import { GROUND, INK2, type Mode } from './skins';
+import { GROUND, INK2, fromDstr, todayStr, type Mode } from './skins';
+import { useApp } from '../store';
 import './omokage.css';
 
 const TABS: { m: Mode; label: string }[] = [{ m: 'home', label: 'Home' }, { m: 'past', label: 'Past' }, { m: 'present', label: 'Present' }, { m: 'future', label: 'Future' }];
@@ -20,13 +21,27 @@ const warmArt = () => Object.values(ART).forEach(src => { const im = new Image()
 const startMode = (): Mode => { const h = new Date().getHours(); return h >= 20 || h < 4 ? 'home' : 'present'; };
 
 const Inner = () => {
-  const { add } = useItems();
+  const { items, remove } = useItems();
+  const { state, updateDayNote } = useApp();
   const [mode, setMode] = useState<Mode>(startMode);
+  // Present normally shows today; Home can open it on an earlier day (cleared whenever you leave Present)
+  const [pday, setPday] = useState<string | null>(null);
+  const day = pday ?? todayStr();
+  // "Dump the day" used to save a loose Past entry. It is the day's summary now (the day note, synced with the day):
+  // fold any old dumps into their day's note once, then drop them.
+  useEffect(() => {
+    const old = items.filter(i => i.kind === 'past' && i.meta?.dump);
+    for (const i of old) {
+      const cur = state.days[i.day]?.note?.trim() ?? '';
+      if (!cur.includes(i.body.trim())) updateDayNote(i.day, cur ? `${cur}\n\n${i.body.trim()}` : i.body.trim());
+      remove(i.id);
+    }
+  }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { warmArt(); }, []);
   const [pulse, setPulse] = useState(false);
   const [typing, setTyping] = useState(false);
   const [dump, setDump] = useState(false);
-  const go = (m: Mode) => { if (m !== mode) haptic(6); setMode(m); setPulse(false); setTyping(false); };
+  const go = (m: Mode, d?: string) => { if (m !== mode) haptic(6); setMode(m); setPday(m === 'present' && d && d !== todayStr() ? d : null); setPulse(false); setTyping(false); };
   const now = new Date();
   // paint the page itself in the mode's ground, so nothing behind the app can ever show as a band
   useEffect(() => { document.documentElement.style.background = GROUND[mode]; document.body.style.background = GROUND[mode]; }, [mode]);
@@ -64,7 +79,7 @@ const Inner = () => {
   }, []);
   const sub: Record<Mode, string> = {
     home: '', past: 'what was', future: 'what may be',
-    present: `${now.toLocaleDateString('en', { weekday: 'long' })}, the day so far`,
+    present: pday ? `${fromDstr(pday).toLocaleDateString('en', { weekday: 'long' })}, looking back` : `${now.toLocaleDateString('en', { weekday: 'long' })}, the day so far`,
   };
 
   return (
@@ -76,10 +91,10 @@ const Inner = () => {
           : <span className="t">{mode[0].toUpperCase() + mode.slice(1)}</span>}
         <span className="s">{sub[mode]}</span>
       </header>
-      <main className="body" key={mode}>
+      <main className="body" key={mode + (pday ?? '')}>
         {mode === 'home' && <Home go={go} onPulse={() => setPulse(true)} />}
         {mode === 'past' && <Past typing={typing} setTyping={setTyping} />}
-        {mode === 'present' && <Present onDump={() => setDump(true)} onPulse={() => setPulse(true)} />}
+        {mode === 'present' && <Present day={day} onExitDay={() => setPday(null)} onDump={() => setDump(true)} onPulse={() => setPulse(true)} />}
         {mode === 'future' && <Future typing={typing} setTyping={setTyping} />}
       </main>
       <nav className="tabs">
@@ -89,9 +104,10 @@ const Inner = () => {
           </button>
         ))}
       </nav>
-      {pulse && <PulseFlow onClose={() => setPulse(false)} />}
-      {dump && <Typing mode="present" label="present · dump the day" prompt="Say it however it comes. Dictation works too." chips={['Work', 'Mila', 'Kat', 'tired', 'good day']} placeholder="Rough meeting at two, a nap, a walk with Mila…"
-        onCancel={() => setDump(false)} onSave={(t, tags) => { add({ kind: 'past', body: t, board: null, meta: { dump: true, tags } }); setDump(false); }} />}
+      {pulse && <PulseFlow day={mode === 'present' ? day : undefined} onClose={() => setPulse(false)} />}
+      {dump && <Typing mode="present" label={`present · ${state.days[day]?.note?.trim() ? 'the day, told' : 'dump the day'}`} initialText={state.days[day]?.note ?? ''}
+        prompt={state.days[day]?.note?.trim() ? 'The day so far. Change anything, add the rest.' : 'Say it however it comes. Dictation works too.'} placeholder="Rough meeting at two, a nap, a walk with Mila…"
+        onCancel={() => setDump(false)} onSave={t => { updateDayNote(day, t); setDump(false); }} />}
     </div>
   );
 };
