@@ -76,7 +76,18 @@ const fetchBlob = async (id: string, kind: 'full' | 'thumb'): Promise<Blob | nul
     const b = await cloud.storage.get(BUCKET, `${s.user.id}/${id}${kind === 'thumb' ? '_t' : ''}.jpg`);
     await putRec({ ...(rec ?? { id, up: 1 }), id, [kind]: b, up: rec?.up ?? 1 } as Rec);
     return b;
-  } catch { return null; }
+  } catch {
+    if (kind !== 'thumb') return null;
+    // photos saved from outside the app (the iOS Shortcut) have no thumbnail yet: make one from the original, once
+    try {
+      const full = await fetchBlob(id, 'full'); if (!full) return null;
+      const bmp = await createImageBitmap(full, { imageOrientation: 'from-image' } as ImageBitmapOptions);
+      const thumb = await toJpeg(bmp, 480, .78); bmp.close?.();
+      const cur = await getRec(id);
+      await putRec({ ...(cur ?? { id, up: 1 }), id, thumb, up: cur?.up ?? 1 } as Rec);
+      return thumb;
+    } catch { return null; }
+  }
 };
 
 const urls = new Map<string, { url: string; n: number }>();

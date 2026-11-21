@@ -27,7 +27,7 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
     if (!cloud || !uid) return;
     void flushUploads();
     let dead = false;
-    (async () => {
+    const run = async () => {
       try {
         const rows = (await cloud.request('GET', 'omokage_items', { query: { select: '*', order: 'at.desc', limit: '2000' } })) as any[] | null;
         if (dead) return;
@@ -37,8 +37,12 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
         if (local.length) await cloud.request('POST', 'omokage_items', { query: { on_conflict: 'user_id,id' }, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: local.map(l => ({ ...l, user_id: uid })) });
         if (!dead) setItems([...server, ...local].sort((a, b) => b.at.localeCompare(a.at)));
       } catch (e) { console.error('omokage items sync', e); }
-    })();
-    return () => { dead = true; };
+    };
+    void run();
+    // things saved from outside the app (the iOS Shortcut) show up as soon as the app comes back to the front
+    const wake = () => { if (!document.hidden) void run(); };
+    document.addEventListener('visibilitychange', wake);
+    return () => { dead = true; document.removeEventListener('visibilitychange', wake); };
   }, [uid]);
 
   const add: Ctx['add'] = useCallback(i => {
