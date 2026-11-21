@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type PointerEvent as RPE } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as RPE } from 'react';
 import type { EventType } from '../types';
 import { catArt } from './catArt';
 import { Mic } from './Mic';
@@ -34,6 +34,16 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
     const f = () => setZw(el.clientWidth); f();
     const ro = new ResizeObserver(f); ro.observe(el); return () => ro.disconnect();
   }, []);
+  // typing happens in a bar that floats above the keyboard; the sheet itself never resizes or scrolls
+  const [open, setOpen] = useState(false), [kb, setKb] = useState(0);
+  const ta = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const v = window.visualViewport; if (!v) return;
+    const f = () => { setKb(Math.max(0, Math.round(document.documentElement.clientHeight - v.height - v.offsetTop))); if (window.scrollY) window.scrollTo(0, 0); };
+    v.addEventListener('resize', f); v.addEventListener('scroll', f); return () => { v.removeEventListener('resize', f); v.removeEventListener('scroll', f); };
+  }, []);
+  useLayoutEffect(() => { const t = ta.current; if (!t) return; t.style.height = 'auto'; t.style.height = `${Math.min(t.scrollHeight, 112)}px`; }, [d.note, open]);
+  const openComposer = () => { ta.current?.focus({ preventScroll: true }); setOpen(true); };
   const bY = 120;
   const bx = (v: number) => 34 + (v - 1) * ((zw - 68) / 9);
   const by = (v: number) => bY - Math.sin((v - 1) / 9 * Math.PI) * 16;
@@ -42,7 +52,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
   const add = (t: string) => onNote(d.note.trim() ? `${d.note.trimEnd()} ${t}` : t);
 
   return (
-    <Sheet mode="present">
+    <Sheet mode="present" still>
       <div style={{ position: 'relative', flex: 'none', textAlign: 'center', padding: '0 64px' }}>
         <button className="ls-x press" aria-label="Close" onClick={onClose}>
           <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3 L13 13 M13 3 L3 13" stroke={INK} strokeWidth="1.6" strokeLinecap="round" /></svg>
@@ -52,8 +62,9 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
         <div className="it" style={{ fontSize: 13, color: INK2, marginTop: 3, lineHeight: 1.35, height: 36, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{isWin ? 'A small victory, kept.' : a ? `${a.label}: ${a.description}` : ''}</div>
       </div>
 
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center' }}>
       <div ref={zone} onPointerDown={isWin ? undefined : onDown} onPointerMove={isWin ? undefined : onMove} onPointerUp={isWin ? undefined : onUp} onPointerCancel={isWin ? undefined : onUp}
-        style={{ position: 'relative', flex: 'none', height: isWin ? 110 : ZH, touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}>
+        style={{ position: 'relative', flex: 1, height: isWin ? 110 : ZH, touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}>
         {isWin ? (
           <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
             <div className="node held" style={{ position: 'relative', margin: 0, ['--r' as string]: rim, ['--f' as string]: fill, ['--sz' as string]: '64px' }}><i />{face}</div>
@@ -80,17 +91,29 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
           </>
         )}
       </div>
+      </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', padding: '2px 20px 10px' }}>
-        <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', borderRadius: 20, background: 'rgba(255,255,255,.75)', boxShadow: 'inset 0 0 0 1px rgba(43,50,71,.14)', padding: '14px 16px' }}>
-          <textarea value={d.note} onChange={e => onNote(e.target.value)} placeholder="What happened? Type, or hold the mic and say it…" aria-label="Details of what happened" style={{ fontSize: 17, paddingRight: 58, paddingBottom: 8 }} />
-          <div style={{ position: 'absolute', right: 10, bottom: 10 }}><Mic onText={add} size={48} /></div>
-        </div>
+      <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px 12px' }}>
+        <button type="button" className="press" onClick={openComposer} aria-label="Add details"
+          style={{ flex: 1, minWidth: 0, height: 64, display: 'flex', alignItems: 'center', textAlign: 'left', padding: '0 20px', borderRadius: 32, background: 'rgba(255,255,255,.75)', boxShadow: 'inset 0 0 0 1px rgba(43,50,71,.14)' }}>
+          <span style={{ fontFamily: 'Lora, serif', fontSize: 15.5, lineHeight: 1.35, color: d.note ? INK : INK2, fontStyle: d.note ? 'normal' : 'italic', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{d.note || 'Add details…'}</span>
+        </button>
+        <Mic onText={add} size={56} />
       </div>
 
       <div style={{ flex: 'none', display: 'flex', gap: 10, padding: '0 20px calc(12px + var(--sb))' }}>
         <button className="chip press" style={{ height: 54, flex: '0 0 30%', fontSize: 15 }} onMouseDown={e => e.preventDefault()} onClick={onClose}>Cancel</button>
         <button className="chip on press" style={{ height: 54, flex: 1, fontSize: 16 }} onMouseDown={e => e.preventDefault()} onClick={onConfirm}>{d.editId ? 'Save' : 'Log it'}</button>
+      </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: open ? (kb || 300) : 0, zIndex: 5, display: 'flex', alignItems: 'flex-end', gap: 8, padding: '10px 12px', background: 'rgba(255,255,255,.98)', borderRadius: '20px 20px 0 0', boxShadow: '0 -1px 0 rgba(43,50,71,.1), 0 -12px 30px rgba(43,50,71,.08)',
+        transform: open ? 'none' : 'translateY(130%)', opacity: open ? 1 : 0, pointerEvents: open ? 'auto' : 'none', transition: 'bottom .24s var(--ease), transform .24s var(--ease), opacity .16s' }}>
+        <textarea ref={ta} rows={1} value={d.note} onChange={e => onNote(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} placeholder="What happened?" aria-label="Details of what happened"
+          style={{ flex: 1, minWidth: 0, minHeight: 44, maxHeight: 112, padding: '10px 14px', borderRadius: 22, background: '#F6F4EF', fontSize: 17, lineHeight: 1.4, fontFamily: 'Lora, serif' }} />
+        <Mic onText={add} size={44} />
+        <button type="button" className="press" aria-label="Done typing" onMouseDown={e => e.preventDefault()} onClick={() => ta.current?.blur()}
+          style={{ width: 44, height: 44, borderRadius: 22, flex: 'none', display: 'grid', placeItems: 'center', background: INK, color: '#fff' }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5 7.5 13.5 14.5 5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
       </div>
     </Sheet>
   );
