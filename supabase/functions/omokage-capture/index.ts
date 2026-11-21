@@ -4,7 +4,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const BUCKET = "omokage-images";
-const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } });
+// Plain-text replies so the Shortcut's "Show Notification" reads nicely ("Saved to Inbox"), errors included.
+const json = (o: { ok?: boolean; message?: string; error?: string }, status = 200) =>
+  new Response(o.ok ? o.message : `Couldn't save: ${o.error}`, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
 const sha256 = async (s: string) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].map((x) => x.toString(16).padStart(2, "0")).join("");
 
 /** Type + pixel size (EXIF rotation applied) of a JPEG / PNG / GIF, or null for anything else. */
@@ -75,5 +77,6 @@ Deno.serve(async (req) => {
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto" }).format(new Date());
   const { error } = await sb.from("omokage_items").insert({ user_id: uid, id, kind: "future", day, at: new Date().toISOString(), board, body: text, meta: images.length ? { images } : {} });
   if (error) return json({ error: error.message }, 500);
-  return json({ ok: true, id, board, photos: images.length });
+  const what = images.length ? (images.length === 1 ? "Photo" : `${images.length} photos`) : /^https?:\/\/\S+$/.test(text) ? "Link" : "Note";
+  return json({ ok: true, message: `✓ ${what} saved to ${board}` });
 });
