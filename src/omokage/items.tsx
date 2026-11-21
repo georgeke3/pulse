@@ -25,16 +25,17 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   // pull + push anything local that the server lacks
   useEffect(() => {
     if (!cloud || !uid) return;
+    const cl = cloud;
     void flushUploads();
     let dead = false;
     const run = async () => {
       try {
-        const rows = (await cloud.request('GET', 'omokage_items', { query: { select: '*', order: 'at.desc', limit: '2000' } })) as any[] | null;
+        const rows = (await cl.request('GET', 'omokage_items', { query: { select: '*', order: 'at.desc', limit: '2000' } })) as any[] | null;
         if (dead) return;
         const server = (rows ?? []).map(r => ({ id: r.id, kind: r.kind, day: r.day, at: r.at, board: r.board, title: r.title, body: r.body, meta: r.meta } as Item));
         const ids = new Set(server.map(s => s.id));
         const local = load().filter(l => !ids.has(l.id));
-        if (local.length) await cloud.request('POST', 'omokage_items', { query: { on_conflict: 'user_id,id' }, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: local.map(l => ({ ...l, user_id: uid })) });
+        if (local.length) await cl.request('POST', 'omokage_items', { query: { on_conflict: 'user_id,id' }, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: local.map(l => ({ ...l, user_id: uid })) });
         if (!dead) setItems([...server, ...local].sort((a, b) => b.at.localeCompare(a.at)));
       } catch (e) { console.error('omokage items sync', e); }
     };
