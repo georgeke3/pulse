@@ -120,3 +120,36 @@ describe('REST requests and token refresh', () => {
     expect(msg).toBe('permission denied');
   });
 });
+
+describe('Storage', () => {
+  const signedIn = () => {
+    const storage = memoryStorage();
+    storage.setItem(SESSION_KEY, JSON.stringify(sessionBody()));
+    return storage;
+  };
+  it('uploads, downloads and removes with the user token', async () => {
+    const calls: Array<{ url: string; method: string; headers: Record<string, string>; body: unknown }> = [];
+    const fetchFn = (async (u: string, init: any) => {
+      calls.push({ url: u, method: init.method, headers: init.headers, body: init.body });
+      return init.method === 'GET' ? new Response(new Blob(['img'], { type: 'image/jpeg' })) : json(200, { ok: true });
+    }) as unknown as typeof fetch;
+    const cloud = createCloud({ url: 'https://x.supabase.co', key: 'pk', storage: signedIn(), fetchFn, nowSec: () => 2000 });
+    await cloud.storage.put('b', 'u1/a.jpg', new Blob(['x'], { type: 'image/jpeg' }));
+    const got = await cloud.storage.get('b', 'u1/a.jpg');
+    await cloud.storage.remove('b', ['u1/a.jpg']);
+    expect(calls[0].url).toBe('https://x.supabase.co/storage/v1/object/b/u1/a.jpg');
+    expect(calls[0].method).toBe('POST');
+    expect(calls[0].headers['Content-Type']).toBe('image/jpeg');
+    expect(calls[0].headers['x-upsert']).toBe('true');
+    expect(calls[0].headers.Authorization).toBe('Bearer at-rt1');
+    expect(calls[1].url).toBe('https://x.supabase.co/storage/v1/object/authenticated/b/u1/a.jpg');
+    expect(await got.text()).toBe('img');
+    expect(calls[2].method).toBe('DELETE');
+    expect(JSON.parse(calls[2].body as string)).toEqual({ prefixes: ['u1/a.jpg'] });
+  });
+  it('throws a CloudHttpError on a failed upload', async () => {
+    const fetchFn = (async () => new Response('too big', { status: 413 })) as unknown as typeof fetch;
+    const cloud = createCloud({ url: 'https://x.supabase.co', key: 'pk', storage: signedIn(), fetchFn, nowSec: () => 2000 });
+    await expect(cloud.storage.put('b', 'p', new Blob(['x']))).rejects.toBeInstanceOf(CloudHttpError);
+  });
+});

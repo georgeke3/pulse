@@ -58,7 +58,14 @@ export interface CloudConfig {
   nowSec?: () => number;
 }
 
+export interface CloudStorage {
+  put: (bucket: string, path: string, blob: Blob) => Promise<void>;
+  get: (bucket: string, path: string) => Promise<Blob>;
+  remove: (bucket: string, paths: string[]) => Promise<void>;
+}
+
 export interface Cloud extends Api {
+  storage: CloudStorage;
   getSession: () => CloudSession | null;
   subscribe: (fn: () => void) => () => void;
   startGoogleLogin: (redirectTo: string) => Promise<string>;
@@ -191,6 +198,23 @@ export const createCloud = (cfg: CloudConfig): Cloud => {
     return text ? JSON.parse(text) : null;
   };
 
+  /** Authenticated fetch against the Storage API (retries once with a fresh token). */
+  const sendStorage = async (path: string, init: RequestInit & { headers?: Record<string, string> }): Promise<Response> => {
+    const go = (token: string) => doFetch(`${base}/storage/v1/${path}`, { ...init, headers: { apikey: cfg.key, Authorization: `Bearer ${token}`, ...init.headers } });
+    let res = await go(await getToken());
+    if (res.status === 401) {
+      const s = await refresh();
+      if (s) res = await go(s.access_token);
+    }
+    if (!res.ok) throw new CloudHttpError(res.status, (await res.text().catch(() => '')) || res.statusText || 'Storage request failed');
+    return res;
+  };
+  const storage: CloudStorage = {
+    put: async (bucket, path, blob) => { await sendStorage(`object/${bucket}/${path}`, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream', 'x-upsert': 'true' }, body: blob }); },
+    get: async (bucket, path) => (await sendStorage(`object/authenticated/${bucket}/${path}`, { method: 'GET' })).blob(),
+    remove: async (bucket, paths) => { await sendStorage(`object/${bucket}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prefixes: paths }) }); },
+  };
+
   const startGoogleLogin = async (redirectTo: string): Promise<string> => {
     const verifier = randomVerifier();
     cfg.storage.setItem(VERIFIER_KEY, verifier);
@@ -249,5 +273,6 @@ export const createCloud = (cfg: CloudConfig): Cloud => {
     handleRedirect,
     signOut,
     request,
+    storage,
   };
 };

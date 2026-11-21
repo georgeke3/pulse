@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { cloud, useCloudSession } from '../cloudClient';
+import { dropImages, flushUploads, type ImgRef } from './images';
 import { todayStr } from './skins';
 
+export const imgsOf = (i: Item): ImgRef[] => (Array.isArray(i.meta?.images) ? (i.meta!.images as ImgRef[]) : []);
 export interface Item {
   id: string; kind: 'past' | 'future'; day: string; at: string;
   board?: string | null; title?: string | null; body: string; meta?: Record<string, unknown>;
@@ -16,12 +18,14 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const session = useCloudSession();
   const uid = session?.user.id;
   const pending = useRef<Item[]>([]);
+  const itemsRef = useRef(items); itemsRef.current = items;
 
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch { /* quota */ } }, [items]);
 
   // pull + push anything local that the server lacks
   useEffect(() => {
     if (!cloud || !uid) return;
+    void flushUploads();
     let dead = false;
     (async () => {
       try {
@@ -47,11 +51,12 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   }, [uid]);
 
   const remove: Ctx['remove'] = useCallback(id => {
+    const gone = itemsRef.current.find(x => x.id === id);
+    if (gone) void dropImages(imgsOf(gone).map(r => r.id));
     setItems(p => p.filter(x => x.id !== id));
     if (cloud && uid) cloud.request('DELETE', 'omokage_items', { query: { id: `eq.${id}` } }).catch(console.error);
   }, [uid]);
 
-  const itemsRef = useRef(items); itemsRef.current = items;
   const update: Ctx['update'] = useCallback((id, patch) => {
     const cur = itemsRef.current.find(x => x.id === id); if (!cur) return;
     const next = { ...cur, ...patch };
