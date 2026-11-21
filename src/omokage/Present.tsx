@@ -4,7 +4,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../store';
 import type { Duration, Event } from '../types';
 import { Belt, Fly } from './Art';
-import { catArt } from './catArt';
+import { Circles } from './Circles';
+import { layout } from './layout';
+import { labelOf, monoOf, useStimuli } from './stimuli';
+import { WIN_ICON } from './icons';
 import { haptic } from './haptics';
 import { EventCard, TodayList, evDurH, evStart } from './Instances';
 import { LogSheet, RIM, beadX, type Cell, type Draft } from './LogSheet';
@@ -14,10 +17,6 @@ interface Toast { text: string; undo?: { cat: string; type: Event['type']; time:
 interface Burst { id: number; x: number; y: number; color: string }
 interface Drag { x: number; k0: number; lvl: number; w: number }
 
-const monos = (names: string[]) => names.map(n => {
-  const one = n[0].toUpperCase();
-  return names.filter(o => o[0].toUpperCase() === one).length > 1 ? one + (n[1] ?? '').toLowerCase() : one;
-});
 const evMin = evStart;
 const useSize = <T extends HTMLElement>() => {
   const ref = useRef<T>(null);
@@ -38,13 +37,14 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
   const last = timed.length ? timed[timed.length - 1] : null;
   const answered = Object.keys(state.days[today]?.answers ?? {}).length, nq = state.config.daily_questions.length;
 
-  const load = state.config.categories.training, rest = state.config.categories.recovery;
-  const cells: Cell[] = useMemo(() => {
-    const lm = monos(load), rm = monos(rest);
-    return [{ name: 'Win', type: 'win' as const, mono: '★' },
-      ...rest.map((n, i) => ({ name: n, type: 'recovery' as const, mono: rm[i] })),
-      ...load.map((n, i) => ({ name: n, type: 'training' as const, mono: lm[i] })).reverse()];
-  }, [load, rest]);
+  const stim = useStimuli();
+  const loadS = stim.ring('training'), restS = stim.ring('recovery');
+  const cells: Cell[] = useMemo(() => [
+    { name: 'Win', type: 'win' as const, mono: '★' },
+    ...restS.map(x => ({ name: x.name, type: 'recovery' as const, mono: monoOf(x.name), art: stim.art('recovery', x.name), label: labelOf(x) })),
+    ...loadS.map(x => ({ name: x.name, type: 'training' as const, mono: monoOf(x.name), art: stim.art('training', x.name), label: labelOf(x) })),
+  ], [loadS, restS, stim]);
+  const [managing, setManaging] = useState(false);
 
   const [screenRef] = useSize<HTMLDivElement>();
   const [ringRef, ring] = useSize<HTMLDivElement>();
@@ -89,7 +89,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
     haptic(10); setHeld(c.type + c.name); begin(e.clientX, d); setDraft(d);
   };
   const editEvent = (ev: Event) => {
-    const c = cells.find(x => x.type === ev.type && x.name === ev.category) ?? { name: ev.category, type: ev.type, mono: ev.category[0] };
+    const c = cells.find(x => x.type === ev.type && x.name === ev.category) ?? { name: ev.category, type: ev.type, mono: monoOf(ev.category), art: stim.art(ev.type, ev.category) };
     setDetail(null); setListOpen(false);
     setDraft({ cell: c, lvl: ev.type === 'win' ? 1 : Math.max(1, Math.min(10, Math.round(ev.objectiveIntensity))), note: ev.notes ?? '', editId: ev.id });
   };
@@ -117,20 +117,10 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
   };
   const detailEv = detail ? events.find(e => e.id === detail) : undefined;
 
-  // ring geometry: equal arc-length spacing on an ellipse around the crest
-  const N = cells.length;
-  const sz = N <= 18 ? 42 : N <= 22 ? 38 : 34;
-  const cx = ring.w / 2, cy = ring.h / 2;
-  const rx = Math.max(90, Math.min(122, ring.w / 2 - 74)), ry = Math.max(100, Math.min(156, ring.h / 2 - 32));
-  const pos = useMemo(() => {
-    const S = 1600, a0 = -Math.PI / 2, P: [number, number, number][] = [];
-    for (let i = 0; i <= S; i++) { const a = a0 + 2 * Math.PI * i / S; P.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a), a]); }
-    const L = [0]; for (let i = 1; i < P.length; i++) L.push(L[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
-    const out: [number, number, number][] = []; let j = 0;
-    for (let k = 0; k < N; k++) { const t = L[S] * k / N; while (L[j] < t) j++; out.push(P[j]); }
-    return out;
-  }, [cx, cy, rx, ry, N]);
-  const crest = Math.min(120, 2 * Math.min(rx, ry) - 96);
+  // ring geometry: see layout.ts. Positions depend only on how many circles each half has, so they stay put as you add or hide others.
+  const L = useMemo(() => layout(ring.w, ring.h, loadS.length, restS.length), [ring.w, ring.h, loadS.length, restS.length]);
+  const { cx, cy, rx, ry, sz, crest } = L;
+  const cellPts = useMemo(() => [L.win, ...L.rest, ...L.load], [L]);
 
   const counts = (c: Cell) => events.filter(e => e.type === c.type && e.category === c.name).length;
   const loadN = events.filter(e => e.type === 'training').length, restN = events.filter(e => e.type === 'recovery').length, winN = events.filter(e => e.type === 'win').length;
@@ -148,11 +138,12 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
       <div ref={ringRef} className="grow" style={{ position: 'relative' }}>
         <div className="wash" style={{ left: cx - 120, top: cy - 120, width: 240, height: 240, background: 'rgba(200,161,90,.14)' }} />
         <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} aria-hidden="true">
-          <polygon points={pos.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')} fill="none" stroke={INK} strokeWidth=".7" opacity=".18" />
+          <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill="none" stroke={INK} strokeWidth=".7" opacity=".18" />
+          {L.inner && <ellipse cx={cx} cy={cy} rx={L.inner.rx} ry={L.inner.ry} fill="none" stroke={INK} strokeWidth=".7" opacity=".12" />}
           <ellipse cx={cx} cy={cy} rx={rx + 34} ry={ry + 30} fill="none" stroke={GOLD} strokeWidth=".8" opacity=".35" strokeDasharray="1 5" />
         </svg>
         {cells.map((c, k) => {
-          const [x, y, a] = pos[k] ?? [0, 0, 0];
+          const { x, y, a } = cellPts[k] ?? { x: 0, y: 0, a: 0 };
           const [r, f] = RIM[c.type], n = counts(c), id = c.type + c.name;
           const co = Math.cos(a), si = Math.sin(a), off = sz / 2 + 6;
           const lab: React.CSSProperties = co > .35 ? { left: x + off, top: y, transform: 'translateY(-50%)' }
@@ -163,12 +154,12 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
               <button className={`node ${held === id ? 'held' : ''}`} aria-label={`Log ${c.name}`}
                 style={{ left: x, top: y, ['--r' as string]: r, ['--f' as string]: f, ['--sz' as string]: `${sz}px` }}
                 onPointerDown={openFor(c)} onPointerMove={e => move(e.clientX)} onPointerUp={() => { release(); setHeld(null); }} onPointerCancel={() => { release(); setHeld(null); }} onContextMenu={e => e.preventDefault()}>
-                <i />{catArt(c.type, c.name)
-                  ? <img className="catart" src={catArt(c.type, c.name)} alt="" draggable={false} style={{ marginTop: n ? -5 : 0 }} />
+                <i />{c.type === 'win' || c.art
+                  ? <img className="catart" src={c.type === 'win' ? WIN_ICON : c.art} alt="" draggable={false} style={{ marginTop: n ? -5 : 0, width: sz * .8, height: sz * .8 }} />
                   : <b style={{ fontSize: c.mono.length > 1 ? 12.5 : 16, marginTop: n ? -4 : 0 }}>{c.mono}</b>}
                 {n > 0 && <span className="pips">{Array.from({ length: Math.min(n, 4) }, (_, i) => <s key={i} />)}</span>}
               </button>
-              <span className="nl" style={lab}>{c.name.length > 10 ? c.name.split(' ')[0] : c.name}</span>
+              {(L.labels || held === id) && <span className="nl" style={lab}>{c.type === 'win' ? 'Win' : c.label}</span>}
             </span>
           );
         })}
@@ -181,7 +172,9 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 24px', height: 40, flex: 'none' }}>
-        <span className="caps">tap or hold a circle</span>
+        <button className="chip press" onClick={() => setManaging(true)} style={{ height: 36, gap: 8, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.14),0 6px 16px rgba(43,50,71,.08)' }}>
+          <span className="it" style={{ fontSize: 14 }}>Circles</span>
+        </button>
         <button className="chip press" onClick={onDump} style={{ height: 36, gap: 8, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.14),0 6px 16px rgba(43,50,71,.08)' }}>
           <Sym n="wisp" on={false} s={20} />
           <span className="it" style={{ fontSize: 14 }}>Dump the day</span>
@@ -194,6 +187,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
           onMove={e => move(e.clientX)} onUp={release}
           onNote={t => setDraft(v => (v ? { ...v, note: t } : v))} onConfirm={commit} onClose={() => setDraft(null)} />
       )}
+      {managing && <Circles onClose={() => setManaging(false)} />}
       {listOpen && <TodayList events={events} onOpen={id => { setListOpen(false); setDetail(id); }} onClose={() => setListOpen(false)} />}
       {detailEv && (
         <EventCard e={detailEv}

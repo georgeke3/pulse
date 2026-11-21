@@ -6,6 +6,7 @@ import { Home } from './Home';
 import { ItemsProvider, useItems } from './items';
 import { Past } from './Past';
 import { Present } from './Present';
+import { StimuliProvider } from './stimuli';
 import { PulseFlow } from './Pulse';
 import { Typing } from './Typing';
 import { GROUND, INK2, type Mode } from './skins';
@@ -95,4 +96,4 @@ const Inner = () => {
   );
 };
 
-export const Omokage = () => <ItemsProvider><Inner /></ItemsProvider>;
+export const Omokage = () => <ItemsProvider><StimuliProvider><Inner /></StimuliProvider></ItemsProvider>;

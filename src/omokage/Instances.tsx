@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Event } from '../types';
-import { catArt } from './catArt';
+import { useStimuli } from './stimuli';
 import { RIM, durLabel } from './LogSheet';
 import { CRIMSON, INK, INK2, fmtMin, parseHM } from './skins';
 
@@ -12,7 +12,7 @@ const when = (e: Event) => {
   return d ? `${fmtMin(s)} – ${fmtMin(s + d * 60)}` : fmtMin(s);
 };
 const Art = ({ e, s }: { e: Event; s: number }) => {
-  const src = catArt(e.type, e.category), [rim, fill] = RIM[e.type];
+  const src = useStimuli().art(e.type, e.category), [rim, fill] = RIM[e.type];
   return (
     <span style={{ width: s, height: s, borderRadius: '50%', flex: 'none', display: 'grid', placeItems: 'center', background: fill, boxShadow: `inset 0 0 0 1.5px ${rim}` }}>
       {src ? <img src={src} alt="" draggable={false} style={{ width: s * .84, height: s * .84 }} /> : <b style={{ color: rim }}>{e.category[0]}</b>}

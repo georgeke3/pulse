@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type PointerEvent as RPE } from 'react';
 import type { EventType } from '../types';
-import { catArt } from './catArt';
+import { useStimuli } from './stimuli';
 import { Mic } from './Mic';
 import { Sheet } from './Sheet';
 import { EMBER, GOLD, INK, INK2, SKY } from './skins';
@@ -9,7 +9,7 @@ export const STEP_Y = 16;
 export const MAX_STEP_X = 34;  // px per intensity level (shrinks near the edges)
 export const RIM: Record<EventType, [string, string]> = { training: [EMBER, '#F3C9B4'], recovery: [SKY, '#C9D7E9'], win: [GOLD, '#F1DDAE'] };
 
-export interface Cell { name: string; type: EventType; mono: string }
+export interface Cell { name: string; type: EventType; mono: string; art?: string; label?: string }
 export interface Draft { cell: Cell; lvl: number; note: string; editId?: string; from?: { x: number; y: number }; kx?: number | null }
 /** x of intensity bead v (1-10) in a zone w px wide. While dragging, the knob follows the thumb freely (kx) and the level is whichever bead it is nearest. */
 export const beadX = (v: number, w: number) => 34 + (v - 1) * ((w - 68) / 9);
@@ -27,6 +27,7 @@ const ZH = 208;  // height of the scrubbing zone
 
 /** The logging sheet: scrub the intensity, say or type what happened, confirm. Nothing saves until you press the button. */
 export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, onClose }: Props) => {
+  const stim = useStimuli();
   const isWin = d.cell.type === 'win', [rim, fill] = RIM[d.cell.type];
   const a = anchors.find(x => x.value === d.lvl);
   const zone = useRef<HTMLDivElement>(null);
@@ -48,7 +49,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
   const dragging = d.kx != null;
   const kx = d.kx ?? bx(d.lvl);
   const ky = by(Math.max(1, Math.min(10, 1 + (kx - bx(1)) / ((zw - 68) / 9))));
-  const art = catArt(d.cell.type, d.cell.name);
+  const art = d.cell.type === 'win' ? stim.art('win', 'Win') : d.cell.art ?? stim.art(d.cell.type, d.cell.name);
   const face = art ? <img className="catart" src={art} alt="" style={{ width: isWin ? 50 : 44, height: isWin ? 50 : 44 }} /> : <b>{d.cell.mono}</b>;
   const add = (t: string) => onNote(d.note.trim() ? `${d.note.trimEnd()} ${t}` : t);
 

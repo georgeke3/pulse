@@ -217,6 +217,7 @@ interface AppContextType {
   addEvent: (date: string, event: Omit<Event, 'id'>) => void;
   updateEvent: (date: string, event: Event) => void;
   deleteEvent: (date: string, eventId: string) => void;
+  renameCategory: (type: EventType, from: string, to: string) => void;
   updateAnswers: (date: string, answers: Record<string, number>) => void;
   updateDayNote: (date: string, note: string) => void;
   updateDayMotto: (date: string, motto: string) => void;
@@ -497,6 +498,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  /** A circle was renamed: its past logs follow, so history stays attached to it. */
+  const renameCategory = (type: EventType, from: string, to: string) => {
+    setState(prev => {
+      const days: AppState['days'] = {};
+      for (const [d, day] of Object.entries(prev.days) as [string, AppState['days'][string]][]) {
+        days[d] = day.events.some(e => e.type === type && e.category === from)
+          ? { ...day, events: day.events.map(e => (e.type === type && e.category === from ? { ...e, category: to } : e)) }
+          : day;
+      }
+      return { ...prev, days };
+    });
+  };
+
   const deleteEvent = (date: string, eventId: string) => {
     setState(prev => {
       const dayData = prev.days[date];
@@ -760,7 +774,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       state, 
       addEvent, 
       updateEvent, 
-      deleteEvent, 
+      deleteEvent, renameCategory, 
       updateAnswers, 
       updateDayNote, 
       updateDayMotto, 

@@ -132,3 +132,27 @@ html, body { margin: 0; background: #FAF8F3; overscroll-behavior: none; }
 .omk .card-sheet { position: absolute; left: 10px; right: 10px; bottom: 8px; z-index: 23; border-radius: 28px; padding: 18px 18px 16px; background: rgba(255, 255, 255, .98); box-shadow: 0 0 0 1px rgba(43, 50, 71, .08), 0 24px 60px rgba(43, 50, 71, .25); animation: rise .3s var(--ease); display: flex; flex-direction: column; }
 .omk .irow { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 2px; border-bottom: 1px solid rgba(43, 50, 71, .08); }
 .omk .irow:last-child { border-bottom: 0; }
+
+/* ---------- circles manager ---------- */
+.omk .cm-head { display: flex; align-items: center; justify-content: space-between; padding: 0 20px 10px; flex: none; }
+.omk .cm-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 20px calc(var(--sb, 0px) + 28px); -webkit-overflow-scrolling: touch; }
+.omk .cm-note { font-size: 12.5px; color: var(--ink2); line-height: 1.45; margin: 4px 0 14px; }
+.omk .cm-sec { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 0 6px; }
+.omk .cm-link { font-size: 12.5px; color: var(--ink2); padding: 4px 0 4px 14px; text-decoration: underline; text-underline-offset: 3px; }
+.omk .cm-row { display: flex; align-items: center; gap: 10px; min-height: 54px; border-bottom: 1px solid rgba(43, 50, 71, .08); }
+.omk .cm-main { flex: 1; display: flex; align-items: center; gap: 12px; text-align: left; min-height: 54px; }
+.omk .cm-name { flex: 1; font-family: var(--serif); font-size: 16px; display: flex; flex-direction: column; line-height: 1.15; }
+.omk .cm-name small { font-family: var(--sans, inherit); font-size: 10.5px; color: var(--ink2); letter-spacing: .04em; }
+.omk .cm-check { width: 26px; height: 26px; border-radius: 50%; flex: none; display: grid; place-items: center; box-shadow: inset 0 0 0 1.5px rgba(43, 50, 71, .3); transition: background-color .15s; }
+.omk .cm-check.on { background: var(--ink); box-shadow: none; }
+.omk .cm-add { display: block; width: 100%; text-align: left; padding: 14px 0; font-size: 14px; color: var(--ink2); }
+.omk .cface { border-radius: 50%; flex: none; display: grid; place-items: center; font-family: var(--serif); font-weight: 600; }
+.omk .cface img { width: 84%; height: 84%; object-fit: contain; pointer-events: none; }
+.omk .cface b { font-size: 1.1em; }
+.omk .cm-input { width: 100%; font: inherit; font-size: 16px; padding: 11px 14px; border-radius: 14px; border: 0; background: rgba(255, 255, 255, .7); box-shadow: inset 0 0 0 1px rgba(43, 50, 71, .18); color: var(--ink); outline: none; }
+.omk .cm-input:focus { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.omk .cm-err { color: #A5483A; font-size: 13px; margin: 0 0 12px; }
+.omk .cm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+.omk .cm-ico { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 2px 6px; border-radius: 14px; }
+.omk .cm-ico small { font-size: 9.5px; color: var(--ink2); }
+.omk .cm-ico.on { background: rgba(255, 255, 255, .85); box-shadow: inset 0 0 0 1.5px var(--ink); }
