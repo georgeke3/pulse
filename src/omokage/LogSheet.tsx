@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type PointerEvent as RPE } from 'react';
 import type { EventType } from '../types';
+import { ActionBar } from './Actions';
 import { useStimuli } from './stimuli';
 import { Mic } from './Mic';
 import { Sheet } from './Sheet';
@@ -56,9 +57,6 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
   return (
     <Sheet mode="present" still>
       <div style={{ position: 'relative', flex: 'none', textAlign: 'center', padding: '0 64px' }}>
-        <button className="ls-x press" aria-label="Close" onClick={onClose}>
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3 L13 13 M13 3 L3 13" stroke={INK} strokeWidth="1.6" strokeLinecap="round" /></svg>
-        </button>
         <div className="caps" style={{ paddingTop: 4 }}>{d.editId ? 'editing' : 'logging'}</div>
         <div className="serif" style={{ fontSize: 30, marginTop: 4 }}>{d.cell.name}</div>
         <div className="it" style={{ fontSize: 13, color: INK2, marginTop: 3, lineHeight: 1.35, height: 36, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{isWin ? 'A small victory, kept.' : a ? `${a.label}: ${a.description}` : ''}</div>
@@ -103,10 +101,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
         <Mic onText={add} size={56} />
       </div>
 
-      <div style={{ flex: 'none', display: 'flex', gap: 10, padding: '0 20px calc(12px + var(--sb))' }}>
-        <button className="chip press" style={{ height: 54, flex: '0 0 30%', fontSize: 15 }} onMouseDown={e => e.preventDefault()} onClick={onClose}>Cancel</button>
-        <button className="chip on press" style={{ height: 54, flex: 1, fontSize: 16 }} onMouseDown={e => e.preventDefault()} onClick={onConfirm}>{d.editId ? 'Save' : 'Log it'}</button>
-      </div>
+      <ActionBar keepFocus onCancel={onClose} primary={d.editId ? 'Save' : 'Log it'} onPrimary={onConfirm} />
       <div onPointerDown={() => ta.current?.blur()} style={{ position: 'absolute', inset: 0, zIndex: 4, background: 'rgba(251,250,247,.72)', opacity: open ? 1 : 0, pointerEvents: open ? 'auto' : 'none', transition: 'opacity .2s' }} />
       <div style={{ position: 'absolute', left: 12, right: 12, top: 'calc(var(--top) + 8px)', zIndex: 5, padding: '14px 14px 10px', borderRadius: 24, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.1), 0 14px 34px rgba(43,50,71,.14)',
         opacity: open ? 1 : 0, transform: open ? 'none' : 'translateY(-10px)', pointerEvents: open ? 'auto' : 'none', transition: 'opacity .18s, transform .22s cubic-bezier(.2,.8,.2,1)' }}>

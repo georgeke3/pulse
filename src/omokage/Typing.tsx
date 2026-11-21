@@ -16,15 +16,16 @@ export const Typing = ({ mode, label, prompt, chips, initialTags, placeholder, o
   return (
     <Sheet mode={mode}>
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 22px 0', fontSize: 14, color: INK2 }}>
-        <button className="press" onClick={onCancel} style={{ padding: '6px 0' }}>Cancel</button>
+        <span style={{ width: 1 }} />
         <span className="caps">{label}</span>
-        <span style={{ width: 44 }} />
+        <span style={{ width: 1 }} />
       </div>
       <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 24px 10px' }}>
         <div className="it" style={{ fontSize: 22, lineHeight: 1.3, color: INK2 }}>{prompt}</div>
         <textarea ref={ta} value={t} onChange={e => setT(e.target.value)} placeholder={placeholder ?? 'Write freely…'} aria-label={prompt} />
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px calc(8px + var(--sb))', background: 'rgba(255,255,255,.55)', boxShadow: '0 -1px 0 rgba(43,50,71,.08)' }}>
+        <button className="chip press" style={{ flex: 'none', height: 40, fontSize: 14 }} onMouseDown={e => e.preventDefault()} onClick={onCancel}>Cancel</button>
         <div className="scroll" style={{ flex: 1, display: 'flex', gap: 6, overflowX: 'auto' }}>
           {(chips ?? []).map(c => {
             const on = tags.includes(c);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../store';
 import { Belt, Fly } from './Art';
 import { haptic } from './haptics';
+import { ActionBar } from './Actions';
 import { Sheet } from './Sheet';
 import { DUSK, GOLD, INK, INK2, dstr, todayStr } from './skins';
 
@@ -48,7 +49,7 @@ export const PulseFlow = ({ onClose }: { onClose: () => void }) => {
         <Fly x={320} y={352} s={.5} c={DUSK} o={.35} /><Fly x={352} y={320} s={.36} c={DUSK} o={.25} d={1.5} />
       </svg>
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 22px 0', fontSize: 13, color: INK2 }}>
-        <button className="press" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, marginLeft: -8, fontSize: 18 }}>✕</button>
+        <span style={{ width: 48 }} />
         <span className="it" style={{ fontSize: 16, color: INK }}>Evening pulse</span>
         <span style={{ width: 48, textAlign: 'right', whiteSpace: 'nowrap' }}>{i + 1} / {qs.length}</span>
       </div>
@@ -72,7 +73,7 @@ export const PulseFlow = ({ onClose }: { onClose: () => void }) => {
         )}
         <button className="it press" onClick={() => setInfo(v => !v)} style={{ fontSize: 12.5, color: INK2, textDecoration: 'underline', textDecorationColor: 'rgba(43,50,71,.25)', textUnderlineOffset: 4, padding: 6 }}>{info ? 'hide meanings' : 'what do these mean?'}</button>
       </div>
-      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px calc(var(--bot) + 8px)' }}>
+      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 12px' }}>
         {q.options.map(o => (
           <button key={o.value} className={`opt ${ans[q.id] === o.value ? 'on' : ''}`} onClick={() => pick(o.value)}>
             <span className="serif" style={{ fontSize: 12, color: GOLD, fontWeight: 600, letterSpacing: '.08em' }}>{ROMAN[o.value - 1] ?? o.value}</span>
@@ -81,6 +82,7 @@ export const PulseFlow = ({ onClose }: { onClose: () => void }) => {
           </button>
         ))}
       </div>
+      <ActionBar h={46} onCancel={onClose} />
     </Sheet>
   );
 };

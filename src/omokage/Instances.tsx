@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { Event } from '../types';
+import { ActionBar } from './Actions';
 import { useStimuli } from './stimuli';
 import { RIM, durLabel } from './LogSheet';
-import { CRIMSON, INK, INK2, fmtMin, parseHM } from './skins';
+import { CRIMSON, INK2, fmtMin, parseHM } from './skins';
 
 export const evStart = (e: Event) => parseHM(e.custom_data?.time);
 export const evDurH = (e: Event): number | null => (typeof e.custom_data?.durationH === 'number' ? e.custom_data.durationH : null);
@@ -41,6 +42,7 @@ export const EventCard = ({ e, anchorLabel, onEdit, onDelete, onClose }: { e: Ev
         {(d || anchorLabel) && <div style={{ fontSize: 12.5, color: INK2, marginTop: 4 }}>{[d ? durLabel(d) : '', anchorLabel ?? ''].filter(Boolean).join(' · ')}</div>}
         {e.notes && <div className="it" style={{ fontSize: 16, marginTop: 12, lineHeight: 1.45, color: '#3A4156' }}>{e.notes}</div>}
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <button className="chip press" style={{ height: 48, flex: '0 0 26%' }} onClick={onClose}>Close</button>
           <button className="chip press" style={{ height: 48, flex: 1, color: sure ? '#fff' : CRIMSON, background: sure ? CRIMSON : 'rgba(255,255,255,.35)', boxShadow: sure ? 'none' : `inset 0 0 0 1px ${CRIMSON}66` }}
             onClick={() => (sure ? onDelete() : setSure(true))}>{sure ? 'Tap again to delete' : 'Delete'}</button>
           <button className="chip on press" style={{ height: 48, flex: 1.4, fontSize: 15 }} onClick={onEdit}>Edit</button>
@@ -75,7 +77,7 @@ export const TodayList = ({ events, onOpen, onClose }: { events: Event[]; onOpen
             </button>
           ))}
         </div>
-        <button className="chip press" style={{ height: 46, marginTop: 10, color: INK }} onClick={onClose}>Close</button>
+        <div style={{ marginTop: 10 }}><ActionBar cancel="Close" h={46} flush onCancel={onClose} /></div>
       </div>
     </>
   );

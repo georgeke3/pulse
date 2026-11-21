@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ICONS, iconSrc } from './icons';
 import { haptic } from './haptics';
+import { ActionBar } from './Actions';
 import { Sheet } from './Sheet';
 import { RIM } from './LogSheet';
 import { INK2 } from './skins';
@@ -29,7 +30,6 @@ export const Circles = ({ onClose }: { onClose: () => void }) => {
     <Sheet mode="present" still>
       <div className="cm-head">
         <span className="serif" style={{ fontSize: 24 }}>Circles</span>
-        <button className="chip on press" onClick={onClose}>Done</button>
       </div>
       <div className="cm-body">
         <p className="cm-note">Tick the circles you want on the Present tab. They keep their places as you add or hide others.</p>
@@ -75,6 +75,7 @@ export const Circles = ({ onClose }: { onClose: () => void }) => {
           </section>
         )}
       </div>
+      <ActionBar cancel="Close" onCancel={onClose} />
     </Sheet>
   );
 };
@@ -96,9 +97,7 @@ const Editor = ({ id, type, onClose }: { id?: string; type: StimType; onClose: (
   return (
     <Sheet mode="present" still>
       <div className="cm-head">
-        <button className="chip press" onClick={onClose}>Cancel</button>
-        <span className="serif" style={{ fontSize: 20 }}>{cur ? 'Edit circle' : 'New circle'}</span>
-        <button className="chip on press" onClick={save}>Save</button>
+        <span className="serif" style={{ fontSize: 24 }}>{cur ? 'Edit circle' : 'New circle'}</span>
       </div>
       <div className="cm-body">
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '4px 0 14px' }}>
@@ -127,6 +126,7 @@ const Editor = ({ id, type, onClose }: { id?: string; type: StimType; onClose: (
         )}
         {cur && !cur.archived && <p className="cm-note">Archiving takes it off the Present tab. Everything you logged with it stays in your history, and you can restore it any time.</p>}
       </div>
+      <ActionBar onCancel={onClose} primary="Save" onPrimary={save} />
     </Sheet>
   );
 };
