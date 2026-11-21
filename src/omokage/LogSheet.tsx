@@ -9,7 +9,7 @@ export const STEP_Y = 16;
 export const MAX_STEP_X = 34;  // px per intensity level (shrinks near the edges)
 export const RIM: Record<EventType, [string, string]> = { training: [EMBER, '#F3C9B4'], recovery: [SKY, '#C9D7E9'], win: [GOLD, '#F1DDAE'] };
 
-export interface Cell { name: string; type: EventType; mono: string; art?: string; label?: string }
+export interface Cell { name: string; type: EventType; mono: string; id?: string; art?: string; label?: string }
 export interface Draft { cell: Cell; lvl: number; note: string; editId?: string; from?: { x: number; y: number }; kx?: number | null }
 /** x of intensity bead v (1-10) in a zone w px wide. While dragging, the knob follows the thumb freely (kx) and the level is whichever bead it is nearest. */
 export const beadX = (v: number, w: number) => 34 + (v - 1) * ((w - 68) / 9);

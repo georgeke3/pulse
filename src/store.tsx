@@ -217,7 +217,7 @@ interface AppContextType {
   addEvent: (date: string, event: Omit<Event, 'id'>) => void;
   updateEvent: (date: string, event: Event) => void;
   deleteEvent: (date: string, eventId: string) => void;
-  renameCategory: (type: EventType, from: string, to: string) => void;
+  reconcileCircles: (lookup: (e: Event) => { id: string; name: string } | undefined) => void;
   updateAnswers: (date: string, answers: Record<string, number>) => void;
   updateDayNote: (date: string, note: string) => void;
   updateDayMotto: (date: string, motto: string) => void;
@@ -498,16 +498,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  /** A circle was renamed: its past logs follow, so history stays attached to it. */
-  const renameCategory = (type: EventType, from: string, to: string) => {
+  /** Keeps every logged event tied to its circle by id (custom_data.sid) and its stored name in step with the circle's current name.
+   *  `lookup` finds the circle for an event; events it can't place are left alone. Returns the same state when nothing changed. */
+  const reconcileCircles = (lookup: (e: Event) => { id: string; name: string } | undefined) => {
     setState(prev => {
+      let changed = false;
       const days: AppState['days'] = {};
       for (const [d, day] of Object.entries(prev.days) as [string, AppState['days'][string]][]) {
-        days[d] = day.events.some(e => e.type === type && e.category === from)
-          ? { ...day, events: day.events.map(e => (e.type === type && e.category === from ? { ...e, category: to } : e)) }
-          : day;
+        let dc = false;
+        const events = day.events.map(e => {
+          if (e.type === 'win') return e;
+          const c = lookup(e);
+          if (!c || (e.custom_data?.sid === c.id && e.category === c.name)) return e;
+          dc = true;
+          return { ...e, category: c.name, custom_data: { ...e.custom_data, sid: c.id } };
+        });
+        days[d] = dc ? { ...day, events } : day;
+        changed = changed || dc;
       }
-      return { ...prev, days };
+      return changed ? { ...prev, days } : prev;
     });
   };
 
@@ -774,7 +783,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       state, 
       addEvent, 
       updateEvent, 
-      deleteEvent, renameCategory, 
+      deleteEvent, reconcileCircles, 
       updateAnswers, 
       updateDayNote, 
       updateDayMotto, 

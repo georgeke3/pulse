@@ -44,7 +44,7 @@ interface Ctx {
 const C = createContext<Ctx | null>(null);
 
 export const StimuliProvider = ({ children }: { children: ReactNode }) => {
-  const { renameCategory } = useApp();
+  const { state, reconcileCircles } = useApp();
   const [all, setAll] = useState<Stimulus[]>(() => load() ?? seeds());
   const ref = useRef(all); ref.current = all;
   const uid = useCloudSession()?.user.id;
@@ -87,7 +87,6 @@ export const StimuliProvider = ({ children }: { children: ReactNode }) => {
     const cur = ref.current.find(s => s.id === id); if (!cur) return null;
     const nm = p.name?.trim() ?? cur.name;
     if (!nm || ref.current.some(s => s.id !== id && s.type === cur.type && sameName(s.name, nm))) return null;
-    if (nm !== cur.name) renameCategory(cur.type, cur.name, nm);     // past logs follow the new name
     const n = stamp({ ...cur, ...p, name: nm, short: (p.short ?? cur.short)?.trim() || undefined });
     commit(ref.current.map(s => (s.id === id ? n : s)), [n]); return id;
   };
@@ -101,6 +100,13 @@ export const StimuliProvider = ({ children }: { children: ReactNode }) => {
     const n = stamp({ ...cur, archived, shown: archived ? false : true });     // restoring puts it back on the ring
     commit(ref.current.map(s => (s.id === id ? n : s)), [n]);
   };
+
+  // Past logs are tied to their circle by id, and their stored name follows the circle's current name. This also tags
+  // every older event (first run), and heals events logged under an old name on another device.
+  useEffect(() => {
+    const byId = new Map(all.map(s => [s.id, s])), byName = new Map(all.map(s => [`${s.type}|${s.name.toLowerCase()}`, s]));
+    reconcileCircles(e => { const sid = e.custom_data?.sid as string | undefined; return (sid ? byId.get(sid) : undefined) ?? byName.get(`${e.type}|${e.category.toLowerCase()}`); });
+  }, [all, state.days, reconcileCircles]);
 
   const v = useMemo<Ctx>(() => {
     const sorted = [...all].sort(byOrd), active = sorted.filter(s => !s.archived);

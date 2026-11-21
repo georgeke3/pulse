@@ -41,8 +41,8 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
   const loadS = stim.ring('training'), restS = stim.ring('recovery');
   const cells: Cell[] = useMemo(() => [
     { name: 'Win', type: 'win' as const, mono: '★' },
-    ...restS.map(x => ({ name: x.name, type: 'recovery' as const, mono: monoOf(x.name), art: stim.art('recovery', x.name), label: labelOf(x) })),
-    ...loadS.map(x => ({ name: x.name, type: 'training' as const, mono: monoOf(x.name), art: stim.art('training', x.name), label: labelOf(x) })),
+    ...restS.map(x => ({ id: x.id, name: x.name, type: 'recovery' as const, mono: monoOf(x.name), art: stim.art('recovery', x.name), label: labelOf(x) })),
+    ...loadS.map(x => ({ id: x.id, name: x.name, type: 'training' as const, mono: monoOf(x.name), art: stim.art('training', x.name), label: labelOf(x) })),
   ], [loadS, restS, stim]);
   const [managing, setManaging] = useState(false);
 
@@ -60,7 +60,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
   const lastLevel = (c: Cell) => {
     for (const d of Object.keys(state.days).sort().reverse())
       for (const e of [...state.days[d].events].reverse())
-        if (e.type === c.type && e.category === c.name && e.objectiveIntensity > 0) return Math.max(1, Math.min(10, Math.round(e.objectiveIntensity)));
+        if (mine(e, c) && e.objectiveIntensity > 0) return Math.max(1, Math.min(10, Math.round(e.objectiveIntensity)));
     return 3;
   };
 
@@ -89,7 +89,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
     haptic(10); setHeld(c.type + c.name); begin(e.clientX, d); setDraft(d);
   };
   const editEvent = (ev: Event) => {
-    const c = cells.find(x => x.type === ev.type && x.name === ev.category) ?? { name: ev.category, type: ev.type, mono: monoOf(ev.category), art: stim.art(ev.type, ev.category) };
+    const c = cells.find(x => mine(ev, x)) ?? { name: ev.category, type: ev.type, mono: monoOf(ev.category), art: stim.art(ev.type, ev.category) };
     setDetail(null); setListOpen(false);
     setDraft({ cell: c, lvl: ev.type === 'win' ? 1 : Math.max(1, Math.min(10, Math.round(ev.objectiveIntensity))), note: ev.notes ?? '', editId: ev.id });
   };
@@ -103,7 +103,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
       setToast({ text: 'Saved' });
     } else {
       const now = new Date(), min = now.getHours() * 60 + now.getMinutes(), time = hhmm(min);
-      addEvent(today, { type: d.cell.type, category: d.cell.name, ...fields, duration: '<1h' as Duration, custom_data: { time }, date: today });
+      addEvent(today, { type: d.cell.type, category: d.cell.name, ...fields, duration: '<1h' as Duration, custom_data: { time, ...(d.cell.id ? { sid: d.cell.id } : {}) }, date: today });
       if (d.from) { const b = { id: Date.now(), x: d.from.x, y: d.from.y, color: RIM[d.cell.type][0] }; setBursts(v => [...v, b]); setTimeout(() => setBursts(v => v.filter(x => x.id !== b.id)), 1700); }
       setToast({ text: `${d.cell.name}${isWin ? '' : ` · ${d.lvl}`}`, undo: { cat: d.cell.name, type: d.cell.type, time } });
     }
@@ -122,7 +122,8 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
   const { cx, cy, rx, ry, sz, crest } = L;
   const cellPts = useMemo(() => [L.win, ...L.rest, ...L.load], [L]);
 
-  const counts = (c: Cell) => events.filter(e => e.type === c.type && e.category === c.name).length;
+  const mine = (e: Event, c: Cell) => (c.id && e.custom_data?.sid ? e.custom_data.sid === c.id : e.type === c.type && e.category === c.name);
+  const counts = (c: Cell) => events.filter(e => mine(e, c)).length;
   const loadN = events.filter(e => e.type === 'training').length, restN = events.filter(e => e.type === 'recovery').length, winN = events.filter(e => e.type === 'win').length;
 
   return (
