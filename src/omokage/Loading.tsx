@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import head from './assets/dr-splithead.png';
 import tail from './assets/dr-splittail.png';
 import hook from './assets/dr-hook.png';
@@ -11,12 +11,25 @@ const CSS = `
 @media (prefers-reduced-motion: reduce){.omk-a{animation:none !important}}
 `;
 
-const Ground = ({ children }: { children: ReactNode }) => (
-  <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, padding: 32, textAlign: 'center', background: 'radial-gradient(120% 80% at 50% 30%, #FFFFFF 0%, #F6F3EE 70%, #EFEBE5 100%)', color: INK }}>
-    <style>{CSS}</style>
-    {children}
-  </div>
-);
+const BG = '#F6F3EE';
+/** Full-bleed ground. In an iOS home-screen app the layout viewport can come up ~60pt short of the screen, so size from the screen itself and paint the page behind it. */
+const Ground = ({ children }: { children: ReactNode }) => {
+  const [h, setH] = useState<number | null>(null);
+  useEffect(() => {
+    const standalone = (navigator as Navigator & { standalone?: boolean }).standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+    const fit = () => setH(standalone && window.innerHeight > window.innerWidth ? Math.max(window.innerHeight, window.screen.height) : null);
+    fit(); window.addEventListener('resize', fit); window.addEventListener('orientationchange', fit);
+    const hb = document.documentElement.style.background, bb = document.body.style.background;
+    document.documentElement.style.background = BG; document.body.style.background = BG;
+    return () => { window.removeEventListener('resize', fit); window.removeEventListener('orientationchange', fit); document.documentElement.style.background = hb; document.body.style.background = bb; };
+  }, []);
+  return (
+    <div style={{ position: 'fixed', boxSizing: 'border-box', top: 0, left: 0, right: 0, ...(h ? { height: h } : { bottom: 0 }), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, padding: 32, textAlign: 'center', background: `radial-gradient(120% 80% at 50% 30%, #FFFFFF 0%, ${BG} 70%, #EFEBE5 100%)`, color: INK }}>
+      <style>{CSS}</style>
+      {children}
+    </div>
+  );
+};
 
 /** The final-stage dragon, head and tail drifting apart: the loading screen. */
 export const Loading = ({ label = 'one moment…' }: { label?: string }) => (
