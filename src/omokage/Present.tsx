@@ -1,17 +1,17 @@
-import sparkF from './assets/sym-sparkle-f.png';
 import { Drg, Sym } from './Sym';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../store';
 import type { Duration, Event } from '../types';
-import { Belt, Fly } from './Art';
+import { Fly } from './Art';
 import { Circles } from './Circles';
+import { Wings } from './Wings';
 import { layout } from './layout';
 import { labelOf, monoOf, useStimuli } from './stimuli';
 import { WIN_ICON } from './icons';
 import { haptic } from './haptics';
-import { EventCard, TodayList, evDurH, evStart } from './Instances';
+import { EventCard, TodayList, evStart } from './Instances';
 import { LogSheet, RIM, beadX, type Cell, type Draft } from './LogSheet';
-import { DUSK, EMBER, GOLD, INK, INK2, SKY, fmtMin, hhmm, todayStr } from './skins';
+import { EMBER, GOLD, INK, INK2, SKY, fmtMin, hhmm, todayStr } from './skins';
 
 interface Toast { text: string; undo?: { cat: string; type: Event['type']; time: string } }
 interface Burst { id: number; x: number; y: number; color: string }
@@ -128,7 +128,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
 
   return (
     <div className="screen" ref={screenRef} style={{ padding: '0 0 10px' }}>
-      <DayRibbon events={timed} onOpen={setDetail} />
+      <Wings events={events} onOpen={setDetail} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 24px', height: 22, flex: 'none' }}>
         <button className="it press" onClick={() => setListOpen(true)} aria-label="List today's instances" style={{ fontSize: 15, textAlign: 'left' }}>
           <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: EMBER }}>{loadN}</b> load · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: SKY }}>{restN}</b> rest · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: GOLD }}>{winN}</b> <span style={{ display: 'inline-block', verticalAlign: '-4px' }}><Sym n="sparkle" on={winN > 0} s={16} o={winN > 0 ? 1 : .6} /></span> win{winN === 1 ? '' : 's'} <span style={{ color: INK2 }}>›</span>
@@ -143,6 +143,21 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
           {L.inner && <ellipse cx={cx} cy={cy} rx={L.inner.rx} ry={L.inner.ry} fill="none" stroke={INK} strokeWidth=".7" opacity=".12" />}
           <ellipse cx={cx} cy={cy} rx={rx + 34} ry={ry + 30} fill="none" stroke={GOLD} strokeWidth=".8" opacity=".35" strokeDasharray="1 5" />
         </svg>
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} aria-hidden="true">
+          {cells.map((c, k) => {
+            if (c.type === 'win') return null;
+            const ev = events.filter(e => mine(e, c)); if (!ev.length) return null;
+            const { x, y } = cellPts[k] ?? { x: 0, y: 0 }, d = Math.hypot(cx - x, cy - y) || 1, base = Math.atan2(cy - y, cx - x);
+            const room = Math.max(10, d - crest / 2 - sz / 2 - 8), [rim, fill] = RIM[c.type];
+            return ev.map((e, j) => {
+              const th = base + (j - (ev.length - 1) / 2) * Math.min(.2, .9 / ev.length);   // several events on one circle fan out
+              const L = sz / 2 + 4 + (Math.max(1, Math.min(10, e.objectiveIntensity || 1)) / 10) * room;
+              const dx = Math.cos(th), dy = Math.sin(th), px = -dy, py = dx, w = 3 + L * .035;
+              const tx = x + dx * L, ty = y + dy * L, mx = x + dx * L * .5, my = y + dy * L * .5;
+              return <path key={e.id} d={`M${x} ${y} Q ${mx + px * w} ${my + py * w} ${tx} ${ty} Q ${mx - px * w} ${my - py * w} ${x} ${y} Z`} fill={fill} stroke={rim} strokeWidth=".8" opacity=".6" />;
+            });
+          })}
+        </svg>
         {cells.map((c, k) => {
           const { x, y, a } = cellPts[k] ?? { x: 0, y: 0, a: 0 };
           const [r, f] = RIM[c.type], n = counts(c), id = c.type + c.name;
@@ -156,9 +171,9 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
                 style={{ left: x, top: y, ['--r' as string]: r, ['--f' as string]: f, ['--sz' as string]: `${sz}px` }}
                 onPointerDown={openFor(c)} onPointerMove={e => move(e.clientX)} onPointerUp={() => { release(); setHeld(null); }} onPointerCancel={() => { release(); setHeld(null); }} onContextMenu={e => e.preventDefault()}>
                 <i />{c.type === 'win' || c.art
-                  ? <img className="catart" src={c.type === 'win' ? WIN_ICON : c.art} alt="" draggable={false} style={{ marginTop: n ? -5 : 0, width: sz * .8, height: sz * .8 }} />
+                  ? <img className="catart" src={c.type === 'win' ? WIN_ICON : c.art} alt="" draggable={false} style={{ marginTop: c.type === 'win' && n ? -5 : 0, width: sz * .8, height: sz * .8 }} />
                   : <b style={{ fontSize: c.mono.length > 1 ? 12.5 : 16, marginTop: n ? -4 : 0 }}>{c.mono}</b>}
-                {n > 0 && <span className="pips">{Array.from({ length: Math.min(n, 4) }, (_, i) => <s key={i} />)}</span>}
+                {c.type === 'win' && n > 0 && <span className="pips">{Array.from({ length: Math.min(n, 4) }, (_, i) => <s key={i} />)}</span>}
               </button>
               {(L.labels || held === id) && <span className="nl" style={lab}>{c.type === 'win' ? 'Win' : c.label}</span>}
             </span>
@@ -216,47 +231,6 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
           {toast.undo && <button className="u press" onClick={undo}>Undo</button>}
         </div>
       )}
-    </div>
-  );
-};
-
-/* The day drawn as a ribbon: load above, rest below, wins as stars, butterflies trailing after now. */
-const DayRibbon = ({ events, onOpen }: { events: Event[]; onOpen: (id: string) => void }) => {
-  const W = 393, Y = 58;
-  const mins = events.map(e => evMin(e)!);
-  const lo = Math.min(360, ...mins.map(m => Math.floor(m / 180) * 180)), hi = 1440;
-  const X = (m: number) => 28 + ((Math.max(lo, Math.min(hi, m)) - lo) / (hi - lo)) * (W - 56);
-  const d = `M${X(lo)} ${Y} C ${X(lo + 200)} ${Y - 18}, ${X(lo + 400)} ${Y + 16}, ${X(960)} ${Y - 6} S ${X(1260)} ${Y + 4}, ${X(1440)} ${Y - 10}`;
-  const now = new Date(), nm = now.getHours() * 60 + now.getMinutes();
-  const ticks: number[] = []; for (let t = lo; t < hi; t += 180) ticks.push(t);
-  const lbl = (t: number) => (t === 720 ? 'noon' : fmtMin(t, true).replace('m', ''));
-  return (
-    <div style={{ height: 118, flex: 'none', position: 'relative' }}>
-      <svg viewBox={`0 0 ${W} 118`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%', overflow: 'visible' }} aria-label="Today, drawn as a ribbon">
-        <Belt d={d} c={GOLD} w={9} o={.35} />
-        {ticks.map(t => <text key={t} x={X(t)} y={Y + 46} fontSize="9" textAnchor="middle" fill={INK2} fontFamily="Inter, sans-serif" letterSpacing=".08em">{lbl(t)}</text>)}
-        {events.length === 0 && <text x={W / 2} y={Y - 26} fontSize="12" textAnchor="middle" fill={INK2} fontFamily="Lora, serif" fontStyle="italic">your day draws itself here</text>}
-        {events.map(e => {
-          const x = X(evMin(e)!), lvl = Math.max(1, Math.round(e.objectiveIntensity || 1));
-          if (e.type === 'win') return <g key={e.id} onClick={() => onOpen(e.id)} style={{ cursor: 'pointer' }}><image href={sparkF} x={x - 11} y={Y - 13} width="22" height="26" preserveAspectRatio="xMidYMid meet" /><circle cx={x} cy={Y} r="16" fill="transparent" /></g>;
-          const up = e.type === 'training', cy = up ? Y - 10 - lvl * 3.6 : Y + 10 + lvl * 2.6, c = up ? EMBER : SKY;
-          return (
-            <g key={e.id} onClick={() => onOpen(e.id)} style={{ cursor: 'pointer' }}>
-              {evDurH(e) ? <line x1={x} x2={X(evMin(e)! + evDurH(e)! * 60)} y1={Y} y2={Y} stroke={c} strokeWidth="5" strokeLinecap="round" opacity=".32" /> : null}
-              <path d={`M${x} ${Y} Q ${x + 6} ${(Y + cy) / 2} ${x} ${cy}`} stroke={c} strokeWidth="1" fill="none" opacity=".5" />
-              <circle cx={x} cy={cy} r={3 + lvl * .45} fill={c} stroke="#fff" strokeWidth="1.5" />
-              <circle cx={x} cy={(Y + cy) / 2} r="17" fill="transparent" />
-            </g>
-          );
-        })}
-        {nm >= lo && (
-          <g>
-            <line x1={X(nm)} x2={X(nm)} y1={Y - 50} y2={Y + 30} stroke={INK} strokeWidth=".8" strokeDasharray="2 3" opacity=".4" />
-            <text x={X(nm)} y={Y - 54} fontSize="9" textAnchor="middle" fill={INK} fontFamily="Lora, serif" fontStyle="italic">now</text>
-            {X(nm) < W - 60 && <><Fly x={X(nm) + 22} y={Y - 26} s={.55} c={DUSK} o={.5} /><Fly x={X(nm) + 46} y={Y - 44} s={.4} c={DUSK} o={.35} d={1.2} /></>}
-          </g>
-        )}
-      </svg>
     </div>
   );
 };
