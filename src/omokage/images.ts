@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { cloud } from '../cloudClient';
 
-export interface ImgRef { id: string; w: number; h: number }
+export interface ImgRef { id: string; w: number; h: number; cap?: string }
 const BUCKET = 'omokage-images', DB = 'omokage-img', ST = 'img';
 interface Rec { id: string; full?: Blob; thumb?: Blob; up: 0 | 1 }
 

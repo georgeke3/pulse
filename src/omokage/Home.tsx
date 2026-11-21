@@ -33,7 +33,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
   for (let d = 1; d <= dim; d++) cells.push(dstr(new Date(ym.y, ym.m, d)));
   const ansDays = new Set(answers.map(p => p.day));
   const pastDays = new Set([...ansDays, ...Object.keys(state.days).filter(d => state.days[d]?.note?.trim())]);
-  const futDays = new Set(items.filter(i => i.kind === 'future').map(i => i.day));
+  const futDays = new Set(items.filter(i => i.kind === 'future' && i.board !== '__trash').map(i => i.day));
   const flags = (d: string) => ({ past: pastDays.has(d), present: (state.days[d]?.events.length ?? 0) > 0 || Object.keys(state.days[d]?.answers ?? {}).length > 0, future: futDays.has(d) });
   const shift = (n: number) => {
     const t = new Date(ym.y, ym.m + n, 1);
@@ -79,7 +79,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
   const selAns = sel ? answers.filter(p => p.day === sel) : [];
   const selNote = sd?.note?.trim() ?? '';
   const selEv = [...(sd?.events ?? [])].sort((a, b) => String(a.custom_data?.time ?? '').localeCompare(String(b.custom_data?.time ?? '')));
-  const selFut = sel ? items.filter(i => i.kind === 'future' && i.day === sel) : [];
+  const selFut = sel ? items.filter(i => i.kind === 'future' && i.board !== '__trash' && i.day === sel) : [];
   const selVals = sd ? Object.values(sd.answers) : [];
   const selAvg = selVals.length ? (selVals.reduce((a, b) => a + b, 0) / selVals.length).toFixed(1) : null;
 

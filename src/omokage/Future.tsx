@@ -1,11 +1,15 @@
 import { Drg, Sym } from './Sym';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Belt, Fly } from './Art';
 import { addImage, copyImages, dropImages, useImg, type ImgRef } from './images';
 import { imgsOf, useItems, type Item } from './items';
 import { CRIMSON, INK, INK2, SKY, ago, todayStr } from './skins';
 import { Typing } from './Typing';
 import { Viewer, type Shot } from './Viewer';
+import { PinEdit } from './PinEdit';
+
+export const TRASH = '__trash';
+const KEEP_DAYS = 30;
 
 const BK = 'omokage_boards', HK = 'omokage_resurface_seen';
 const loadBoards = (): string[] => { try { return JSON.parse(localStorage.getItem(BK) || '[]'); } catch { return []; } };
@@ -54,10 +58,11 @@ const Pics = ({ item, onOpen }: { item: Item; onOpen: (k: number) => void }) => 
   return (
     <div className="pic" style={{ gridTemplateColumns: im.length === 1 ? '1fr' : '1fr 1fr' }}>
       {show.map((r, k) => <Tile key={r.id} r={r} ratio={ratio} onClick={() => onOpen(k)} label={extra > 0 && k === show.length - 1 ? `+${extra + 1}` : undefined} />)}
+      {im.length === 1 && im[0].cap && <div className="it" style={{ fontSize: 12, color: INK2, padding: '4px 4px 0' }}>{im[0].cap}</div>}
     </div>
   );
 };
-const shotsOf = (list: Item[]): Shot[] => list.flatMap(i => imgsOf(i).map(r => ({ ref: r, text: i.body.replace(URL_RE, '').trim(), day: i.day })));
+const shotsOf = (list: Item[]): Shot[] => list.flatMap(i => imgsOf(i).map(r => ({ ref: r, text: r.cap || i.body.replace(URL_RE, '').trim(), day: i.day })));
 const Grid = ({ shots, onOpen }: { shots: Shot[]; onOpen: (k: number) => void }) => {
   const [sel, setSel] = useState<Set<string> | null>(null);
   const [note, setNote] = useState('');
@@ -99,13 +104,21 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
   const [photosOnly, setPhotosOnly] = useState(false);
   const [allPhotos, setAllPhotos] = useState(false);
   const [pre, setPre] = useState<ImgRef[]>([]);
+  const [editing, setEditing] = useState<Item | null>(null);
+  const [sure, setSure] = useState<string | null>(null);
   const takePhotos = async (files: File[]) => { const got: ImgRef[] = []; for (const f of files) { try { got.push(await addImage(f)); } catch { /* skip unreadable */ } } if (got.length) { setPre(got); setTyping(true); } };
   /** Open the viewer on photo k of `item`, browsing through every photo in `list`. */
   const openPic = (list: Item[], item: Item, k: number) => {
     let start = k; for (const x of list) { if (x.id === item.id) break; start += imgsOf(x).length; }
     setView({ shots: shotsOf(list), start });
   };
-  const mine = items.filter(i => i.kind === 'future');
+  const all = items.filter(i => i.kind === 'future');
+  const trash = all.filter(i => i.board === TRASH).sort((a, b) => String(b.meta?.trashedAt ?? '').localeCompare(String(a.meta?.trashedAt ?? '')));
+  const mine = all.filter(i => i.board !== TRASH);
+  // deleting moves a pin to the trash (restorable); it's gone for good when emptied, or after 30 days
+  const toTrash = (i: Item) => { update(i.id, { board: TRASH, meta: { ...(i.meta ?? {}), trashedFrom: i.board || 'Inbox', trashedAt: new Date().toISOString() } }); setOpen(null); setSure(null); };
+  const restore = (i: Item) => { const { trashedFrom, trashedAt: _t, ...rest } = (i.meta ?? {}) as Record<string, unknown>; update(i.id, { board: String(trashedFrom || 'Inbox'), meta: rest }); };
+  useEffect(() => { for (const i of trash) if (Date.now() - new Date(String(i.meta?.trashedAt ?? i.at)).getTime() > KEEP_DAYS * 864e5) remove(i.id); }, [trash.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const bOf = (i: Item) => i.board || 'Inbox';
   const boards = [...custom, ...Array.from(new Set(mine.map(bOf)))].filter((b, k, a) => b !== 'Inbox' && a.indexOf(b) === k);
   const inBoard = (b: string) => mine.filter(i => bOf(i) === b);
@@ -121,7 +134,8 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
       onSave={(t, _tags, imgs) => { add({ kind: 'future', body: t, board: target, meta: imgs.length ? { images: imgs } : undefined }); setPre([]); setTyping(false); }} />
   );
 
-  const viewer = view && <Viewer shots={view.shots} start={view.start} onClose={() => setView(null)} />;
+  const viewer = <>{view && <Viewer shots={view.shots} start={view.start} onClose={() => setView(null)} />}
+    {editing && <PinEdit item={editing} onClose={() => setEditing(null)} onSave={(body, imgs) => { const { images: _i, ...meta } = (editing.meta ?? {}) as Record<string, unknown>; update(editing.id, { body, meta: imgs.length ? { ...meta, images: imgs } : meta }); setEditing(null); }} />}</>;
   const photoItems = mine.filter(i => imgsOf(i).length);
 
   if (allPhotos) {
@@ -139,6 +153,36 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
         </div>
         <Capture label="Save an idea, link or question…" onTap={() => setTyping(true)} onPhotos={takePhotos} />
         {sheet}{viewer}
+      </div>
+    );
+  }
+
+  if (board === TRASH) {
+    return (
+      <div className="screen" style={{ paddingBottom: 12 }}>
+        <Decor />
+        <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 6 }}>
+          <button className="press" onClick={() => { setBoard(null); setSure(null); }} style={{ fontSize: 13, color: INK2, padding: '4px 0' }}>‹ Boards</button>
+          <span className="it" style={{ fontSize: 20 }}>Trash</span>
+          <span className="caps">{trash.length}</span>
+        </div>
+        <div className="it" style={{ position: 'relative', fontSize: 12.5, color: INK2, paddingBottom: 6 }}>Deleted pins wait here for {KEEP_DAYS} days.</div>
+        <div className="scroll grow" style={{ position: 'relative', margin: '0 -24px', padding: '6px 24px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {trash.length === 0 && <div className="it mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>Nothing thrown away.<Drg n="tiny" w={90} style={{ margin: '16px auto 0' }} /></div>}
+          {trash.map(i => (
+            <div key={i.id} className="pinned" style={{ flex: 'none', opacity: .92 }}>
+              <Pics item={i} onOpen={n => openPic(trash, i, n)} />
+              {i.body && <div style={{ fontSize: 13.5, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{i.body}</div>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+                <span style={{ fontSize: 10.5, color: INK2, flex: 1 }}>from {String(i.meta?.trashedFrom ?? 'Inbox')} · {ago(String(i.meta?.trashedAt ?? i.at).slice(0, 10))}</span>
+                <button className="chip" style={{ height: 30, fontSize: 12 }} onClick={() => restore(i)}>Restore</button>
+                <button className="chip" style={{ height: 30, fontSize: 12, color: sure === i.id ? '#fff' : CRIMSON, background: sure === i.id ? CRIMSON : undefined }} onClick={() => (sure === i.id ? (remove(i.id), setSure(null)) : setSure(i.id))}>{sure === i.id ? 'Delete forever' : 'Delete'}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {trash.length > 1 && <button className="chip press" style={{ position: 'relative', height: 44, color: sure === 'all' ? '#fff' : CRIMSON, background: sure === 'all' ? CRIMSON : '#fff' }} onClick={() => (sure === 'all' ? (trash.forEach(i => remove(i.id)), setSure(null)) : setSure('all'))}>{sure === 'all' ? `Tap again to delete ${trash.length} for good` : 'Empty trash'}</button>}
+        {viewer}
       </div>
     );
   }
@@ -162,16 +206,17 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
             {[0, 1].map(col => <div key={col} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, paddingTop: col ? 14 : 0 }}>{list.map((i, k) => k % 2 !== col ? null : (() => {
               const d = domain(i.body), isQ = i.body.trim().endsWith('?'), isOpen = open === i.id;
               return (
-                <div key={i.id} className="pinned" onClick={() => setOpen(isOpen ? null : i.id)} style={{ transform: `rotate(${TILT[k % TILT.length] * .6}deg)`, animation: `enter .4s ${Math.min(k, 8) * 35}ms both` }}>
+                <div key={i.id} className="pinned" onClick={() => { setOpen(isOpen ? null : i.id); setSure(null); }} style={{ transform: `rotate(${TILT[k % TILT.length] * .6}deg)`, animation: `enter .4s ${Math.min(k, 8) * 35}ms both` }}>
                   <Pics item={i} onOpen={n => openPic(list, i, n)} />
                   {d && <div className="caps" style={{ marginBottom: 4 }}>↗ {d}</div>}
-                  {(i.body || !imgsOf(i).length) && <div className={isQ ? 'it' : ''} style={{ fontSize: isQ ? 15 : 13.5, lineHeight: 1.4, wordBreak: 'break-word', userSelect: 'text', WebkitUserSelect: 'text' }}>{d ? i.body.replace(URL_RE, '').trim() || d : i.body}</div>}
+                  {(i.body || !imgsOf(i).length) && <div className={isQ ? 'it' : ''} style={{ fontSize: isQ ? 15 : 13.5, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text', WebkitUserSelect: 'text' }}>{d ? i.body.replace(URL_RE, '').trim() || d : i.body}</div>}
                   <div style={{ fontSize: 10, color: INK2, marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><span>{ago(i.day)}</span><Sym n="seal" on={!!i.meta?.kept} s={18} o={i.meta?.kept ? 1 : .6} /></div>
                   {isOpen && (
                     <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, paddingTop: 8, borderTop: '1px dashed rgba(43,50,71,.2)' }}>
+                      <button className="chip on" style={{ height: 28, fontSize: 11.5, padding: '0 12px' }} onClick={() => { setEditing(i); setOpen(null); }}>Edit</button>
                       {others.map(n => <button key={n} className="chip" style={{ height: 28, fontSize: 11.5, padding: '0 10px' }} onClick={() => { update(i.id, { board: n }); setOpen(null); }}>→ {n}</button>)}
                       {d && <a className="chip" style={{ height: 28, fontSize: 11.5, padding: '0 10px', textDecoration: 'none' }} href={i.body.match(URL_RE)![1]} target="_blank" rel="noreferrer">Open</a>}
-                      <button className="chip" style={{ height: 28, fontSize: 11.5, padding: '0 10px', color: CRIMSON }} onClick={() => remove(i.id)}>Delete</button>
+                      <button className="chip" style={{ height: 28, fontSize: 11.5, padding: '0 10px', color: sure === i.id ? '#fff' : CRIMSON, background: sure === i.id ? CRIMSON : undefined }} onClick={() => (sure === i.id ? toTrash(i) : setSure(i.id))}>{sure === i.id ? 'Move to trash?' : 'Delete'}</button>
                     </div>
                   )}
                 </div>
@@ -217,6 +262,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
               </form>
             : <button className="press" onClick={() => setNaming(true)} style={{ height: 56, borderRadius: 6, border: '1.2px dashed rgba(43,50,71,.3)', fontSize: 13, color: INK2, transform: 'rotate(1.5deg)', marginTop: 8 }}>+ new board</button>}
         </div>
+        {trash.length > 0 && <button className="press" onClick={() => setBoard(TRASH)} style={{ display: 'block', margin: '16px auto 0', fontSize: 12.5, color: INK2 }}>Trash · {trash.length}</button>}
       </div>
 
       {resurface ? (
@@ -228,7 +274,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
           <div style={{ fontSize: 11.5, color: INK2, marginTop: 8 }}>{bOf(resurface)} · saved {ago(resurface.day)}</div>
           <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
             <button className="chip on" style={{ height: 38, padding: '0 18px', gap: 8 }} onClick={() => { update(resurface.id, { meta: { ...(resurface.meta ?? {}), kept: todayStr() } }); markSeen(); }}><Sym n="seal" on s={18} /> Yes, keep it</button>
-            <button className="chip" style={{ height: 38, padding: '0 18px' }} onClick={() => { remove(resurface.id); markSeen(); }}>Let it go</button>
+            <button className="chip" style={{ height: 38, padding: '0 18px' }} onClick={() => { toTrash(resurface); markSeen(); }}>Let it go</button>
           </div>
         </div>
       ) : mine.length === 0 ? (
