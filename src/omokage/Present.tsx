@@ -7,13 +7,12 @@ import { Belt, Fly } from './Art';
 import { catArt } from './catArt';
 import { haptic } from './haptics';
 import { EventCard, TodayList, evDurH, evStart } from './Instances';
-import { LogSheet, MAX_STEP_X, RIM, type Cell, type Draft } from './LogSheet';
+import { LogSheet, RIM, beadX, type Cell, type Draft } from './LogSheet';
 import { DUSK, EMBER, GOLD, INK, INK2, SKY, fmtMin, hhmm, todayStr } from './skins';
 
 interface Toast { text: string; undo?: { cat: string; type: Event['type']; time: string } }
 interface Burst { id: number; x: number; y: number; color: string }
-interface Drag { x: number; lvl: number; stepL: number; stepR: number; lastKey: string }
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+interface Drag { x: number; k0: number; lvl: number; w: number }
 
 const monos = (names: string[]) => names.map(n => {
   const one = n[0].toUpperCase();
@@ -66,25 +65,22 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
   };
 
   // one drag model for both the node you pressed and the sheet itself: it continues from wherever the values were left
+  // the knob follows the thumb 1:1 (so speed never changes), the level is the nearest bead, and each crossing ticks right here in the touch handler
   const begin = (x: number, d: Draft) => {
-    const vw = document.documentElement.clientWidth;
-    drag.current = {
-      x, lvl: d.lvl, lastKey: '',
-      stepL: d.lvl > 1 ? Math.min(MAX_STEP_X, (x - 12) / (d.lvl - 1)) : MAX_STEP_X,
-      stepR: d.lvl < 10 ? Math.min(MAX_STEP_X, (vw - 12 - x) / (10 - d.lvl)) : MAX_STEP_X,
-    };
+    const w = Math.min(520, document.documentElement.clientWidth);
+    drag.current = { x, k0: beadX(d.lvl, w), lvl: d.lvl, w };
   };
   const move = (clientX: number) => {
     const g = drag.current; if (!g) return;
-    const dx = clientX - g.x;
-    setDraft(d => {
-      if (!d || d.cell.type === 'win') return d;
-      const lvl = clamp(g.lvl + (dx < 0 ? -Math.round(-dx / g.stepL) : Math.round(dx / g.stepR)), 1, 10);
-      if (g.lastKey && String(lvl) !== g.lastKey) haptic(4);
-      g.lastKey = String(lvl);
-      return { ...d, lvl };
-    });
+    const lo = beadX(1, g.w), hi = beadX(10, g.w), gap = (hi - lo) / 9;
+    const kx = Math.max(lo, Math.min(hi, g.k0 + clientX - g.x));
+    const pos = (kx - lo) / gap, near = Math.max(1, Math.min(10, Math.round(pos) + 1));
+    let lvl = g.lvl;
+    if (near !== g.lvl && Math.abs(pos - (g.lvl - 1)) > .56) lvl = near;   // small hysteresis so it never flutters on a boundary
+    if (lvl !== g.lvl) { g.lvl = lvl; haptic(6); }
+    setDraft(d => (d && d.cell.type !== 'win' ? { ...d, lvl, kx } : d));
   };
+  const release = () => { drag.current = null; setDraft(d => (d && d.kx != null ? { ...d, kx: null } : d)); };
   const openFor = (c: Cell) => (e: React.PointerEvent<HTMLButtonElement>) => {
     if (draft) return;
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -166,7 +162,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
             <span key={id}>
               <button className={`node ${held === id ? 'held' : ''}`} aria-label={`Log ${c.name}`}
                 style={{ left: x, top: y, ['--r' as string]: r, ['--f' as string]: f, ['--sz' as string]: `${sz}px` }}
-                onPointerDown={openFor(c)} onPointerMove={e => move(e.clientX)} onPointerUp={() => { drag.current = null; setHeld(null); }} onPointerCancel={() => { drag.current = null; setHeld(null); }} onContextMenu={e => e.preventDefault()}>
+                onPointerDown={openFor(c)} onPointerMove={e => move(e.clientX)} onPointerUp={() => { release(); setHeld(null); }} onPointerCancel={() => { release(); setHeld(null); }} onContextMenu={e => e.preventDefault()}>
                 <i />{catArt(c.type, c.name)
                   ? <img className="catart" src={catArt(c.type, c.name)} alt="" draggable={false} style={{ marginTop: n ? -5 : 0 }} />
                   : <b style={{ fontSize: c.mono.length > 1 ? 12.5 : 16, marginTop: n ? -4 : 0 }}>{c.mono}</b>}
@@ -195,7 +191,7 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
       {draft && (
         <LogSheet d={draft} anchors={state.config.scales[draft.cell.type === 'recovery' ? 'recovery' : 'training'].objective}
           onDown={e => { begin(e.clientX, draft); e.currentTarget.setPointerCapture(e.pointerId); }}
-          onMove={e => move(e.clientX)} onUp={() => { drag.current = null; }}
+          onMove={e => move(e.clientX)} onUp={release}
           onNote={t => setDraft(v => (v ? { ...v, note: t } : v))} onConfirm={commit} onClose={() => setDraft(null)} />
       )}
       {listOpen && <TodayList events={events} onOpen={id => { setListOpen(false); setDetail(id); }} onClose={() => setListOpen(false)} />}

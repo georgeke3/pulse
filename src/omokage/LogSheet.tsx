@@ -10,7 +10,9 @@ export const MAX_STEP_X = 34;  // px per intensity level (shrinks near the edges
 export const RIM: Record<EventType, [string, string]> = { training: [EMBER, '#F3C9B4'], recovery: [SKY, '#C9D7E9'], win: [GOLD, '#F1DDAE'] };
 
 export interface Cell { name: string; type: EventType; mono: string }
-export interface Draft { cell: Cell; lvl: number; note: string; editId?: string; from?: { x: number; y: number } }
+export interface Draft { cell: Cell; lvl: number; note: string; editId?: string; from?: { x: number; y: number }; kx?: number | null }
+/** x of intensity bead v (1-10) in a zone w px wide. While dragging, the knob follows the thumb freely (kx) and the level is whichever bead it is nearest. */
+export const beadX = (v: number, w: number) => 34 + (v - 1) * ((w - 68) / 9);
 
 export const durLabel = (n: number) => `${n} ${n === 1 ? 'hour' : 'hours'}`;
 
@@ -45,8 +47,11 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
   useLayoutEffect(() => { const t = ta.current; if (!t) return; t.style.height = 'auto'; t.style.height = `${Math.min(t.scrollHeight, 112)}px`; }, [d.note, open]);
   const openComposer = () => { ta.current?.focus({ preventScroll: true }); setOpen(true); };
   const bY = 120;
-  const bx = (v: number) => 34 + (v - 1) * ((zw - 68) / 9);
+  const bx = (v: number) => beadX(v, zw);
   const by = (v: number) => bY - Math.sin((v - 1) / 9 * Math.PI) * 16;
+  const dragging = d.kx != null;
+  const kx = d.kx ?? bx(d.lvl);
+  const ky = by(Math.max(1, Math.min(10, 1 + (kx - bx(1)) / ((zw - 68) / 9))));
   const art = catArt(d.cell.type, d.cell.name);
   const face = art ? <img className="catart" src={art} alt="" style={{ width: isWin ? 50 : 44, height: isWin ? 50 : 44 }} /> : <b>{d.cell.mono}</b>;
   const add = (t: string) => onNote(d.note.trim() ? `${d.note.trimEnd()} ${t}` : t);
@@ -83,7 +88,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
                 );
               })}
             </svg>
-            <div className="node held" style={{ left: Math.max(38, Math.min(zw - 38, bx(d.lvl))), top: by(d.lvl) - 50, ['--r' as string]: rim, ['--f' as string]: fill, ['--sz' as string]: '56px', transition: 'left .12s', pointerEvents: 'none', boxShadow: `0 0 0 1.5px ${rim},0 0 0 6px #FBFAF7,0 0 0 7px rgba(200,161,90,.6),0 16px 28px rgba(43,50,71,.2)` }}><i />{face}</div>
+            <div className="node held" style={{ left: kx, top: ky - 50, ['--r' as string]: rim, ['--f' as string]: fill, ['--sz' as string]: '56px', transition: dragging ? 'none' : 'left .22s cubic-bezier(.2,.9,.3,1), top .22s cubic-bezier(.2,.9,.3,1)', pointerEvents: 'none', boxShadow: `0 0 0 1.5px ${rim},0 0 0 6px #FBFAF7,0 0 0 7px rgba(200,161,90,.6),0 16px 28px rgba(43,50,71,.2)` }}><i />{face}</div>
             <div style={{ position: 'absolute', left: 0, right: 0, top: bY + 44, textAlign: 'center', pointerEvents: 'none' }}>
               <span className="serif" style={{ fontSize: 21, color: rim }}>{d.lvl}</span><span className="it" style={{ fontSize: 15 }}> · {a?.label ?? ''}</span>
               <div style={{ fontSize: 11, color: INK2, marginTop: 2 }}>drag ← → anywhere here</div>
