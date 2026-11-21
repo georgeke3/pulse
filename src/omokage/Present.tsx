@@ -4,7 +4,6 @@ import { useApp } from '../store';
 import type { Duration, Event } from '../types';
 import { Fly } from './Art';
 import { Circles } from './Circles';
-import { Wings } from './Wings';
 import { layout } from './layout';
 import { labelOf, monoOf, useStimuli } from './stimuli';
 import { WIN_ICON } from './icons';
@@ -128,7 +127,6 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
 
   return (
     <div className="screen" ref={screenRef} style={{ padding: '0 0 10px' }}>
-      <Wings events={events} onOpen={setDetail} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 24px', height: 22, flex: 'none' }}>
         <button className="it press" onClick={() => setListOpen(true)} aria-label="List today's instances" style={{ fontSize: 15, textAlign: 'left' }}>
           <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: EMBER }}>{loadN}</b> load · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: SKY }}>{restN}</b> rest · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: GOLD }}>{winN}</b> <span style={{ display: 'inline-block', verticalAlign: '-4px' }}><Sym n="sparkle" on={winN > 0} s={16} o={winN > 0 ? 1 : .6} /></span> win{winN === 1 ? '' : 's'} <span style={{ color: INK2 }}>›</span>
@@ -154,7 +152,12 @@ export const Present = ({ onDump, onPulse }: { onDump: () => void; onPulse: () =
               const L = sz / 2 + 4 + (Math.max(1, Math.min(10, e.objectiveIntensity || 1)) / 10) * room;
               const dx = Math.cos(th), dy = Math.sin(th), px = -dy, py = dx, w = 3 + L * .035;
               const tx = x + dx * L, ty = y + dy * L, mx = x + dx * L * .5, my = y + dy * L * .5;
-              return <path key={e.id} d={`M${x} ${y} Q ${mx + px * w} ${my + py * w} ${tx} ${ty} Q ${mx - px * w} ${my - py * w} ${x} ${y} Z`} fill={fill} stroke={rim} strokeWidth=".8" opacity=".6" />;
+              return (
+                <g key={e.id} onClick={() => { haptic(8); setDetail(e.id); }} style={{ pointerEvents: 'auto', cursor: 'pointer' }} role="button" aria-label={`${c.name} ${Math.round(e.objectiveIntensity)}, open`}>
+                  <path d={`M${x} ${y} Q ${mx + px * w} ${my + py * w} ${tx} ${ty} Q ${mx - px * w} ${my - py * w} ${x} ${y} Z`} fill={fill} stroke={rim} strokeWidth=".8" opacity=".6" />
+                  <line x1={x + dx * (sz / 2)} y1={y + dy * (sz / 2)} x2={tx} y2={ty} stroke="transparent" strokeWidth="20" strokeLinecap="round" />
+                </g>
+              );
             });
           })}
         </svg>

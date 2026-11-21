@@ -31,7 +31,7 @@ const half = (cx: number, cy: number, rx: number, ry: number, side: 1 | -1): Hal
 
 export function layout(w: number, h: number, nLoad: number, nRest: number): Layout {
   const cx = w / 2, cy = h / 2;
-  const rx = Math.max(90, Math.min(128, w / 2 - 70)), ry = Math.max(100, Math.min(190, h / 2 - 28));
+  const rx = Math.max(90, Math.min(128, w / 2 - 70)), ry = Math.max(100, Math.min(250, h / 2 - 30));
   const out = { l: half(cx, cy, rx, ry, -1), r: half(cx, cy, rx, ry, 1) };
   const capMax = Math.max(6, Math.floor(out.r.len / MIN_SPACING - 0.5));
   const n0L = Math.min(nLoad, capMax), n0R = Math.min(nRest, capMax);
