@@ -404,6 +404,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         syncedRef.current = JSON.parse(raw) as Synced;
         trackedRef.current = true;
+        setHydrated(true); // trustworthy local copy: show it now, sync in the background
       } catch {
         trackedRef.current = false;
       }

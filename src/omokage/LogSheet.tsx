@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as RPE } from 'react';
+import { useLayoutEffect, useRef, useState, type PointerEvent as RPE } from 'react';
 import type { EventType } from '../types';
 import { catArt } from './catArt';
 import { Mic } from './Mic';
@@ -36,15 +36,11 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
     const f = () => setZw(el.clientWidth); f();
     const ro = new ResizeObserver(f); ro.observe(el); return () => ro.disconnect();
   }, []);
-  // typing happens in a bar that floats above the keyboard; the sheet itself never resizes or scrolls
-  const [open, setOpen] = useState(false), [kb, setKb] = useState(0);
+  // Typing happens in a card at the top of the sheet. The keyboard (and iOS's floating accessory bar, which the
+  // visual viewport does not report) can never cover it, and the sheet itself never moves.
+  const [open, setOpen] = useState(false);
   const ta = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    const v = window.visualViewport; if (!v) return;
-    const f = () => { setKb(Math.max(0, Math.round(document.documentElement.clientHeight - v.height - v.offsetTop))); if (window.scrollY) window.scrollTo(0, 0); };
-    v.addEventListener('resize', f); v.addEventListener('scroll', f); return () => { v.removeEventListener('resize', f); v.removeEventListener('scroll', f); };
-  }, []);
-  useLayoutEffect(() => { const t = ta.current; if (!t) return; t.style.height = 'auto'; t.style.height = `${Math.min(t.scrollHeight, 112)}px`; }, [d.note, open]);
+  useLayoutEffect(() => { const t = ta.current; if (!t) return; t.style.height = 'auto'; t.style.height = `${Math.min(t.scrollHeight, 150)}px`; }, [d.note, open]);
   const openComposer = () => { ta.current?.focus({ preventScroll: true }); setOpen(true); };
   const bY = 120;
   const bx = (v: number) => beadX(v, zw);
@@ -110,15 +106,17 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
         <button className="chip press" style={{ height: 54, flex: '0 0 30%', fontSize: 15 }} onMouseDown={e => e.preventDefault()} onClick={onClose}>Cancel</button>
         <button className="chip on press" style={{ height: 54, flex: 1, fontSize: 16 }} onMouseDown={e => e.preventDefault()} onClick={onConfirm}>{d.editId ? 'Save' : 'Log it'}</button>
       </div>
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: open ? (kb || 300) : 0, zIndex: 5, display: 'flex', alignItems: 'flex-end', gap: 8, padding: '10px 12px', background: 'rgba(255,255,255,.98)', borderRadius: '20px 20px 0 0', boxShadow: '0 -1px 0 rgba(43,50,71,.1), 0 -12px 30px rgba(43,50,71,.08)',
-        transform: open ? 'none' : 'translateY(130%)', opacity: open ? 1 : 0, pointerEvents: open ? 'auto' : 'none', transition: 'bottom .24s var(--ease), transform .24s var(--ease), opacity .16s' }}>
+      <div onPointerDown={() => ta.current?.blur()} style={{ position: 'absolute', inset: 0, zIndex: 4, background: 'rgba(251,250,247,.72)', opacity: open ? 1 : 0, pointerEvents: open ? 'auto' : 'none', transition: 'opacity .2s' }} />
+      <div style={{ position: 'absolute', left: 12, right: 12, top: 'calc(var(--top) + 8px)', zIndex: 5, padding: '14px 14px 10px', borderRadius: 24, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.1), 0 14px 34px rgba(43,50,71,.14)',
+        opacity: open ? 1 : 0, transform: open ? 'none' : 'translateY(-10px)', pointerEvents: open ? 'auto' : 'none', transition: 'opacity .18s, transform .22s cubic-bezier(.2,.8,.2,1)' }}>
+        <div className="caps" style={{ marginBottom: 6 }}>{d.cell.name} · details</div>
         <textarea ref={ta} rows={1} value={d.note} onChange={e => onNote(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} placeholder="What happened?" aria-label="Details of what happened"
-          style={{ flex: 1, minWidth: 0, minHeight: 44, maxHeight: 112, padding: '10px 14px', borderRadius: 22, background: '#F6F4EF', fontSize: 17, lineHeight: 1.4, fontFamily: 'Lora, serif' }} />
-        <Mic onText={add} size={44} />
-        <button type="button" className="press" aria-label="Done typing" onMouseDown={e => e.preventDefault()} onClick={() => ta.current?.blur()}
-          style={{ width: 44, height: 44, borderRadius: 22, flex: 'none', display: 'grid', placeItems: 'center', background: INK, color: '#fff' }}>
-          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9.5 7.5 13.5 14.5 5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </button>
+          style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: 48, maxHeight: 150, resize: 'none', border: 0, outline: 'none', padding: '4px 2px', background: 'transparent', fontSize: 17, lineHeight: 1.45, fontFamily: 'Lora, serif', color: INK }} />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 6 }}>
+          <Mic onText={add} size={44} />
+          <button type="button" className="press" onMouseDown={e => e.preventDefault()} onClick={() => ta.current?.blur()}
+            style={{ height: 44, padding: '0 20px', borderRadius: 22, background: INK, color: '#fff', fontSize: 15, fontWeight: 600 }}>Done</button>
+        </div>
       </div>
     </Sheet>
   );

@@ -11,7 +11,7 @@ const CSS = `
 @media (prefers-reduced-motion: reduce){.omk-a{animation:none !important}}
 `;
 
-const BG = '#F6F3EE';
+const BG = '#FAF8F3';   // same as the page background in omokage.css, so any edge iOS leaves unpainted is the same colour
 /** Full-bleed ground. In an iOS home-screen app the layout viewport can come up ~60pt short of the screen, so size from the screen itself and paint the page behind it. */
 const Ground = ({ children }: { children: ReactNode }) => {
   const [h, setH] = useState<number | null>(null);
@@ -24,7 +24,7 @@ const Ground = ({ children }: { children: ReactNode }) => {
     return () => { window.removeEventListener('resize', fit); window.removeEventListener('orientationchange', fit); document.documentElement.style.background = hb; document.body.style.background = bb; };
   }, []);
   return (
-    <div style={{ position: 'fixed', boxSizing: 'border-box', top: 0, left: 0, right: 0, ...(h ? { height: h } : { bottom: 0 }), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, padding: 32, textAlign: 'center', background: `radial-gradient(120% 80% at 50% 30%, #FFFFFF 0%, ${BG} 70%, #EFEBE5 100%)`, color: INK }}>
+    <div style={{ position: 'fixed', boxSizing: 'border-box', top: 0, left: 0, right: 0, ...(h ? { height: h } : { bottom: 0 }), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, padding: 32, textAlign: 'center', background: `radial-gradient(120% 70% at 50% 35%, #FFFFFF 0%, ${BG} 75%)`, color: INK }}>
       <style>{CSS}</style>
       {children}
     </div>
