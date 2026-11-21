@@ -62,13 +62,15 @@ Deno.serve(async (req) => {
   for (const f of files) {
     const bytes = new Uint8Array(await f.arrayBuffer());
     const info = sniff(bytes);
-    if (!info) return json({ error: "photos must be JPEG, PNG or GIF - add 'Convert Image to JPEG' before this step" }, 415);
+    // Shortcuts also attaches web pages / empty files when sharing a link: those are skipped, the link text still saves
+    if (!info) { if (bytes.length && !text && files.length === 1) return json({ error: "photos must be JPEG, PNG or GIF - add 'Convert Image to JPEG' before this step" }, 415); continue; }
     const id = crypto.randomUUID();
     const up = await sb.storage.from(BUCKET).upload(`${uid}/${id}.jpg`, bytes, { contentType: info.type, upsert: true });
     if (up.error) return json({ error: "upload failed: " + up.error.message }, 500);
     images.push({ id, w: info.w, h: info.h });
   }
 
+  if (!text && !images.length) return json({ error: "nothing to save" }, 400);
   const id = crypto.randomUUID();
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto" }).format(new Date());
   const { error } = await sb.from("omokage_items").insert({ user_id: uid, id, kind: "future", day, at: new Date().toISOString(), board, body: text, meta: images.length ? { images } : {} });
