@@ -10,8 +10,10 @@ const Thumb = ({ id, onRemove }: { id: string; onRemove: () => void }) => {
   return <span className="th">{u && <img src={u} alt="" />}<b role="button" aria-label="Remove photo" onClick={onRemove}>✕</b></span>;
 };
 
-export const Typing = ({ mode, label, prompt, chips, initialTags, initialText, placeholder, photos, initialImages, onSave, onCancel }: {
+export const Typing = ({ mode, label, prompt, chips, topics, initialTags, initialText, placeholder, photos, initialImages, onSave, onCancel, onDelete }: {
   mode: Mode; label: string; prompt: string; chips?: string[]; initialTags?: string[]; initialText?: string; placeholder?: string;
+  /** a big grouped topic list, browsed in a panel instead of a chip row */ topics?: [string, string[]][];
+  /** offered (with a second tap to confirm) when editing something that already exists */ onDelete?: () => void;
   /** Offer photo attach (album picker, paste); onSave then also receives the photos. */
   photos?: boolean; initialImages?: ImgRef[];
   onSave: (t: string, tags: string[], imgs: ImgRef[]) => void; onCancel: () => void;
@@ -44,18 +46,37 @@ export const Typing = ({ mode, label, prompt, chips, initialTags, initialText, p
   const [t, setT] = useState(initialText ?? '');
   const [tags, setTags] = useState<string[]>(initialTags ?? []);
   const ta = useRef<HTMLTextAreaElement>(null);
+  const [browsing, setBrowsing] = useState(false);
+  const [sure, setSure] = useState(false);
   useEffect(() => { const id = setTimeout(() => ta.current?.focus(), 80); return () => clearTimeout(id); }, []);
+  const flipTag = (c: string) => setTags(v => (v.includes(c) ? v.filter(x => x !== c) : [...v, c]));
+  const openTopics = () => { ta.current?.blur(); setBrowsing(true); };
+  const closeTopics = () => { setBrowsing(false); setTimeout(() => ta.current?.focus(), 40); };
   const ok = (t.trim().length > 0 || imgs.length > 0) && !busy;
   return (
     <Sheet mode={mode}>
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 22px 0', fontSize: 14, color: INK2 }}>
-        <span style={{ width: 1 }} />
+        <span style={{ width: 70 }} />
         <span className="caps">{label}</span>
-        <span style={{ width: 1 }} />
+        {onDelete
+          ? <button className="press" onMouseDown={e => e.preventDefault()} onClick={() => (sure ? onDelete() : setSure(true))} style={{ width: 70, textAlign: 'right', fontSize: 12.5, color: sure ? '#A8323E' : INK2, fontWeight: sure ? 600 : 400 }}>{sure ? 'Tap to delete' : 'Delete'}</button>
+          : <span style={{ width: 70 }} />}
       </div>
       <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 24px 10px' }}>
         <div className="it" style={{ fontSize: 22, lineHeight: 1.3, color: INK2 }}>{prompt}</div>
-        <textarea ref={ta} value={t} onChange={e => setT(e.target.value)} onPaste={onPaste} placeholder={placeholder ?? 'Write freely…'} aria-label={prompt} />
+        {browsing && topics && (
+          <div className="scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', margin: '0 -24px', padding: '0 24px 8px' }}>
+            {topics.map(([g, list]) => (
+              <div key={g} style={{ marginBottom: 14 }}>
+                <div className="caps" style={{ marginBottom: 7 }}>{g}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {list.map(c => <button key={c} className={`chip ${tags.includes(c) ? 'on' : ''}`} style={{ height: 34 }} onClick={() => flipTag(c)}>{c}</button>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <textarea ref={ta} value={t} style={browsing ? { display: 'none' } : undefined} onChange={e => setT(e.target.value)} onPaste={onPaste} placeholder={placeholder ?? 'Write freely…'} aria-label={prompt} />
       </div>
       {photos && (
         <>
@@ -71,6 +92,8 @@ export const Typing = ({ mode, label, prompt, chips, initialTags, initialText, p
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px calc(8px + var(--sb))', background: 'rgba(255,255,255,.55)', boxShadow: '0 -1px 0 rgba(43,50,71,.08)' }}>
         <button className="chip press" style={{ flex: 'none', height: 40, fontSize: 14 }} onMouseDown={e => e.preventDefault()} onClick={cancel}>Cancel</button>
         <div className="scroll" style={{ flex: 1, display: 'flex', gap: 6, overflowX: 'auto' }}>
+          {topics && <button className="chip press" style={{ flex: 'none', height: 32, gap: 4, background: browsing ? '#2B3247' : '#fff', color: browsing ? '#fff' : undefined }} onMouseDown={e => e.preventDefault()} onClick={browsing ? closeTopics : openTopics}>{browsing ? 'Done' : `# Topics${tags.length ? ` · ${tags.length}` : ''}`}</button>}
+          {topics && tags.map(c => <button key={c} className="chip on" style={{ flex: 'none', height: 32 }} onMouseDown={e => e.preventDefault()} onClick={() => flipTag(c)}>{c} ✕</button>)}
           {(chips ?? []).map(c => {
             const on = tags.includes(c);
             return <button key={c} className={`chip ${on ? 'on' : ''}`} style={{ flex: 'none', height: 32 }} onMouseDown={e => e.preventDefault()} onClick={() => setTags(v => (on ? v.filter(x => x !== c) : [...v, c]))}>{c}</button>;

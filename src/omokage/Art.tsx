@@ -42,6 +42,17 @@ export const Sparkles = ({ pts, c = '#fff' }: { pts: [number, number, number, nu
   <>{pts.map(([x, y, s, o], i) => <path key={i} className="spark" style={{ animationDelay: `${i * .7}s` }} transform={`translate(${x},${y}) scale(${s})`} d="M0 -6 L1.3 -1.3 L6 0 L1.3 1.3 L0 6 L-1.3 1.3 L-6 0 L-1.3 -1.3Z" fill={c} opacity={o} />)}</>
 );
 
+let grain = '';
+const grainTile = () => {
+  if (grain || typeof document === 'undefined') return grain;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'); if (!g) return '';
+  const im = g.createImageData(128, 128);
+  for (let i = 0; i < im.data.length; i += 4) { im.data[i] = 107; im.data[i + 1] = 84; im.data[i + 2] = 56; im.data[i + 3] = Math.random() * 128; }
+  g.putImageData(im, 0, 0);
+  return (grain = c.toDataURL('image/png'));
+};
+
 const hatch = (x0: number, y0: number, n: number, o: number) => Array.from({ length: n }, (_, i) => <line key={i} x1={x0 + i * 7} y1={y0 - i * 2} x2={x0 - 30 + i * 7} y2={y0 + 60 - i * 2} stroke={SEPIA} strokeWidth=".7" opacity={o} />);
 
 /** Full-screen atmosphere behind each mode. Drawn on a 393×852 board, scaled to cover. */
@@ -49,12 +60,13 @@ export const Atmos = ({ mode }: { mode: Mode }) => {
   const box = { className: 'atmos', viewBox: '0 0 393 852', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': true } as const;
   if (mode === 'past') return (
     <>
+      {/* paper grain: a small noise tile painted once, then repeated. (An SVG turbulence filter over the whole screen
+          looked the same but took iOS a visible beat to render every time the tab opened.) */}
+      <div className="atmos" style={{ backgroundImage: `url(${grainTile()})`, backgroundSize: '128px 128px', opacity: .16 }} />
       <svg {...box}>
         <defs>
-          <filter id="omk-grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" stitchTiles="stitch" /><feColorMatrix values="0 0 0 0 .42  0 0 0 0 .33  0 0 0 0 .22  0 0 0 .5 0" /></filter>
           <radialGradient id="omk-vig" cx="50%" cy="45%" r="75%"><stop offset="65%" stopColor={SEPIA} stopOpacity="0" /><stop offset="100%" stopColor={SEPIA} stopOpacity=".16" /></radialGradient>
         </defs>
-        <rect width="393" height="852" filter="url(#omk-grain)" opacity=".16" />
         <rect width="393" height="852" fill="url(#omk-vig)" />
         {hatch(330, 760, 8, .22)}{hatch(-10, 100, 7, .18)}
       </svg>
