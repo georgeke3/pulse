@@ -8,7 +8,7 @@ import { layout } from './layout';
 import { labelOf, monoOf, useStimuli } from './stimuli';
 import { WIN_ICON } from './icons';
 import { haptic } from './haptics';
-import { Art, EventCard, TodayList, evStart } from './Instances';
+import { Art, EventCard, TodayList, evOrder, evStart } from './Instances';
 import { LogSheet, RIM, beadX, type Cell, type Draft } from './LogSheet';
 import { EMBER, GOLD, INK, INK2, SKY, fmtMin, fromDstr, hhmm, todayStr } from './skins';
 import { heat, loadOf, sideTotal } from './load';
@@ -35,7 +35,7 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
   const today = day, isToday = day === todayStr();
   const told = !!state.days[day]?.note?.trim();
   const events = state.days[today]?.events ?? [];
-  const timed = events.filter(e => evMin(e) !== null).sort((a, b) => evMin(a)! - evMin(b)!);
+  const timed = events.filter(e => evMin(e) !== null).sort((a, b) => evOrder(a)! - evOrder(b)!);
   const last = timed.length ? timed[timed.length - 1] : null;
   const answered = Object.keys(state.days[today]?.answers ?? {}).length, nq = state.config.daily_questions.length;
 
@@ -156,7 +156,7 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
       const vx = q.tx - q.x, vy = q.ty - q.y, t = Math.max(0, Math.min(1, ((px - q.x) * vx + (py - q.y) * vy) / (vx * vx + vy * vy || 1)));
       return Math.hypot(px - (q.x + vx * t), py - (q.y + vy * t)) <= Math.max(11, q.w + 5);
     };
-    const ids = spokes.filter(q => q.id === sp.id || near(q)).sort((a, b) => (evMin(a.e) ?? 1e4) - (evMin(b.e) ?? 1e4)).map(q => q.id);
+    const ids = spokes.filter(q => q.id === sp.id || near(q)).sort((a, b) => (evOrder(a.e) ?? 1e4) - (evOrder(b.e) ?? 1e4)).map(q => q.id);
     haptic(8);
     if (ids.length > 1) setPick({ x: px, y: py, ids }); else setDetail(sp.id);
   };

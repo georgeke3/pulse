@@ -10,7 +10,12 @@ export const WASH: Record<Mode, string> = { home: 'rgba(200,161,90,.30)', past: 
 
 const p2 = (n: number) => String(n).padStart(2, '0');
 export const dstr = (d: Date) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
-export const todayStr = () => dstr(new Date());
+/** The day rolls over at this hour (default 3am), so a late night still belongs to the day it started. Kept on this device. */
+export const getCutoff = (): number => { try { const v = Number(localStorage.getItem('omk_cutoff') ?? 3); return Number.isFinite(v) && v >= 0 && v <= 8 ? v : 3; } catch { return 3; } };
+export const setCutoff = (h: number) => { try { localStorage.setItem('omk_cutoff', String(h)); } catch { /* private mode */ } };
+/** "Now", shifted back by the cutoff: its calendar date is the omokage day. */
+export const dayNow = () => new Date(Date.now() - getCutoff() * 36e5);
+export const todayStr = () => dstr(dayNow());
 export const nowHalfHour = () => { const d = new Date(); return d.getHours() * 60 + (d.getMinutes() >= 30 ? 30 : 0); };
 export const fmtMin = (m: number, short = false) => {
   const mm = ((m % 1440) + 1440) % 1440, h = Math.floor(mm / 60), r = mm % 60;

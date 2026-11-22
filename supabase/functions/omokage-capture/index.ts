@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
 
   if (!text && !images.length) return json({ error: "nothing to save" }, 400);
   const id = crypto.randomUUID();
-  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto" }).format(new Date());
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto" }).format(new Date(Date.now() - 3 * 36e5));   // the day rolls over at 3am, like the app
   const { error } = await sb.from("omokage_items").insert({ user_id: uid, id, kind: "future", day, at: new Date().toISOString(), board, body: text, meta: images.length ? { images } : {} });
   if (error) return json({ error: error.message }, 500);
   const what = images.length ? (images.length === 1 ? "Photo" : `${images.length} photos`) : /^https?:\/\/\S+$/.test(text) ? "Link" : "Note";

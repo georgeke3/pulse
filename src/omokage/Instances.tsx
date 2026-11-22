@@ -3,10 +3,12 @@ import type { Event } from '../types';
 import { ActionBar } from './Actions';
 import { useStimuli } from './stimuli';
 import { RIM, durLabel } from './LogSheet';
-import { CRIMSON, INK2, fmtMin, parseHM } from './skins';
+import { CRIMSON, INK2, fmtMin, getCutoff, parseHM } from './skins';
 import { loadOf } from './load';
 
 export const evStart = (e: Event) => parseHM(e.custom_data?.time);
+/** Sort key: times before the day's cutoff (e.g. 1:30am) belong to the end of the day, not the start. */
+export const evOrder = (e: Event) => { const m = evStart(e); return m === null ? null : m < getCutoff() * 60 ? m + 1440 : m; };
 export const evDurH = (e: Event): number | null => (typeof e.custom_data?.durationH === 'number' ? e.custom_data.durationH : null);
 const when = (e: Event) => {
   const s = evStart(e); if (s === null) return 'no time';
@@ -56,7 +58,7 @@ export const EventCard = ({ e, anchorLabel, onEdit, onDelete, onClose }: { e: Ev
 
 /** Everything logged today, newest hour last; tap a row to open it. */
 export const TodayList = ({ events, title = 'Today', onOpen, onClose }: { events: Event[]; title?: string; onOpen: (id: string) => void; onClose: () => void }) => {
-  const sorted = [...events].sort((a, b) => (evStart(a) ?? 1e4) - (evStart(b) ?? 1e4));
+  const sorted = [...events].sort((a, b) => (evOrder(a) ?? 1e4) - (evOrder(b) ?? 1e4));
   return (
     <>
       <div className="backdrop" onClick={onClose} />

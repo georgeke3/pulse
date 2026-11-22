@@ -10,9 +10,10 @@ import { sideTotal } from './load';
 import { useBackSwipe, useCircle, useSwipe } from './swipe';
 import { ActionBar, Back } from './Actions';
 import { MottoEditor } from './MottoEditor';
+import { DayFull } from './DayFull';
 import { haptic } from './haptics';
 import type { Event } from '../types';
-import { CRIMSON, DOT, EMBER, GOLD, INK, INK2, SEPIA, SKY, dstr, fromDstr, todayStr, type Mode } from './skins';
+import { CRIMSON, DOT, EMBER, GOLD, INK, INK2, SEPIA, SKY, dayNow, dstr, fromDstr, todayStr, type Mode } from './skins';
 
 const Dot = ({ e, onOpen }: { e: Event; onOpen: () => void }) => {
   const src = useStimuli().art(e.type, e.category), [rim, fill] = RIM[e.type];
@@ -28,11 +29,12 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
   const { state } = useApp();
   const { items } = useItems();
   const answers = useAnswers();
-  const now = new Date(), today = todayStr();
+  const now = dayNow(), today = todayStr();
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const [sel, setSel] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   const [mottos, setMottos] = useState(false);
+  const [full, setFull] = useState<string | null>(null);
   const moreSwipe = useBackSwipe(() => setMore(false));
   const circle = useCircle(() => { haptic(18); setMottos(true); }, () => haptic(5));
   const first = new Date(ym.y, ym.m, 1), dim = new Date(ym.y, ym.m + 1, 0).getDate();
@@ -59,7 +61,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
   const td = state.days[today], nq = state.config.daily_questions.length, answered = Object.keys(td?.answers ?? {}).length;
   const inbox = items.filter(i => i.kind === 'future' && (i.board || 'Inbox') === 'Inbox').length;
   const stimN = (td?.events ?? []).filter(e => e.type !== 'win').length;
-  const monday = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dstr(d); })();
+  const monday = (() => { const d = dayNow(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dstr(d); })();
   const qWeek = new Set(answers.filter(a => a.day >= monday && a.day <= today).map(a => a.day)).size;
   const told = !!td?.note?.trim();
   // must-do: the three habits the app exists for. Optional: everything else worth a nudge.
@@ -74,13 +76,13 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
     ...(!ansDays.has(today) && qWeek >= 2 ? [{ label: 'Tonight’s question', done: false, act: () => go('past') }] : []),
   ];
 
-  const wk = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - i); return dstr(d); });
+  const wk = Array.from({ length: 7 }, (_, i) => { const d = dayNow(); d.setDate(d.getDate() - i); return dstr(d); });
   const logged = wk.filter(d => (state.days[d]?.events ?? []).some(e => e.type !== 'win'));
   const avg = (t: 'training' | 'recovery') => (logged.length ? Math.round(logged.reduce((a, d) => a + sideTotal(state.days[d].events, t), 0) / logged.length) : 0);
   const wkLoad = avg('training'), wkRest = avg('recovery');
   const wkPast = wk.filter(d => pastDays.has(d)).length;
   const motto = state.mottos.length ? state.mottos[Math.floor(Date.now() / 864e5) % state.mottos.length] : 'Small, steady, and kind.';
-  const h = now.getHours(), greet = h < 5 ? 'late night' : h < 12 ? 'good morning' : h < 17 ? 'good afternoon' : 'good evening';
+  const h = new Date().getHours(), greet = h < 5 ? 'late night' : h < 12 ? 'good morning' : h < 17 ? 'good afternoon' : 'good evening';
 
   const sd = sel ? state.days[sel] : null;
   const selAns = sel ? answers.filter(p => p.day === sel) : [];
@@ -89,6 +91,8 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
   const selFut = sel ? items.filter(i => i.kind === 'future' && i.board !== '__trash' && i.day === sel) : [];
   const selVals = sd ? Object.values(sd.answers) : [];
   const selAvg = selVals.length ? (selVals.reduce((a, b) => a + b, 0) / selVals.length).toFixed(1) : null;
+
+  if (full) return <DayFull day={full} go={go} onBack={() => setFull(null)} />;
 
   if (more) {
     return (
@@ -172,9 +176,13 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
             <span><b style={{ color: GOLD }}>{sd?.events.filter(e => e.type === 'win').length ?? 0}</b> wins</span>
             <span style={{ marginLeft: 'auto' }}>pulse <b className="serif" style={{ color: INK }}>{selAvg ?? '—'}</b></span>
           </div>
-          <div className="scroll" style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '8px -14px 0', padding: '0 14px 2px', alignItems: 'center' }}>
-            {selEv.map(e => <Dot key={e.id} e={e} onOpen={() => go('present', sel)} />)}
-            <button className="chip press" onClick={() => go('present', sel)} style={{ height: 34, flex: 'none', fontSize: 12.5 }}>{selEv.length ? 'Open in Present ›' : 'Log on this day ›'}</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, height: 38 }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingLeft: 2 }}>
+              {selEv.slice(0, 6).map((e, k) => <span key={e.id} style={{ marginLeft: k ? -10 : 0, zIndex: 10 - k, display: 'flex' }}><Dot e={e} onOpen={() => go('present', sel)} /></span>)}
+              {selEv.length > 6 && <span style={{ marginLeft: -10, height: 34, minWidth: 34, padding: '0 6px', flex: 'none', borderRadius: 17, display: 'grid', placeItems: 'center', fontSize: 11.5, color: INK2, background: 'rgba(255,255,255,.92)', boxShadow: 'inset 0 0 0 1.4px rgba(43,50,71,.18)' }} aria-label={`${selEv.length - 6} more`}>+{selEv.length - 6}</span>}
+              {!selEv.length && <span className="it mute" style={{ fontSize: 13 }}>nothing logged</span>}
+            </div>
+            <button className="chip press" onClick={() => setFull(sel)} style={{ height: 34, flex: 'none', fontSize: 12.5, padding: '0 14px' }}>Full day ›</button>
           </div>
           {selNote && <div className="it" style={{ fontSize: 14, lineHeight: 1.5, marginTop: 8, color: '#3A4156', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>“{selNote.split('\n').filter(Boolean).join(' ')}”</div>}
           {!selNote && selAns[0] && <div className="it" style={{ fontSize: 14, lineHeight: 1.5, marginTop: 8, color: '#3A4156', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>“{selAns[0].body.split('\n').filter(Boolean).join('. ')}”</div>}

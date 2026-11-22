@@ -9,7 +9,8 @@ import { Present } from './Present';
 import { StimuliProvider } from './stimuli';
 import { PulseFlow } from './Pulse';
 import { Typing } from './Typing';
-import { GROUND, INK2, fromDstr, todayStr, type Mode } from './skins';
+import { GROUND, INK2, dayNow, fromDstr, todayStr, type Mode } from './skins';
+import { Settings } from './Settings';
 import { useApp } from '../store';
 import './omokage.css';
 
@@ -39,10 +40,12 @@ const Inner = () => {
   }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { warmArt(); }, []);
   const [pulse, setPulse] = useState(false);
+  const [settings, setSettings] = useState(false);
+  const [tick, setTick] = useState(0);
   const [typing, setTyping] = useState(false);
   const [dump, setDump] = useState(false);
   const go = (m: Mode, d?: string) => { if (m !== mode) haptic(6); setMode(m); setPday(m === 'present' && d && d !== todayStr() ? d : null); setPulse(false); setTyping(false); };
-  const now = new Date();
+  const now = dayNow();
   // paint the page itself in the mode's ground, so nothing behind the app can ever show as a band
   useEffect(() => { document.documentElement.style.background = GROUND[mode]; document.body.style.background = GROUND[mode]; }, [mode]);
   // iOS home-screen apps shrink the viewport the first time the keyboard opens and never give it back
@@ -87,11 +90,11 @@ const Inner = () => {
       <Atmos mode={mode} />
       <header className="top">
         {mode === 'home'
-          ? <span style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}><span className="t">Omokage</span><span style={{ fontSize: 13, color: INK2, letterSpacing: '.3em' }}>面影</span></span>
+          ? <span style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}><span className="t">Omokage</span><button className="press" onClick={() => { haptic(6); setSettings(true); }} aria-label="Settings" style={{ fontSize: 13, color: INK2, letterSpacing: '.3em', padding: '8px 6px 8px 0' }}>面影</button></span>
           : <span className="t">{mode[0].toUpperCase() + mode.slice(1)}</span>}
         <span className="s">{sub[mode]}</span>
       </header>
-      <main className="body" key={mode + (pday ?? '')}>
+      <main className="body" key={mode + (pday ?? '') + tick}>
         {mode === 'home' && <Home go={go} onPulse={() => setPulse(true)} />}
         {mode === 'past' && <Past typing={typing} setTyping={setTyping} />}
         {mode === 'present' && <Present day={day} onExitDay={() => setPday(null)} onDump={() => setDump(true)} onPulse={() => setPulse(true)} />}
@@ -104,6 +107,7 @@ const Inner = () => {
           </button>
         ))}
       </nav>
+      {settings && <Settings onClose={() => setSettings(false)} onChanged={() => setTick(t => t + 1)} />}
       {pulse && <PulseFlow day={mode === 'present' ? day : undefined} onClose={() => setPulse(false)} />}
       {dump && <Typing mode="present" label={`present · ${state.days[day]?.note?.trim() ? 'the day, told' : 'dump the day'}`} initialText={state.days[day]?.note ?? ''}
         prompt={state.days[day]?.note?.trim() ? 'The day so far. Change anything, add the rest.' : 'Say it however it comes. Dictation works too.'} placeholder="Rough meeting at two, a nap, a walk with Mila…"
