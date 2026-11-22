@@ -7,7 +7,10 @@ import { useAnswers } from './qa';
 import { useStimuli } from './stimuli';
 import { RIM } from './LogSheet';
 import { sideTotal } from './load';
-import { useSwipe } from './swipe';
+import { useBackSwipe, useCircle, useSwipe } from './swipe';
+import { ActionBar, Back } from './Actions';
+import { MottoEditor } from './MottoEditor';
+import { haptic } from './haptics';
 import type { Event } from '../types';
 import { CRIMSON, DOT, EMBER, GOLD, INK, INK2, SEPIA, SKY, dstr, fromDstr, todayStr, type Mode } from './skins';
 
@@ -28,6 +31,10 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
   const now = new Date(), today = todayStr();
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const [sel, setSel] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
+  const [mottos, setMottos] = useState(false);
+  const moreSwipe = useBackSwipe(() => setMore(false));
+  const circle = useCircle(() => { haptic(18); setMottos(true); }, () => haptic(5));
   const first = new Date(ym.y, ym.m, 1), dim = new Date(ym.y, ym.m + 1, 0).getDate();
   const cells: (string | null)[] = Array(first.getDay()).fill(null);
   for (let d = 1; d <= dim; d++) cells.push(dstr(new Date(ym.y, ym.m, d)));
@@ -83,6 +90,28 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
   const selVals = sd ? Object.values(sd.answers) : [];
   const selAvg = selVals.length ? (selVals.reduce((a, b) => a + b, 0) / selVals.length).toFixed(1) : null;
 
+  if (more) {
+    return (
+      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...moreSwipe}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 6 }}>
+          <Back label="Home" onBack={() => setMore(false)} />
+          <span className="it" style={{ fontSize: 20 }}>If you feel like it</span>
+          <span className="caps">{optional.filter(r => !r.done).length} of {optional.length}</span>
+        </div>
+        <div className="scroll grow" style={{ margin: '6px -24px 0', padding: '0 24px 12px' }}>
+          {optional.map(r => (
+            <button key={r.label} className="todo" onClick={() => { setMore(false); r.act(); }} style={{ height: 52 }}>
+              <span style={{ width: 26, display: 'grid', placeItems: 'center' }}><Sym n="wisp" on={r.done} s={18} o={r.done ? .9 : .6} /></span>
+              <span className="it" style={{ fontSize: 16, flex: 1, opacity: r.done ? .5 : 1 }}>{r.label}</span>
+              <span style={{ color: INK2, fontSize: 16, opacity: .6 }}>›</span>
+            </button>
+          ))}
+        </div>
+        <ActionBar cancel="Home" h={48} onCancel={() => setMore(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="screen">
       <svg style={{ position: 'absolute', left: 0, top: -110, width: '100%', height: 360, pointerEvents: 'none', zIndex: 0 }} viewBox="0 0 393 360" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -96,7 +125,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
 
       <div style={{ position: 'relative' }}>
         <div className="caps">{now.toLocaleDateString('en', { weekday: 'long' })} · {greet}</div>
-        <div className="it" style={{ fontSize: 21, lineHeight: 1.35, marginTop: 14, maxWidth: 290 }}>“{motto.replace(/[.”"]+$/, '')}.”</div>
+        <div className="it" {...circle} style={{ fontSize: 21, lineHeight: 1.35, marginTop: 14, maxWidth: 290, ...circle.style }}>“{motto.replace(/[.”"]+$/, '')}.”</div>
         <div style={{ display: 'flex', gap: 16, fontSize: 11.5, color: INK2, marginTop: 14 }}>
           <span>avg <b style={{ color: EMBER }}>{wkLoad}%</b> load</span><span><b style={{ color: SKY }}>{wkRest}%</b> rest</span>
           <span><b style={{ color: SEPIA }}>{wkPast}</b>/7 written</span><span><b style={{ color: CRIMSON }}>{inbox}</b> to sort</span>
@@ -163,15 +192,15 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
             </button>
           ))}
           <div className="caps" style={{ marginTop: 12, marginBottom: 0, opacity: .75 }}>if you feel like it</div>
-          {optional.map(r => (
-            <button key={r.label} className="todo" onClick={r.act} style={{ height: 36, borderBottom: 0 }}>
-              <span style={{ width: 26, display: 'grid', placeItems: 'center' }}><Sym n="wisp" on={r.done} s={16} o={r.done ? .9 : .55} /></span>
-              <span className="it" style={{ fontSize: 14, flex: 1, color: INK2, opacity: r.done ? .5 : 1 }}>{r.label}</span>
-              <span style={{ color: INK2, fontSize: 14, opacity: .6 }}>›</span>
-            </button>
-          ))}
+          <button className="todo" onClick={() => setMore(true)} aria-label={`If you feel like it, ${optional.length} things`} style={{ height: 40, borderBottom: 0 }}>
+            <span style={{ width: 26, display: 'grid', placeItems: 'center' }}><Sym n="wisp" on={optional.every(r => r.done)} s={16} o={.7} /></span>
+            <span className="it" style={{ fontSize: 14, flex: 1, minWidth: 0, color: INK2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{optional.filter(r => !r.done).map(r => r.label).join(' · ') || 'All done'}</span>
+            <span className="caps" style={{ fontSize: 9 }}>{optional.filter(r => !r.done).length} of {optional.length}</span>
+            <span style={{ color: INK2, fontSize: 14, opacity: .6 }}>›</span>
+          </button>
         </div>
       )}
+      {mottos && <MottoEditor onClose={() => setMottos(false)} />}
     </div>
   );
 };

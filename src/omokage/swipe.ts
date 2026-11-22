@@ -31,3 +31,30 @@ export const useBackSwipe = (onBack: () => void) => {
     onPointerCancel: () => { g.current = null; },
   };
 };
+
+/** Hidden gesture: put a finger down and draw circles (either direction). Fires once after about `loops` turns.
+ *  It sums the signed turning of the path, so it needs no centre point and a straight swipe never counts. */
+export const useCircle = (onDone: () => void, onLoop?: () => void, loops = 3) => {
+  const g = useRef<{ id: number; px: number; py: number; vx: number; vy: number; turn: number; n: number; done: boolean } | null>(null);
+  return {
+    onPointerDown: (e: React.PointerEvent) => { e.currentTarget.setPointerCapture(e.pointerId); g.current = { id: e.pointerId, px: e.clientX, py: e.clientY, vx: 0, vy: 0, turn: 0, n: 0, done: false }; },
+    onPointerMove: (e: React.PointerEvent) => {
+      const s = g.current; if (!s || s.id !== e.pointerId || s.done) return;
+      const dx = e.clientX - s.px, dy = e.clientY - s.py;
+      if (Math.hypot(dx, dy) < 7) return;
+      if (s.vx || s.vy) {
+        let a = Math.atan2(s.vx * dy - s.vy * dx, s.vx * dx + s.vy * dy);
+        if (Math.abs(a) > 1.9) a = 0;                       // a sharp doubling-back is a jitter, not a curve
+        s.turn += a;
+        const n = Math.floor(Math.abs(s.turn) / (2 * Math.PI * .92));
+        if (n > s.n) { s.n = n; onLoop?.(); }
+        if (n >= loops) { s.done = true; onDone(); }
+      }
+      s.vx = dx; s.vy = dy; s.px = e.clientX; s.py = e.clientY;
+    },
+    onPointerUp: () => { g.current = null; },
+    onPointerCancel: () => { g.current = null; },
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+    style: { touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' } as React.CSSProperties,
+  };
+};
