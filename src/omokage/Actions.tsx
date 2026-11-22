@@ -17,3 +17,8 @@ export const ActionBar = ({ cancel = 'Cancel', onCancel, primary, onPrimary, dis
     </div>
   );
 };
+
+/** Top-left "back" for nested screens inside a tab (the subtitle changes). Sheets that replace the whole title use Close in the bottom bar instead. */
+export const Back = ({ label, onBack }: { label: string; onBack: () => void }) => (
+  <button className="press" onClick={onBack} aria-label={`Back to ${label}`} style={{ fontSize: 13, color: '#6B7186', padding: '4px 0', whiteSpace: 'nowrap' }}>‹ {label}</button>
+);

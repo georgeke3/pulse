@@ -2,16 +2,26 @@ import { Drg } from './Sym';
 import { useMemo, useState } from 'react';
 import { Fly, Pencil } from './Art';
 import { useItems } from './items';
-import { ActionBar } from './Actions';
-import { BANK, THEMES, TOPICS, questionFor, qid, useAnswers, type Answer, type Q } from './qa';
+import { ActionBar, Back } from './Actions';
+import { useBackSwipe } from './swipe';
+import { BANK, THEMES, TOPICS, qid, randomQ, useAnswers, useTonight, type Answer, type Q } from './qa';
 import { INK, INK2, SEPIA, ago, fromDstr, todayStr } from './skins';
 import { Typing } from './Typing';
+import icEase from './assets/ic-ease.png';
+import icBrush from './assets/ic-creative-flow.png';
+import icFeather from './assets/ic-loss.png';
 
 const Decor = () => (
   <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }} viewBox="0 0 393 740" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <Pencil d="M-30 590 C 90 540, 170 600, 270 530 S 400 420, 440 400" />
     <Fly x={350} y={64} s={.55} c={SEPIA} o={.5} st="outline" d={1} /><Fly x={372} y={30} s={.4} c={SEPIA} o={.4} st="outline" d={2} />
   </svg>
+);
+/** The mark that leads a row: a painted icon centred in its own round badge, full strength (filled gold once answered). */
+const Mark = ({ s = 34, on, src = icEase }: { s?: number; on?: boolean; src?: string }) => (
+  <span style={{ width: s, height: s, borderRadius: '50%', flex: 'none', display: 'grid', placeItems: 'center', background: on ? 'rgba(200,161,90,.28)' : 'rgba(255,255,255,.8)', boxShadow: `inset 0 0 0 1.2px ${on ? 'rgba(200,161,90,.7)' : 'rgba(43,50,71,.2)'}` }}>
+    <img src={src} alt="" draggable={false} style={{ width: s * .78, height: s * .78, objectFit: 'contain', display: 'block', pointerEvents: 'none' }} />
+  </span>
 );
 const clip = (n: number): React.CSSProperties => ({ display: '-webkit-box', WebkitLineClamp: n, WebkitBoxOrient: 'vertical', overflow: 'hidden' });
 const dayLabel = (d: string) => (d === todayStr() ? 'tonight' : fromDstr(d).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }));
@@ -20,36 +30,40 @@ const dayLabel = (d: string) => (d === todayStr() ? 'tonight' : fromDstr(d).toLo
 interface Writing { q: string; existing?: Answer }
 
 /** Every question in the bank, by theme. Today's answers are marked; tap one to answer it (or edit what you wrote). */
-const Questions = ({ answeredToday, onPick, onClose }: { answeredToday: Set<string>; onPick: (q: Q) => void; onClose: () => void }) => {
+const Questions = ({ answeredToday, seen, onPick, onBack, onHome }: { answeredToday: Set<string>; seen: Set<string>; onPick: (q: Q) => void; onBack: () => void; onHome: () => void }) => {
+  const swipe = useBackSwipe(onBack);
   const [theme, setTheme] = useState<string>('All');
   const list = theme === 'All' ? BANK : BANK.filter(q => q.theme === theme);
+  const dice = () => { const q = randomQ(list.filter(x => !answeredToday.has(x.id)), seen); if (q) onPick(q); };
   return (
-    <div className="screen" style={{ paddingBottom: 12 }}>
+    <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...swipe}>
       <Decor />
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 8 }}>
-        <Drg n="swirl" w={30} />
-        <span className="it" style={{ fontSize: 21 }}>More questions</span>
-        <span className="caps" style={{ marginLeft: 'auto' }}>{BANK.length}</span>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 8 }}>
+        <Back label="Past" onBack={onBack} />
+        <span className="it" style={{ fontSize: 20 }}>More questions</span>
+        <span className="caps">{list.length}</span>
       </div>
+      <button className="chip on press" onClick={dice} style={{ position: 'relative', flex: 'none', height: 46, margin: '2px 0 10px', fontSize: 15 }}>Pick a random question</button>
       <div className="scroll" style={{ position: 'relative', display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -24px', padding: '2px 24px 10px', flex: 'none' }}>
         {['All', ...THEMES].map(t => <button key={t} className={`chip ${theme === t ? 'on' : ''}`} style={{ flex: 'none' }} onClick={() => setTheme(t)}>{t}</button>)}
       </div>
       <div className="scroll grow" style={{ position: 'relative', margin: '0 -24px', padding: '0 24px 12px' }}>
         {list.map(q => (
           <button key={q.id} className="irow press" onClick={() => onPick(q)}>
-            <Drg n="swirl" w={18} o={answeredToday.has(q.id) ? 1 : .35} />
+            <Mark s={30} on={answeredToday.has(q.id)} />
             <span className="it" style={{ flex: 1, fontSize: 16, lineHeight: 1.35 }}>{q.text}</span>
             {answeredToday.has(q.id) && <span className="caps" style={{ fontSize: 8.5 }}>edit</span>}
           </button>
         ))}
       </div>
-      <ActionBar cancel="Close" h={48} onCancel={onClose} />
+      <ActionBar cancel="Home" h={48} onCancel={onHome} />
     </div>
   );
 };
 
 /** Everything you've answered, newest first, filtered by question (and topic). */
-const History = ({ answers, onOpen, onClose }: { answers: Answer[]; onOpen: (a: Answer) => void; onClose: () => void }) => {
+const History = ({ answers, onOpen, onBack, onHome }: { answers: Answer[]; onOpen: (a: Answer) => void; onBack: () => void; onHome: () => void }) => {
+  const swipe = useBackSwipe(onBack);
   const [q, setQ] = useState<string | null>(null);
   const [topic, setTopic] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
@@ -61,12 +75,12 @@ const History = ({ answers, onOpen, onClose }: { answers: Answer[]; onOpen: (a: 
   const usedTopics = useMemo(() => Array.from(new Set(answers.flatMap(a => a.tags))), [answers]);
   const list = answers.filter(a => (!q || a.qid === q) && (!topic || a.tags.includes(topic)));
   return (
-    <div className="screen" style={{ paddingBottom: 12 }}>
+    <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...swipe}>
       <Decor />
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 8 }}>
-        <Drg n="swirl" w={30} />
-        <span className="it" style={{ fontSize: 21 }}>Past answers</span>
-        <span className="caps" style={{ marginLeft: 'auto' }}>{list.length} of {answers.length}</span>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 8 }}>
+        <Back label="Past" onBack={onBack} />
+        <span className="it" style={{ fontSize: 20 }}>Past answers</span>
+        <span className="caps">{list.length} of {answers.length}</span>
       </div>
       <button className="press" onClick={() => setPicking(v => !v)} style={{ position: 'relative', flex: 'none', display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 14px', borderRadius: 14, background: '#FFFDF8', boxShadow: 'inset 0 0 0 1px rgba(43,50,71,.14)' }}>
         <span className="caps" style={{ flex: 'none' }}>question</span>
@@ -77,7 +91,7 @@ const History = ({ answers, onOpen, onClose }: { answers: Answer[]; onOpen: (a: 
         <div className="scroll" style={{ position: 'relative', flex: 'none', maxHeight: 260, overflowY: 'auto', marginTop: 6, padding: '4px 14px', borderRadius: 14, background: '#FFFDF8', boxShadow: '0 10px 24px rgba(43,50,71,.12)' }}>
           {[['', { text: 'Any question', n: answers.length }] as const, ...byQ].map(([k, v]) => (
             <button key={k || 'any'} className="irow press" onClick={() => { setQ(k || null); setPicking(false); }}>
-              <Drg n="swirl" w={16} o={(q ?? '') === k ? 1 : .3} />
+              <Mark s={26} on={(q ?? '') === k} />
               <span className="it" style={{ flex: 1, fontSize: 14.5, lineHeight: 1.3 }}>{v.text}</span>
               <span className="caps" style={{ fontSize: 9 }}>{v.n}</span>
             </button>
@@ -102,7 +116,7 @@ const History = ({ answers, onOpen, onClose }: { answers: Answer[]; onOpen: (a: 
           </button>
         ))}
       </div>
-      <ActionBar cancel="Close" h={48} onCancel={onClose} />
+      <ActionBar cancel="Home" h={48} onCancel={onHome} />
     </div>
   );
 };
@@ -111,9 +125,10 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
   const { add, update, remove } = useItems();
   const answers = useAnswers();
   const today = todayStr();
-  const tonight = questionFor(today);
   const todays = answers.filter(a => a.day === today);
   const answeredToday = new Set<string>(todays.map(a => a.qid));
+  const seen = new Set<string>(answers.map(a => a.qid));
+  const { q: tonight, skip } = useTonight(today, seen);
   const mainAns = todays.find(a => a.qid === tonight.id);
   const others = todays.filter(a => a.qid !== tonight.id);
   const [w, setW] = useState<Writing | null>(null);
@@ -135,8 +150,8 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
       }} />
   );
 
-  if (screen === 'questions') return <><Questions answeredToday={answeredToday} onClose={() => setScreen('main')} onPick={q => { setScreen('main'); writeQ(q); }} />{sheet}</>;
-  if (screen === 'history') return <><History answers={answers} onClose={() => setScreen('main')} onOpen={a => write(a.question || 'Free writing', a)} />{sheet}</>;
+  if (screen === 'questions') return <><Questions answeredToday={answeredToday} seen={seen} onBack={() => setScreen('main')} onHome={() => setScreen('main')} onPick={q => { setScreen('main'); writeQ(q); }} />{sheet}</>;
+  if (screen === 'history') return <><History answers={answers} onBack={() => setScreen('main')} onHome={() => setScreen('main')} onOpen={a => write(a.question || 'Free writing', a)} />{sheet}</>;
 
   return (
     <div className="screen">
@@ -160,10 +175,11 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
           </button>
         ) : (
           <button className="press" onClick={() => writeQ(tonight)} style={{ width: '100%', marginTop: 16, height: 52, display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1.2px dashed rgba(43,50,71,.3)', textAlign: 'left' }}>
-            <Drg n="swirl" w={22} o={.55} />
+            <Mark s={34} src={icBrush} />
             <span className="it" style={{ fontSize: 16, color: INK2, flex: 1 }}>Write a few lines…</span>
           </button>
         )}
+        {!mainAns && <button className="press" onClick={skip} style={{ display: 'block', marginLeft: 'auto', marginTop: 8, padding: '6px 2px', fontSize: 13, color: INK2 }}>Not applicable · another question ↻</button>}
       </div>
 
       {others.length > 0 && (
@@ -171,7 +187,7 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
           <div className="caps">also answered tonight</div>
           {others.map(a => (
             <button key={a.id} className="irow press" onClick={() => write(a.question, a)}>
-              <Drg n="swirl" w={18} />
+              <Mark s={32} on />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span className="it" style={{ display: 'block', fontSize: 14.5, ...clip(1) }}>{a.question}</span>
                 <span style={{ display: 'block', fontSize: 12.5, color: INK2, ...clip(1) }}>{a.body}</span>
@@ -194,12 +210,12 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
 
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <button className="chip press" onClick={() => setScreen('questions')} style={{ height: 52, gap: 10, background: '#fff', justifyContent: 'flex-start', padding: '0 16px', boxShadow: '0 0 0 1px rgba(43,50,71,.12),0 6px 16px rgba(43,50,71,.06)' }}>
-          <Drg n="swirl" w={24} />
+          <Mark />
           <span className="it" style={{ fontSize: 16, flex: 1, textAlign: 'left' }}>Answer another question</span>
           <span style={{ color: INK2 }}>›</span>
         </button>
         <button className="chip press" onClick={() => setScreen('history')} style={{ height: 52, gap: 10, background: '#fff', justifyContent: 'flex-start', padding: '0 16px', boxShadow: '0 0 0 1px rgba(43,50,71,.12),0 6px 16px rgba(43,50,71,.06)' }}>
-          <Drg n="swirl" w={24} o={.6} />
+          <Mark src={icFeather} />
           <span className="it" style={{ fontSize: 16, flex: 1, textAlign: 'left' }}>Past answers</span>
           <span className="caps">{answers.length}</span>
         </button>

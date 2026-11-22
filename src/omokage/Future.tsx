@@ -1,3 +1,4 @@
+import { useBackSwipe } from './swipe';
 import { Drg, Sym } from './Sym';
 import { useEffect, useState } from 'react';
 import { Belt, Fly } from './Art';
@@ -138,11 +139,12 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
   const viewer = <>{view && <Viewer shots={view.shots} start={view.start} onClose={() => setView(null)} />}
     {editing && <PinEdit item={editing} onClose={() => setEditing(null)} onSave={(body, imgs) => { const { images: _i, ...meta } = (editing.meta ?? {}) as Record<string, unknown>; update(editing.id, { body, meta: imgs.length ? { ...meta, images: imgs } : meta }); setEditing(null); }} />}</>;
   const photoItems = mine.filter(i => imgsOf(i).length);
+  const backSwipe = useBackSwipe(() => { if (allPhotos) setAllPhotos(false); else if (board === TRASH) { setBoard(null); setSure(null); } else if (board) { setBoard(null); setOpen(null); } });
 
   if (allPhotos) {
     const shots = shotsOf(photoItems);
     return (
-      <div className="screen" style={{ paddingBottom: 12 }}>
+      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...backSwipe}>
         <Decor />
         <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 6 }}>
           <button className="press" onClick={() => setAllPhotos(false)} style={{ fontSize: 13, color: INK2, padding: '4px 0' }}>‹ Boards</button>
@@ -160,7 +162,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
 
   if (board === TRASH) {
     return (
-      <div className="screen" style={{ paddingBottom: 12 }}>
+      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...backSwipe}>
         <Decor />
         <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 6 }}>
           <button className="press" onClick={() => { setBoard(null); setSure(null); }} style={{ fontSize: 13, color: INK2, padding: '4px 0' }}>‹ Boards</button>
@@ -191,7 +193,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
   if (board) {
     const list = inBoard(board), others = ['Inbox', ...boards].filter(n => n !== board);
     return (
-      <div className="screen" style={{ paddingBottom: 12 }}>
+      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...backSwipe}>
         <Decor />
         <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 6 }}>
           <button className="press" onClick={() => { setBoard(null); setOpen(null); }} style={{ fontSize: 13, color: INK2, padding: '4px 0' }}>‹ Boards</button>
