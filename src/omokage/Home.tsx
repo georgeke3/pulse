@@ -125,14 +125,14 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
 
       <div style={{ position: 'relative' }}>
         <div className="caps">{now.toLocaleDateString('en', { weekday: 'long' })} · {greet}</div>
-        <div className="it" {...circle} style={{ fontSize: 21, lineHeight: 1.35, marginTop: 14, maxWidth: 290, ...circle.style }}>“{motto.replace(/[.”"]+$/, '')}.”</div>
-        <div style={{ display: 'flex', gap: 16, fontSize: 11.5, color: INK2, marginTop: 14 }}>
+        <div className="it motto" {...circle} style={{ fontSize: motto.length > 120 ? 17 : motto.length > 70 ? 19 : 21, lineHeight: 1.35, marginTop: 14, maxWidth: 290, ...circle.style }}>“{motto.replace(/[.”"]+$/, '')}.”</div>
+        <div className="home-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', fontSize: 11.5, color: INK2, marginTop: 14, maxHeight: 36, overflow: 'hidden' }}>
           <span>avg <b style={{ color: EMBER }}>{wkLoad}%</b> load</span><span><b style={{ color: SKY }}>{wkRest}%</b> rest</span>
           <span><b style={{ color: SEPIA }}>{wkPast}</b>/7 written</span><span><b style={{ color: CRIMSON }}>{inbox}</b> to sort</span>
         </div>
       </div>
 
-      <div {...calSwipe} style={{ position: 'relative', marginTop: 22, ...calSwipe.style }}>
+      <div {...calSwipe} className="home-cal" style={{ position: 'relative', marginTop: 22, ...calSwipe.style }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 2, marginLeft: -8 }}>
             <button className="press" aria-label="Previous month" onClick={() => shift(-1)} style={{ width: 28, height: 30, color: INK2, fontSize: 17 }}>‹</button>
@@ -161,9 +161,9 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
       <div className="grow" />
 
       {sel ? (
-        <div key={sel} {...cardSwipe} className="slip" style={{ position: 'relative', padding: '12px 14px', animation: 'enter .3s both', maxHeight: 248, overflow: 'hidden', ...cardSwipe.style }}>
+        <div key={sel} {...cardSwipe} className="slip" style={{ position: 'relative', padding: '12px 14px', animation: 'enter .3s both', maxHeight: 'clamp(170px, 25svh, 215px)', overflow: 'hidden', ...cardSwipe.style }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span className="it" style={{ fontSize: 17 }}>{fromDstr(sel).toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+            <span className="it" style={{ fontSize: 17, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fromDstr(sel).toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
             <button className="press" onClick={() => setSel(null)} style={{ fontSize: 12, color: INK2, padding: 4 }}>✕</button>
           </div>
           <div style={{ display: 'flex', gap: 14, fontSize: 12.5, marginTop: 6, color: INK2 }}>
@@ -176,9 +176,9 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
             {selEv.map(e => <Dot key={e.id} e={e} onOpen={() => go('present', sel)} />)}
             <button className="chip press" onClick={() => go('present', sel)} style={{ height: 34, flex: 'none', fontSize: 12.5 }}>{selEv.length ? 'Open in Present ›' : 'Log on this day ›'}</button>
           </div>
-          {selNote && <div className="it" style={{ fontSize: 14, lineHeight: 1.5, marginTop: 8, color: '#3A4156', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>“{selNote.split('\n').filter(Boolean).join(' ')}”</div>}
-          {!selNote && selAns[0] && <div className="it" style={{ fontSize: 14, lineHeight: 1.5, marginTop: 8, color: '#3A4156', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>“{selAns[0].body.split('\n').filter(Boolean).join('. ')}”</div>}
-          {selFut.slice(0, 1).map(i => <div key={i.id} style={{ fontSize: 13, marginTop: 6 }}><span style={{ color: CRIMSON }}>✦ </span>{i.body.slice(0, 80)}</div>)}
+          {selNote && <div className="it" style={{ fontSize: 14, lineHeight: 1.5, marginTop: 8, color: '#3A4156', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>“{selNote.split('\n').filter(Boolean).join(' ')}”</div>}
+          {!selNote && selAns[0] && <div className="it" style={{ fontSize: 14, lineHeight: 1.5, marginTop: 8, color: '#3A4156', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>“{selAns[0].body.split('\n').filter(Boolean).join('. ')}”</div>}
+          {selFut.slice(0, 1).map(i => <div key={i.id} style={{ fontSize: 13, marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span style={{ color: CRIMSON }}>✦ </span>{i.body.split('\n')[0]}</div>)}
           {!selNote && !selAns.length && !selEv.length && !selFut.length && <div className="it mute" style={{ fontSize: 14, marginTop: 8 }}>A quiet day in the record.</div>}
         </div>
       ) : (
@@ -187,7 +187,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
           {critical.map(r => (
             <button key={r.label} className="todo" onClick={r.act}>
               <Sym n="dragon" on={r.done} s={26} o={r.done ? 1 : .8} />
-              <span className={r.done ? '' : 'it'} style={{ fontSize: 16, flex: 1, opacity: r.done ? .4 : 1, textDecoration: r.done ? 'line-through' : 'none' }}>{r.label}</span>
+              <span className={r.done ? '' : 'it'} style={{ fontSize: 16, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: r.done ? .4 : 1, textDecoration: r.done ? 'line-through' : 'none' }}>{r.label}</span>
               <span style={{ color: INK2, fontSize: 16 }}>›</span>
             </button>
           ))}

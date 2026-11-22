@@ -103,14 +103,26 @@ html, body { margin: 0; background: #FAF8F3; overscroll-behavior: none; }
 .omk .pill-input { height: 54px; border-radius: 27px; display: flex; align-items: center; gap: 12px; padding: 0 8px 0 20px; background: #fff; box-shadow: 0 0 0 1px rgba(43, 50, 71, .10), 0 14px 30px rgba(43, 50, 71, .12); }
 
 /* Home calendar */
-.omk .cal { display: grid; grid-template-columns: repeat(7, 1fr); }
-.omk .day { height: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+/* Home is a fixed budget: the calendar is always the same height (4, 5 or 6 week rows share it), the motto is clamped, rows are single-line.
+   Heights scale with the screen (svh) so a shorter phone shrinks everything instead of pushing the lists off the bottom. */
+.omk .cal { display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: auto; grid-auto-rows: 1fr; height: calc(18px + clamp(132px, 21.2svh, 180px)); }
+.omk .motto { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
+@media (max-height: 760px) { .omk .motto { -webkit-line-clamp: 2; } }
+@media (max-height: 720px) {
+  .omk .home-stats { display: none !important; }
+  .omk .home-cal { margin-top: 10px !important; }
+  .omk .cal { height: calc(16px + 126px); }
+  .omk .day { gap: 1px; }
+  .omk .day .n { height: 15px; font-size: 11.5px; }
+  .omk .day .d i { width: 3px; height: 3px; }
+}
+.omk .day { height: 100%; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
 .omk .day .n { width: 26px; height: 22px; border-radius: 11px; display: grid; place-items: center; font-size: 13px; font-variant-numeric: tabular-nums; transition: background-color .2s; }
 .omk .day.today .n { box-shadow: 0 0 0 1.2px var(--ink); font-weight: 600; }
 .omk .day.sel .n { background: var(--ink); color: #FBFAF7; }
 .omk .day .d { display: flex; gap: 2px; }
 .omk .day .d i { width: 4px; height: 4px; border-radius: 2px; }
-.omk .todo { width: 100%; height: 44px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid rgba(43, 50, 71, .07); text-align: left; }
+.omk .todo { width: 100%; height: clamp(36px, 5.2svh, 44px); display: flex; align-items: center; gap: 14px; border-bottom: 1px solid rgba(43, 50, 71, .07); text-align: left; }
 .omk .todo:active { opacity: .6; }
 .omk .ring-box { width: 20px; height: 20px; border-radius: 50%; flex: none; display: grid; place-items: center; }
 
