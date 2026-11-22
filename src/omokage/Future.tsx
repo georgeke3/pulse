@@ -10,6 +10,7 @@ import { PinEdit } from './PinEdit';
 
 export const TRASH = '__trash';
 const KEEP_DAYS = 30;
+const FADE = 'linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 28px), transparent 100%)';
 
 const BK = 'omokage_boards', HK = 'omokage_resurface_seen';
 const loadBoards = (): string[] => { try { return JSON.parse(localStorage.getItem(BK) || '[]'); } catch { return []; } };
@@ -167,7 +168,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
           <span className="caps">{trash.length}</span>
         </div>
         <div className="it" style={{ position: 'relative', fontSize: 12.5, color: INK2, paddingBottom: 6 }}>Deleted pins wait here for {KEEP_DAYS} days.</div>
-        <div className="scroll grow" style={{ position: 'relative', margin: '0 -24px', padding: '6px 24px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="scroll grow" style={{ position: 'relative', margin: '-6px -24px 0', padding: '18px 24px 16px', display: 'flex', flexDirection: 'column', gap: 12, WebkitMaskImage: FADE, maskImage: FADE }}>
           {trash.length === 0 && <div className="it mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>Nothing thrown away.<Drg n="tiny" w={90} style={{ margin: '16px auto 0' }} /></div>}
           {trash.map(i => (
             <div key={i.id} className="pinned" style={{ flex: 'none', opacity: .92 }}>
@@ -199,7 +200,9 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
             ? <button className="press caps" onClick={() => setPhotosOnly(v => !v)} style={{ padding: '4px 0' }}>{photosOnly ? 'notes' : 'photos'}</button>
             : <span className="caps">{list.length} saved</span>}
         </div>
-        <div className="scroll grow" style={{ position: 'relative', margin: '0 -24px', padding: photosOnly ? '6px 24px 16px' : '14px 24px 16px' }}>
+        {/* the list runs the full height of the screen: it scrolls under the capture bar and fades out under the header,
+            instead of ending in a hard-edged box between them */}
+        <div className="scroll grow" style={{ position: 'relative', margin: '-6px -24px -12px', padding: photosOnly ? '12px 24px 92px' : '20px 24px 92px', WebkitMaskImage: FADE, maskImage: FADE }}>
           {photosOnly && (() => { const shots = shotsOf(list); return <Grid shots={shots} onOpen={k => setView({ shots, start: k })} />; })()}
           {!photosOnly && list.length === 0 && <div className="it mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>A clear sky. Pin the first thing.<Drg n="legs" w={140} style={{ margin: '18px auto 0' }} /></div>}
           {!photosOnly && <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
@@ -224,7 +227,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
             })())}</div>)}
           </div>}
         </div>
-        <Capture label={`Add to ${board}…`} onTap={() => setTyping(true)} onPhotos={takePhotos} />
+        <div style={{ position: 'absolute', left: 24, right: 24, bottom: 12, zIndex: 2 }}><Capture label={`Add to ${board}…`} onTap={() => setTyping(true)} onPhotos={takePhotos} /></div>
         {sheet}{viewer}
       </div>
     );
