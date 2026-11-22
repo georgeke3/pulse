@@ -1,4 +1,4 @@
-import { DrgFit, Sym } from './Sym';
+import { TabMark, Sym } from './Sym';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../store';
 import type { Duration, Event } from '../types';
@@ -236,7 +236,7 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
           );
         })()}
         <button className="crest" onClick={onPulse} style={{ left: cx - crest / 2, top: cy - crest / 2, width: crest, height: crest }}>
-          <DrgFit n="riderg" w={46} h={36} o={answered >= nq ? 1 : .32} />
+          <TabMark m="present" o={answered >= nq ? 1 : .32} />
           <span className="it" style={{ fontSize: 15 }}>{answered >= nq ? 'Pulse done' : 'Evening pulse'}</span>
           <span style={{ display: 'flex', gap: 3, marginTop: 3 }}>{Array.from({ length: nq }, (_, k) => <i key={k} style={{ width: 5, height: 5, borderRadius: 3, background: k < answered ? GOLD : 'rgba(43,50,71,.15)' }} />)}</span>
           <span className="caps" style={{ fontSize: 8.5, marginTop: 3 }}>{answered} of {nq}</span>

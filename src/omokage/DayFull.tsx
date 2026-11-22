@@ -1,5 +1,5 @@
 import { useApp } from '../store';
-import { DrgFit } from "./Sym";
+import { TabMark } from "./Sym";
 import { Back } from './Actions';
 import { Art, evOrder, evStart } from './Instances';
 import { useItems } from './items';
@@ -73,7 +73,7 @@ export const DayFull = ({ day, go, onPulse, onBack }: { day: string; go: (m: Mod
           <Sec t="asked & answered">
             {ans.map(a => (
               <button key={a.id} className="irow press" onClick={() => go('past', undefined, a.id)}>
-                <span style={{ width: 46, height: 36, display: "grid", placeItems: "center", flex: "none" }}><DrgFit n="swirl" w={46} h={36} /></span>
+                <TabMark m="past" />
                 <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                   <span className="it" style={{ display: 'block', fontSize: 14.5, ...clip(1) }}>{a.question || 'Free writing'}</span>
                   <span style={{ display: 'block', fontSize: 12.5, color: INK2, ...clip(1) }}>{a.body}</span>
@@ -87,7 +87,7 @@ export const DayFull = ({ day, go, onPulse, onBack }: { day: string; go: (m: Mod
           <Sec t="set aside for later">
             {fut.map(i => (
               <button key={i.id} className="irow press" onClick={() => go('future', undefined, i.id)}>
-                <span style={{ width: 46, height: 36, display: "grid", placeItems: "center", flex: "none" }}><DrgFit n="legs" w={46} h={36} /></span>
+                <TabMark m="future" />
                 <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 13.5, ...clip(2) }}>{i.body || 'Photo'}</span>
                 <span style={{ color: INK2 }}>›</span>
               </button>

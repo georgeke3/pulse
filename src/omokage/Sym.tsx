@@ -40,7 +40,7 @@ import drPeek from './assets/dr-peek.png';
 import drLegs from './assets/dr-legs.png';
 import drSwirlC from './assets/dr-swirl-c.png';
 import drRiderGC from './assets/dr-riderg-c.png';
-import drLegsC from './assets/dr-legs-c.png';
+import drFutureC from './assets/dr-future-glyph.png';
 import drTiny from './assets/dr-tiny.png';
 
 export type DrgName = 'swirl' | 'ghost' | 'riderg' | 'riderw' | 'peek' | 'legs' | 'tiny';
@@ -52,6 +52,11 @@ export const Drg = ({ n, w, o = 1, style }: { n: DrgName; w: number; o?: number;
 );
 
 /** Dragon trimmed to its drawn pixels and fitted to a fixed box, so a row of them shares one size and one centre. */
-export const DrgFit = ({ n, w, h, o = 1 }: { n: 'swirl' | 'riderg' | 'legs'; w: number; h: number; o?: number }) => (
-  <img src={{ swirl: drSwirlC, riderg: drRiderGC, legs: drLegsC }[n]} alt="" aria-hidden="true" draggable={false} style={{ width: w, height: h, objectFit: 'contain', opacity: o, display: 'block', flex: 'none', pointerEvents: 'none' }} />
+export const DrgFit = ({ n, w, h, o = 1 }: { n: 'swirl' | 'riderg' | 'future'; w: number; h: number; o?: number }) => (
+  <img src={{ swirl: drSwirlC, riderg: drRiderGC, future: drFutureC }[n]} alt="" aria-hidden="true" draggable={false} style={{ width: w, height: h, objectFit: 'contain', opacity: o, display: 'block', flex: 'none', pointerEvents: 'none' }} />
+);
+
+/** The official glyph for each time-tab (a simplified version of its tab picture): past = swirl, present = rider, future = wings. Use this wherever a tab is marked. */
+export const TabMark = ({ m, w = 46, h = 36, o = 1 }: { m: 'past' | 'present' | 'future'; w?: number; h?: number; o?: number }) => (
+  <span style={{ width: w, height: h, display: 'grid', placeItems: 'center', flex: 'none' }}><DrgFit n={{ past: 'swirl', present: 'riderg', future: 'future' }[m] as 'swirl' | 'riderg' | 'future'} w={w} h={h} o={o} /></span>
 );

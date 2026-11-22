@@ -1,5 +1,5 @@
 import { useBackSwipe } from './swipe';
-import { Drg, Sym } from './Sym';
+import { Drg, Sym, DrgFit } from './Sym';
 import { useEffect, useState } from 'react';
 import { Belt, Fly } from './Art';
 import { addImage, copyImages, dropImages, useImg, type ImgRef } from './images';
@@ -209,7 +209,7 @@ export const Future = ({ typing, setTyping, focusId }: { typing: boolean; setTyp
             instead of ending in a hard-edged box between them */}
         <div className="scroll grow" style={{ position: 'relative', margin: '-6px -24px -12px', padding: photosOnly ? '12px 24px 92px' : '20px 24px 92px', WebkitMaskImage: FADE, maskImage: FADE }}>
           {photosOnly && (() => { const shots = shotsOf(list); return <Grid shots={shots} onOpen={k => setView({ shots, start: k })} />; })()}
-          {!photosOnly && list.length === 0 && <div className="it mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>A clear sky. Pin the first thing.<Drg n="legs" w={140} style={{ margin: '18px auto 0' }} /></div>}
+          {!photosOnly && list.length === 0 && <div className="it mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>A clear sky. Pin the first thing.<div style={{ margin: '18px auto 0', width: 120 }}><DrgFit n="future" w={120} h={91} /></div></div>}
           {!photosOnly && <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
             {[0, 1].map(col => <div key={col} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, paddingTop: col ? 14 : 0 }}>{list.map((i, k) => k % 2 !== col ? null : (() => {
               const d = domain(i.body), isQ = i.body.trim().endsWith('?'), isOpen = open === i.id;
@@ -289,7 +289,7 @@ export const Future = ({ typing, setTyping, focusId }: { typing: boolean; setTyp
         <div style={{ position: 'relative', marginTop: 24 }}>
           <div className="caps">to begin</div>
           <div className="it" style={{ fontSize: 21, lineHeight: 1.35, marginTop: 10, maxWidth: 300, color: INK }}>Save anything that pulls at you: a place, a question, a someday.</div>
-          <Drg n="legs" w={150} o={.9} style={{ margin: '22px 0 0 auto' }} />
+          <div style={{ margin: '22px 0 0 auto', width: 120 }}><DrgFit n="future" w={120} h={91} o={.9} /></div>
         </div>
       ) : null}
       </div>
