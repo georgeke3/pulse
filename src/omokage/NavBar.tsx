@@ -13,12 +13,12 @@ export const NavBar = () => {
   const down = () => { held.current = false; t.current = setTimeout(() => { held.current = true; haptic(12); setTrail(n.trailLabels()); }, 420); };
   const up = () => { if (t.current) clearTimeout(t.current); };
   return (
-    <div style={{ position: 'absolute', left: 24, right: 22, top: 'calc(var(--top) - 6px)', height: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 6 }}>
+    <div style={{ position: 'absolute', left: 24, right: 22, top: 'calc(var(--top) - 6px)', height: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 8, WebkitFontSmoothing: 'antialiased' }}>
       {n.showBack
-        ? <button className="press" aria-label={`Back to ${n.backLabel}`} onPointerDown={down} onPointerUp={up} onPointerLeave={up} onPointerCancel={up}
-            onClick={() => { if (held.current) { held.current = false; return; } haptic(6); nav.back(); }} style={{ fontSize: 13, color: INK2, padding: '4px 0', whiteSpace: 'nowrap', maxWidth: '70%', overflow: 'hidden', textOverflow: 'ellipsis' }}>‹ {n.backLabel}</button>
+        ? <button aria-label={`Back to ${n.backLabel}`} onPointerDown={down} onPointerUp={up} onPointerLeave={up} onPointerCancel={up}
+            onClick={() => { if (held.current) { held.current = false; return; } haptic(6); nav.back(); }} style={{ fontSize: 13, lineHeight: '24px', height: 24, color: INK2, padding: 0, whiteSpace: 'nowrap', maxWidth: '70%', overflow: 'hidden', textOverflow: 'ellipsis' }}>‹ {n.backLabel}</button>
         : <span />}
-      {n.canForward && <button className="press" aria-label={`Forward to ${n.forwardLabel}`} onClick={() => { haptic(6); nav.forward(); }} style={{ fontSize: 13, color: INK2, opacity: .65, padding: '4px 0' }}>{n.forwardLabel} ›</button>}
+      {n.canForward && <button aria-label={`Forward to ${n.forwardLabel}`} onClick={() => { haptic(6); nav.forward(); }} style={{ fontSize: 13, lineHeight: '24px', height: 24, color: '#8A90A3', padding: 0 }}>{n.forwardLabel} ›</button>}
       {trail && (
         <>
           <div className="backdrop" style={{ position: 'fixed', inset: 0, zIndex: 30 }} onClick={() => setTrail(null)} />

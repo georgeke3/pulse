@@ -99,8 +99,8 @@ const Inner = () => {
   return (
     <div className="omk" data-mode={mode} ref={shell} style={fullH ? { height: fullH, ['--bot' as string]: 'max(env(safe-area-inset-bottom), 28px)' } : undefined} data-pinned={fullH ? '1' : undefined}>
       <Atmos mode={mode} />
+      <NavBar />
       <header className="top">
-        <NavBar />
         {mode === 'home'
           ? <span style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}><span className="t">Omokage</span><button className="press" onClick={() => { haptic(6); setSettings(true); }} aria-label="Settings" style={{ fontSize: 13, color: INK2, letterSpacing: '.3em', padding: '8px 6px 8px 0' }}>面影</button></span>
           : <span className="t">{mode[0].toUpperCase() + mode.slice(1)}</span>}
