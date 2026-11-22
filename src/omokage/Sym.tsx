@@ -38,6 +38,9 @@ import drRiderG from './assets/dr-riderg.png';
 import drRiderW from './assets/dr-riderw.png';
 import drPeek from './assets/dr-peek.png';
 import drLegs from './assets/dr-legs.png';
+import drSwirlC from './assets/dr-swirl-c.png';
+import drRiderGC from './assets/dr-riderg-c.png';
+import drLegsC from './assets/dr-legs-c.png';
 import drTiny from './assets/dr-tiny.png';
 
 export type DrgName = 'swirl' | 'ghost' | 'riderg' | 'riderw' | 'peek' | 'legs' | 'tiny';
@@ -46,4 +49,9 @@ const DRG: Record<DrgName, string> = { swirl: drSwirl, ghost: drGhost, riderg: d
 /** The dragon line as small illustrations. Width-based; height follows the picture. */
 export const Drg = ({ n, w, o = 1, style }: { n: DrgName; w: number; o?: number; style?: CSSProperties }) => (
   <img src={DRG[n]} alt="" aria-hidden="true" draggable={false} style={{ width: w, height: 'auto', opacity: o, display: 'block', flex: 'none', pointerEvents: 'none', ...style }} />
+);
+
+/** Dragon trimmed to its drawn pixels and fitted to a fixed box, so a row of them shares one size and one centre. */
+export const DrgFit = ({ n, w, h, o = 1 }: { n: 'swirl' | 'riderg' | 'legs'; w: number; h: number; o?: number }) => (
+  <img src={{ swirl: drSwirlC, riderg: drRiderGC, legs: drLegsC }[n]} alt="" aria-hidden="true" draggable={false} style={{ width: w, height: h, objectFit: 'contain', opacity: o, display: 'block', flex: 'none', pointerEvents: 'none' }} />
 );

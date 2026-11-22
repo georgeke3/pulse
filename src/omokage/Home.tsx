@@ -1,4 +1,4 @@
-import { Sym, Drg } from './Sym';
+import { Sym, DrgFit } from './Sym';
 import { useState } from 'react';
 import { useApp } from '../store';
 import { Belt, Fly, Pencil } from './Art';
@@ -165,12 +165,12 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string, focusId?: st
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, height: 44 }}>
             {([
-              { k: 'logged', n: selEv.length, art: <Drg n="riderg" w={50} style={{ width: "auto", maxWidth: 50, maxHeight: 38 }} />, act: () => go('present', sel) },
-              { k: 'answers', n: selAns.length, art: <Drg n="swirl" w={50} style={{ width: "auto", maxWidth: 50, maxHeight: 38 }} />, act: () => go('past') },
-              { k: 'pins', n: selFut.length, art: <Drg n="legs" w={50} style={{ width: "auto", maxWidth: 50, maxHeight: 38 }} />, act: () => go('future') },
+              { k: 'answers', n: selAns.length, art: <DrgFit n="swirl" w={46} h={36} />, act: () => go('past') },
+              { k: 'logged', n: selEv.length, art: <DrgFit n="riderg" w={46} h={36} />, act: () => go('present', sel) },
+              { k: 'pins', n: selFut.length, art: <DrgFit n="legs" w={46} h={36} />, act: () => go('future') },
             ]).map(c => (
               <button key={c.k} className="press" onClick={c.act} aria-label={`${c.n} ${c.k}`} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center', opacity: c.n ? 1 : .38 }}>
-                <span style={{ width: 54, height: 40, display: 'grid', placeItems: 'center', flex: 'none', overflow: 'hidden' }}>{c.art}</span>
+                <span style={{ width: 46, height: 36, display: 'grid', placeItems: 'center', flex: 'none' }}>{c.art}</span>
                 <b className="serif" style={{ fontSize: 22, fontWeight: 400, color: INK }}>{c.n}</b>
               </button>
             ))}
