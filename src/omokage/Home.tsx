@@ -1,12 +1,11 @@
 import { Sym, TabMark } from './Sym';
-import { useState } from 'react';
+import { useNavState } from './nav';
 import { useApp } from '../store';
 import { Belt, Fly, Pencil } from './Art';
 import { useItems } from './items';
 import { useAnswers } from './qa';
 import { sideTotal } from './load';
-import { useBackSwipe, useCircle, useSwipe } from './swipe';
-import { Back } from './Actions';
+import { useCircle, useSwipe } from './swipe';
 import { MottoEditor } from './MottoEditor';
 import { DayFull } from './DayFull';
 import { haptic } from './haptics';
@@ -14,17 +13,16 @@ import { CRIMSON, DOT, EMBER, GOLD, INK, INK2, SEPIA, SKY, dayNow, dstr, fromDst
 
 interface Todo { label: string; done: boolean; act: () => void }
 
-export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string, focusId?: string) => void; onPulse: (day?: string) => void }) => {
+export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unknown>) => void; onPulse: (day?: string) => void }) => {
   const { state } = useApp();
   const { items } = useItems();
   const answers = useAnswers();
   const now = dayNow(), today = todayStr();
-  const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() });
-  const [sel, setSel] = useState<string | null>(null);
-  const [more, setMore] = useState(false);
-  const [mottos, setMottos] = useState(false);
-  const [full, setFull] = useState<string | null>(null);
-  const moreSwipe = useBackSwipe(() => setMore(false));
+  const [ym, setYm] = useNavState('home.ym', { y: now.getFullYear(), m: now.getMonth() }, 'replace');
+  const [sel, setSel] = useNavState<string | null>('home.sel', null, 'replace');
+  const [more, setMore] = useNavState('home.more', false);
+  const [mottos, setMottos] = useNavState('home.mottos', false);
+  const [full, setFull] = useNavState<string | null>('home.full', null);
   const circle = useCircle(() => { haptic(18); setMottos(true); }, () => haptic(5));
   const first = new Date(ym.y, ym.m, 1), dim = new Date(ym.y, ym.m + 1, 0).getDate();
   const cells: (string | null)[] = Array(first.getDay()).fill(null);
@@ -80,13 +78,12 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string, focusId?: st
   const selVals = sd ? Object.values(sd.answers) : [];
   const selAvg = selVals.length ? (selVals.reduce((a, b) => a + b, 0) / selVals.length).toFixed(1) : null;
 
-  if (full) return <DayFull day={full} go={go} onPulse={onPulse} onBack={() => setFull(null)} />;
+  if (full) return <DayFull day={full} go={go} onPulse={onPulse} />;
 
   if (more) {
     return (
-      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...moreSwipe}>
+      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 6 }}>
-          <Back label="Home" onBack={() => setMore(false)} />
           <span className="it" style={{ fontSize: 20 }}>If you feel like it</span>
           <span className="caps">{optional.filter(r => !r.done).length} of {optional.length}</span>
         </div>
@@ -166,7 +163,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string, focusId?: st
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, height: 44 }}>
             {([
               { k: 'answers', n: selAns.length, art: <TabMark m="past" />, act: () => go('past') },
-              { k: 'logged', n: selEv.length, art: <TabMark m="present" />, act: () => go('present', sel) },
+              { k: 'logged', n: selEv.length, art: <TabMark m="present" />, act: () => go('present', sel && sel !== today ? { 'present.pday': sel } : {}) },
               { k: 'pins', n: selFut.length, art: <TabMark m="future" />, act: () => go('future') },
             ]).map(c => (
               <button key={c.k} className="press" onClick={c.act} aria-label={`${c.n} ${c.k}`} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center', opacity: c.n ? 1 : .38 }}>

@@ -1,4 +1,4 @@
-import { useBackSwipe } from './swipe';
+import { useNavState } from './nav';
 import { Drg, Sym, DrgFit } from './Sym';
 import { useEffect, useState } from 'react';
 import { Belt, Fly } from './Art';
@@ -95,21 +95,22 @@ const Grid = ({ shots, onOpen }: { shots: Shot[]; onOpen: (k: number) => void })
   );
 };
 
-export const Future = ({ typing, setTyping, focusId }: { typing: boolean; setTyping: (b: boolean) => void; focusId?: string | null }) => {
+export const Future = () => {
   const { items, add, remove, update } = useItems();
   const [custom, setCustom] = useState<string[]>(loadBoards);
-  // arriving from a day's full page: land in the pin's board with it open
-  const fi = focusId ? items.find(i => i.id === focusId && i.kind === 'future' && i.board !== TRASH) : undefined;
-  const [board, setBoard] = useState<string | null>(fi ? (fi.board || 'Inbox') : null);
+  const [board, setBoard] = useNavState<string | null>('future.board', null);
   const [naming, setNaming] = useState(false);
-  const [open, setOpen] = useState<string | null>(fi ? fi.id : null);
-  useEffect(() => { if (!fi) return; const t = setTimeout(() => document.querySelector(`[data-pin="${fi.id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350); return () => clearTimeout(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [open, setOpen] = useNavState<string | null>('future.open', null, 'replace');
+  const [typing, setTyping] = useNavState('future.compose', false);
+  // arriving from a day's full page: scroll the pin into view
+  const [focusId] = useNavState<string | null>('future.focus', null);
+  useEffect(() => { if (!focusId) return; const t = setTimeout(() => document.querySelector(`[data-pin="${focusId}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350); return () => clearTimeout(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [seen, setSeen] = useState(() => localStorage.getItem(HK));
-  const [view, setView] = useState<{ shots: Shot[]; start: number } | null>(null);
-  const [photosOnly, setPhotosOnly] = useState(false);
-  const [allPhotos, setAllPhotos] = useState(false);
+  const [view, setView] = useNavState<{ shots: Shot[]; start: number } | null>('future.view', null);
+  const [photosOnly, setPhotosOnly] = useNavState('future.photosOnly', false, 'replace');
+  const [allPhotos, setAllPhotos] = useNavState('future.allPhotos', false);
   const [pre, setPre] = useState<ImgRef[]>([]);
-  const [editing, setEditing] = useState<Item | null>(null);
+  const [editing, setEditing] = useNavState<Item | null>('future.editing', null);
   const [sure, setSure] = useState<string | null>(null);
   const takePhotos = async (files: File[]) => { const got: ImgRef[] = []; for (const f of files) { try { got.push(await addImage(f)); } catch { /* skip unreadable */ } } if (got.length) { setPre(got); setTyping(true); } };
   /** Open the viewer on photo k of `item`, browsing through every photo in `list`. */
@@ -142,15 +143,13 @@ export const Future = ({ typing, setTyping, focusId }: { typing: boolean; setTyp
   const viewer = <>{view && <Viewer shots={view.shots} start={view.start} onClose={() => setView(null)} />}
     {editing && <PinEdit item={editing} onClose={() => setEditing(null)} onSave={(body, imgs) => { const { images: _i, ...meta } = (editing.meta ?? {}) as Record<string, unknown>; update(editing.id, { body, meta: imgs.length ? { ...meta, images: imgs } : meta }); setEditing(null); }} />}</>;
   const photoItems = mine.filter(i => imgsOf(i).length);
-  const backSwipe = useBackSwipe(() => { if (allPhotos) setAllPhotos(false); else if (board === TRASH) { setBoard(null); setSure(null); } else if (board) { setBoard(null); setOpen(null); } });
 
   if (allPhotos) {
     const shots = shotsOf(photoItems);
     return (
-      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...backSwipe}>
+      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }}>
         <Decor />
         <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 6 }}>
-          <button className="press" onClick={() => setAllPhotos(false)} style={{ fontSize: 13, color: INK2, padding: '4px 0' }}>‹ Boards</button>
           <span className="it" style={{ fontSize: 20 }}>Photos</span>
           <span className="caps">{shots.length} saved</span>
         </div>
@@ -165,10 +164,9 @@ export const Future = ({ typing, setTyping, focusId }: { typing: boolean; setTyp
 
   if (board === TRASH) {
     return (
-      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...backSwipe}>
+      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }}>
         <Decor />
         <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 6 }}>
-          <button className="press" onClick={() => { setBoard(null); setSure(null); }} style={{ fontSize: 13, color: INK2, padding: '4px 0' }}>‹ Boards</button>
           <span className="it" style={{ fontSize: 20 }}>Trash</span>
           <span className="caps">{trash.length}</span>
         </div>
@@ -196,10 +194,9 @@ export const Future = ({ typing, setTyping, focusId }: { typing: boolean; setTyp
   if (board) {
     const list = inBoard(board), others = ['Inbox', ...boards].filter(n => n !== board);
     return (
-      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...backSwipe}>
+      <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }}>
         <Decor />
         <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 6 }}>
-          <button className="press" onClick={() => { setBoard(null); setOpen(null); }} style={{ fontSize: 13, color: INK2, padding: '4px 0' }}>‹ Boards</button>
           <span className="it" style={{ fontSize: 20 }}>{board}</span>
           {list.some(i => imgsOf(i).length)
             ? <button className="press caps" onClick={() => setPhotosOnly(v => !v)} style={{ padding: '4px 0' }}>{photosOnly ? 'notes' : 'photos'}</button>

@@ -1,9 +1,8 @@
 import { Drg } from './Sym';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Fly, Pencil } from './Art';
 import { useItems } from './items';
-import { Back } from './Actions';
-import { useBackSwipe } from './swipe';
+import { useNavState } from './nav';
 import { BANK, THEMES, TOPICS, qid, randomQ, useAnswers, useTonight, type Answer, type Q } from './qa';
 import { INK, INK2, SEPIA, ago, fromDstr, todayStr } from './skins';
 import { Typing } from './Typing';
@@ -30,16 +29,14 @@ const dayLabel = (d: string) => (d === todayStr() ? 'tonight' : fromDstr(d).toLo
 interface Writing { q: string; existing?: Answer }
 
 /** Every question in the bank, by theme. Today's answers are marked; tap one to answer it (or edit what you wrote). */
-const Questions = ({ answeredToday, seen, onPick, onBack }: { answeredToday: Set<string>; seen: Set<string>; onPick: (q: Q) => void; onBack: () => void }) => {
-  const swipe = useBackSwipe(onBack);
-  const [theme, setTheme] = useState<string>('All');
+const Questions = ({ answeredToday, seen, onPick }: { answeredToday: Set<string>; seen: Set<string>; onPick: (q: Q) => void }) => {
+  const [theme, setTheme] = useNavState<string>('past.theme', 'All', 'replace');
   const list = theme === 'All' ? BANK : BANK.filter(q => q.theme === theme);
   const dice = () => { const q = randomQ(list.filter(x => !answeredToday.has(x.id)), seen); if (q) onPick(q); };
   return (
-    <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...swipe}>
+    <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }}>
       <Decor />
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 8 }}>
-        <Back label="Past" onBack={onBack} />
         <span className="it" style={{ fontSize: 20 }}>More questions</span>
         <span className="caps">{list.length}</span>
       </div>
@@ -61,10 +58,9 @@ const Questions = ({ answeredToday, seen, onPick, onBack }: { answeredToday: Set
 };
 
 /** Everything you've answered, newest first, filtered by question (and topic). */
-const History = ({ answers, onOpen, onBack }: { answers: Answer[]; onOpen: (a: Answer) => void; onBack: () => void }) => {
-  const swipe = useBackSwipe(onBack);
-  const [q, setQ] = useState<string | null>(null);
-  const [topic, setTopic] = useState<string | null>(null);
+const History = ({ answers, onOpen }: { answers: Answer[]; onOpen: (a: Answer) => void }) => {
+  const [q, setQ] = useNavState<string | null>('past.q', null, 'replace');
+  const [topic, setTopic] = useNavState<string | null>('past.topic', null, 'replace');
   const [picking, setPicking] = useState(false);
   const byQ = useMemo(() => {
     const m = new Map<string, { text: string; n: number }>();
@@ -74,10 +70,9 @@ const History = ({ answers, onOpen, onBack }: { answers: Answer[]; onOpen: (a: A
   const usedTopics = useMemo(() => Array.from(new Set(answers.flatMap(a => a.tags))), [answers]);
   const list = answers.filter(a => (!q || a.qid === q) && (!topic || a.tags.includes(topic)));
   return (
-    <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...swipe}>
+    <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }}>
       <Decor />
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 8 }}>
-        <Back label="Past" onBack={onBack} />
         <span className="it" style={{ fontSize: 20 }}>Past answers</span>
         <span className="caps">{list.length} of {answers.length}</span>
       </div>
@@ -119,7 +114,7 @@ const History = ({ answers, onOpen, onBack }: { answers: Answer[]; onOpen: (a: A
   );
 };
 
-export const Past = ({ typing, setTyping, focusId }: { typing: boolean; setTyping: (b: boolean) => void; focusId?: string | null }) => {
+export const Past = () => {
   const { add, update, remove } = useItems();
   const answers = useAnswers();
   const today = todayStr();
@@ -129,17 +124,14 @@ export const Past = ({ typing, setTyping, focusId }: { typing: boolean; setTypin
   const { q: tonight, skip } = useTonight(today, seen);
   const mainAns = todays.find(a => a.qid === tonight.id);
   const others = todays.filter(a => a.qid !== tonight.id);
-  const [w, setW] = useState<Writing | null>(null);
-  const [screen, setScreen] = useState<'main' | 'questions' | 'history'>('main');
+  const [w, setW] = useNavState<Writing | null>('past.w', null);
+  const [screen, setScreen] = useNavState<'main' | 'questions' | 'history'>('past.screen', 'main');
   const recent = answers.find(a => a.day < today);
 
-  const write = (q: string, existing?: Answer) => { setW({ q, existing }); setTyping(true); };
+  const write = (q: string, existing?: Answer) => setW({ q, existing });
   const writeQ = (q: Q) => write(q.text, todays.find(a => a.qid === q.id));
-  const close = () => { setW(null); setTyping(false); };
-  // arriving from a day's full page: open that answer to read it
-  const focused = useRef(false);
-  useEffect(() => { if (!focusId || focused.current) return; const a = answers.find(x => x.id === focusId); if (a) { focused.current = true; write(a.question || 'Free writing', a); } }, [focusId, answers]); // eslint-disable-line react-hooks/exhaustive-deps
-  const sheet = typing && w && (
+  const close = () => setW(null);
+  const sheet = w && (
     <Typing mode="past" label={w.existing ? `past · ${dayLabel(w.existing.day)}` : 'past · writing'} prompt={w.q} topics={TOPICS}
       initialText={w.existing?.body} initialTags={w.existing?.tags} placeholder="Whatever comes…"
       onDelete={w.existing ? () => { remove(w.existing!.id); close(); } : undefined}
@@ -151,8 +143,8 @@ export const Past = ({ typing, setTyping, focusId }: { typing: boolean; setTypin
       }} />
   );
 
-  if (screen === 'questions') return <><Questions answeredToday={answeredToday} seen={seen} onBack={() => setScreen('main')} onPick={q => { setScreen('main'); writeQ(q); }} />{sheet}</>;
-  if (screen === 'history') return <><History answers={answers} onBack={() => setScreen('main')} onOpen={a => write(a.question || 'Free writing', a)} />{sheet}</>;
+  if (screen === 'questions') return <><Questions answeredToday={answeredToday} seen={seen} onPick={q => writeQ(q)} />{sheet}</>;
+  if (screen === 'history') return <><History answers={answers} onOpen={a => write(a.question || 'Free writing', a)} />{sheet}</>;
 
   return (
     <div className="screen">

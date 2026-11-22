@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavState } from './nav';
 import { ActionBar } from './Actions';
 import { MottoEditor } from './MottoEditor';
 import { Sheet } from './Sheet';
@@ -10,7 +11,7 @@ const hour = (h: number) => (h === 0 ? 'midnight' : `${h}:00 am`);
 /** Opened from the 面影 on Home. Settings live on this device. */
 export const Settings = ({ onClose, onChanged }: { onClose: () => void; onChanged: () => void }) => {
   const [cut, setCut] = useState(getCutoff());
-  const [mottos, setMottos] = useState(false);
+  const [mottos, setMottos] = useNavState('app.mottos', false);
   const set = (h: number) => { const v = Math.max(0, Math.min(8, h)); if (v === cut) return; setCut(v); setCutoff(v); haptic(8); onChanged(); };
   const today = dayNow();
   return (

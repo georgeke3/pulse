@@ -1,4 +1,5 @@
 import { TabMark, Sym } from './Sym';
+import { useNavState } from './nav';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../store';
 import type { Duration, Event } from '../types';
@@ -46,15 +47,15 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
     ...restS.map(x => ({ id: x.id, name: x.name, type: 'recovery' as const, mono: monoOf(x.name), art: stim.art('recovery', x.name), label: labelOf(x) })),
     ...loadS.map(x => ({ id: x.id, name: x.name, type: 'training' as const, mono: monoOf(x.name), art: stim.art('training', x.name), label: labelOf(x) })),
   ], [loadS, restS, stim]);
-  const [managing, setManaging] = useState(false);
+  const [managing, setManaging] = useNavState('present.managing', false);
 
   const [screenRef] = useSize<HTMLDivElement>();
   const [ringRef, ring] = useSize<HTMLDivElement>();
   const drag = useRef<Drag | null>(null);
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draft, setDraft] = useNavState<Draft | null>('present.draft', null);
   const [held, setHeld] = useState<string | null>(null);
-  const [detail, setDetail] = useState<string | null>(null);
-  const [listOpen, setListOpen] = useState(false);
+  const [detail, setDetail] = useNavState<string | null>('present.detail', null);
+  const [listOpen, setListOpen] = useNavState('present.list', false);
   const [pick, setPick] = useState<{ x: number; y: number; ids: string[] } | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [bursts, setBursts] = useState<Burst[]>([]);

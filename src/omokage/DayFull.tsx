@@ -1,14 +1,12 @@
 import { useApp } from '../store';
 import { TabMark } from "./Sym";
-import { Back } from './Actions';
 import { Art, evOrder, evStart } from './Instances';
 import { useItems } from './items';
 import { loadOf, sideTotal, heat } from './load';
 import { pulseWord } from './Pulse';
 import { useAnswers } from './qa';
-import { useBackSwipe } from './swipe';
 const clip = (n: number): React.CSSProperties => ({ display: '-webkit-box', WebkitLineClamp: n, WebkitBoxOrient: 'vertical', overflow: 'hidden' });
-import { fmtMin, fromDstr, EMBER, GOLD, INK2, SKY, type Mode } from './skins';
+import { fmtMin, fromDstr, EMBER, GOLD, INK2, SKY, type Mode, todayStr } from './skins';
 
 const Meter = ({ label, pct, color }: { label: string; pct: number; color: string }) => (
   <div style={{ flex: 1, minWidth: 0 }}>
@@ -23,11 +21,10 @@ const Meter = ({ label, pct, color }: { label: string; pct: number; color: strin
 const Sec = ({ t, children }: { t: string; children: React.ReactNode }) => <section style={{ marginTop: 22 }}><div className="caps" style={{ marginBottom: 6 }}>{t}</div>{children}</section>;
 
 /** The whole day on one page, with a way out to each tab. Nested inside Home (Back, not Close). */
-export const DayFull = ({ day, go, onPulse, onBack }: { day: string; go: (m: Mode, d?: string, focusId?: string) => void; onPulse: (day?: string) => void; onBack: () => void }) => {
+export const DayFull = ({ day, go, onPulse }: { day: string; go: (m: Mode, patch?: Record<string, unknown>) => void; onPulse: (day?: string) => void }) => {
   const { state } = useApp();
   const { items } = useItems();
   const answers = useAnswers();
-  const swipe = useBackSwipe(onBack);
   const sd = state.days[day], d = fromDstr(day);
   const events = [...(sd?.events ?? [])].sort((a, b) => (evOrder(a) ?? 1e4) - (evOrder(b) ?? 1e4));
   const stim = events.filter(e => e.type !== 'win'), wins = events.filter(e => e.type === 'win');
@@ -36,9 +33,8 @@ export const DayFull = ({ day, go, onPulse, onBack }: { day: string; go: (m: Mod
   const fut = items.filter(i => i.kind === 'future' && i.board !== '__trash' && i.day === day);
   const empty = !stim.length && !wins.length && !note && !ans.length && !fut.length && avg === null;
   return (
-    <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }} {...swipe}>
+    <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 4 }}>
-        <Back label="Home" onBack={onBack} />
         <span className="caps">{d.toLocaleDateString('en', { year: 'numeric' })}</span>
       </div>
       <div className="scroll grow" style={{ margin: '0 -24px', padding: '0 24px 12px', WebkitMaskImage: 'linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%)', maskImage: 'linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%)' }}>
@@ -57,7 +53,7 @@ export const DayFull = ({ day, go, onPulse, onBack }: { day: string; go: (m: Mod
         {stim.length > 0 && (
           <Sec t="the day">
             {stim.map(e => (
-              <button key={e.id} className="todo press" onClick={() => go('present', day)} style={{ height: 54 }}>
+              <button key={e.id} className="todo press" onClick={() => go('present', day !== todayStr() ? { 'present.pday': day } : {})} style={{ height: 54 }}>
                 <Art e={e} s={36} />
                 <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                   <span className="serif" style={{ fontSize: 16, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.category}</span>
@@ -72,7 +68,7 @@ export const DayFull = ({ day, go, onPulse, onBack }: { day: string; go: (m: Mod
         {ans.length > 0 && (
           <Sec t="asked & answered">
             {ans.map(a => (
-              <button key={a.id} className="irow press" onClick={() => go('past', undefined, a.id)}>
+              <button key={a.id} className="irow press" onClick={() => go('past', { 'past.w': { q: a.question || 'Free writing', existing: a } })}>
                 <TabMark m="past" />
                 <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                   <span className="it" style={{ display: 'block', fontSize: 14.5, ...clip(1) }}>{a.question || 'Free writing'}</span>
@@ -86,7 +82,7 @@ export const DayFull = ({ day, go, onPulse, onBack }: { day: string; go: (m: Mod
         {fut.length > 0 && (
           <Sec t="set aside for later">
             {fut.map(i => (
-              <button key={i.id} className="irow press" onClick={() => go('future', undefined, i.id)}>
+              <button key={i.id} className="irow press" onClick={() => go('future', { 'future.board': i.board || 'Inbox', 'future.open': i.id, 'future.focus': i.id })}>
                 <TabMark m="future" />
                 <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 13.5, ...clip(2) }}>{i.body || 'Photo'}</span>
                 <span style={{ color: INK2 }}>›</span>

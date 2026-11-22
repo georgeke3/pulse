@@ -11,6 +11,8 @@ import { PulseFlow } from './Pulse';
 import { Typing } from './Typing';
 import { GROUND, INK2, dayNow, fromDstr, todayStr, type Mode } from './skins';
 import { Settings } from './Settings';
+import { NavBar } from './NavBar';
+import { nav, useNavInfo, useNavState } from './nav';
 import { useApp } from '../store';
 import './omokage.css';
 
@@ -19,14 +21,13 @@ const TABS: { m: Mode; label: string }[] = [{ m: 'home', label: 'Home' }, { m: '
 const ART = import.meta.glob('./assets/*.png', { eager: true, import: 'default' }) as Record<string, string>;
 const warmArt = () => Object.values(ART).forEach(src => { const im = new Image(); im.src = src; void im.decode?.().catch(() => undefined); });
 
-const startMode = (): Mode => { const h = new Date().getHours(); return h >= 20 || h < 4 ? 'home' : 'present'; };
 
 const Inner = () => {
   const { items, remove } = useItems();
   const { state, updateDayNote } = useApp();
-  const [mode, setMode] = useState<Mode>(startMode);
+  const [mode] = useNavState<Mode>('mode', 'home');
   // Present normally shows today; Home can open it on an earlier day (cleared whenever you leave Present)
-  const [pday, setPday] = useState<string | null>(null);
+  const [pday, setPday] = useNavState<string | null>('present.pday', null, 'replace');
   const day = pday ?? todayStr();
   // "Dump the day" used to save a loose Past entry. It is the day's summary now (the day note, synced with the day):
   // fold any old dumps into their day's note once, then drop them.
@@ -39,14 +40,12 @@ const Inner = () => {
     }
   }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { warmArt(); }, []);
-  const [pulse, setPulse] = useState(false);
-  const [pulseDay, setPulseDay] = useState<string | null>(null);
-  const [focusId, setFocusId] = useState<string | null>(null);
-  const [settings, setSettings] = useState(false);
+  const [pulse, setPulse] = useNavState<{ day?: string } | null>('app.pulse', null);
+  const [settings, setSettings] = useNavState('app.settings', false);
   const [tick, setTick] = useState(0);
-  const [typing, setTyping] = useState(false);
-  const [dump, setDump] = useState(false);
-  const go = (m: Mode, d?: string, focus?: string) => { if (m !== mode) haptic(6); setFocusId(focus ?? null); setMode(m); setPday(m === 'present' && d && d !== todayStr() ? d : null); setPulse(false); setPulseDay(null); setTyping(false); };
+  const [dump, setDump] = useNavState('app.dump', false);
+  // jump to a place with its state preset (a day's full page, an answer, a pin…); ‹ returns here exactly
+  const go = (m: Mode, patch?: Record<string, unknown>) => { haptic(6); nav.go(m, patch); };
   const now = dayNow();
   // paint the page itself in the mode's ground, so nothing behind the app can ever show as a band
   useEffect(() => { document.documentElement.style.background = GROUND[mode]; document.body.style.background = GROUND[mode]; }, [mode]);
@@ -82,6 +81,16 @@ const Inner = () => {
     document.addEventListener('visibilitychange', onBlur);
     return () => { window.removeEventListener('resize', onResize); document.removeEventListener('focusout', onBlur); document.removeEventListener('visibilitychange', onBlur); };
   }, []);
+  const ni = useNavInfo();
+  // left-edge swipe = ‹ (native touch events, so scrolling children can't cancel it)
+  const backOk = useRef(false); backOk.current = ni.showBack;
+  useEffect(() => {
+    let s: { x: number; y: number } | null = null;
+    const down = (e: TouchEvent) => { const t = e.touches[0]; s = t && t.clientX < 28 ? { x: t.clientX, y: t.clientY } : null; };
+    const up = (e: TouchEvent) => { const t = e.changedTouches[0]; const a = s; s = null; if (!a || !t || !backOk.current) return; const dx = t.clientX - a.x, dy = t.clientY - a.y; if (dx > 64 && dx > Math.abs(dy) * 1.5) { haptic(6); nav.back(); } };
+    document.addEventListener('touchstart', down, { passive: true }); document.addEventListener('touchend', up, { passive: true });
+    return () => { document.removeEventListener('touchstart', down); document.removeEventListener('touchend', up); };
+  }, []);
   const sub: Record<Mode, string> = {
     home: '', past: 'what was', future: 'what may be',
     present: pday ? `${fromDstr(pday).toLocaleDateString('en', { weekday: 'long' })}, looking back` : `${now.toLocaleDateString('en', { weekday: 'long' })}, the day so far`,
@@ -91,26 +100,27 @@ const Inner = () => {
     <div className="omk" data-mode={mode} ref={shell} style={fullH ? { height: fullH, ['--bot' as string]: 'max(env(safe-area-inset-bottom), 28px)' } : undefined} data-pinned={fullH ? '1' : undefined}>
       <Atmos mode={mode} />
       <header className="top">
+        <NavBar />
         {mode === 'home'
           ? <span style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}><span className="t">Omokage</span><button className="press" onClick={() => { haptic(6); setSettings(true); }} aria-label="Settings" style={{ fontSize: 13, color: INK2, letterSpacing: '.3em', padding: '8px 6px 8px 0' }}>面影</button></span>
           : <span className="t">{mode[0].toUpperCase() + mode.slice(1)}</span>}
         <span className="s">{sub[mode]}</span>
       </header>
-      <main className="body" key={mode + (pday ?? '') + tick}>
-        {mode === 'home' && <Home go={go} onPulse={d => { setPulseDay(d ?? null); setPulse(true); }} />}
-        {mode === 'past' && <Past typing={typing} setTyping={setTyping} focusId={focusId} />}
-        {mode === 'present' && <Present day={day} onExitDay={() => setPday(null)} onDump={() => setDump(true)} onPulse={() => { setPulseDay(null); setPulse(true); }} />}
-        {mode === 'future' && <Future typing={typing} setTyping={setTyping} focusId={focusId} />}
+      <main className="body" key={mode + tick}>
+        {mode === 'home' && <Home go={go} onPulse={d => setPulse({ day: d })} />}
+        {mode === 'past' && <Past />}
+        {mode === 'present' && <Present day={day} onExitDay={() => setPday(null)} onDump={() => setDump(true)} onPulse={() => setPulse({})} />}
+        {mode === 'future' && <Future />}
       </main>
       <nav className="tabs">
         {TABS.map(t => (
-          <button key={t.m} className={`tab ${mode === t.m ? 'on' : ''}`} onClick={() => go(t.m)} aria-current={mode === t.m ? 'page' : undefined}>
+          <button key={t.m} className={`tab ${mode === t.m ? 'on' : ''}`} onClick={() => { if (mode !== t.m) haptic(6); nav.tab(t.m); }} aria-current={mode === t.m ? 'page' : undefined}>
             <span className="ic"><Glyph mode={t.m} on={mode === t.m} /></span>{t.label}
           </button>
         ))}
       </nav>
       {settings && <Settings onClose={() => setSettings(false)} onChanged={() => setTick(t => t + 1)} />}
-      {pulse && <PulseFlow day={pulseDay ?? (mode === 'present' ? day : undefined)} onClose={() => { setPulse(false); setPulseDay(null); }} />}
+      {pulse && <PulseFlow day={pulse.day ?? (mode === 'present' ? day : undefined)} onClose={() => setPulse(null)} />}
       {dump && <Typing mode="present" label={`present · ${state.days[day]?.note?.trim() ? 'the day, told' : 'dump the day'}`} initialText={state.days[day]?.note ?? ''}
         prompt={state.days[day]?.note?.trim() ? 'The day so far. Change anything, add the rest.' : 'Say it however it comes. Dictation works too.'} placeholder="Rough meeting at two, a nap, a walk with Mila…"
         onCancel={() => setDump(false)} onSave={t => { updateDayNote(day, t); setDump(false); }} />}
