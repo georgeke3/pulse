@@ -1,31 +1,20 @@
-import { Sym } from './Sym';
+import { Sym, Drg } from './Sym';
 import { useState } from 'react';
 import { useApp } from '../store';
 import { Belt, Fly, Pencil } from './Art';
 import { useItems } from './items';
 import { useAnswers } from './qa';
-import { useStimuli } from './stimuli';
-import { RIM } from './LogSheet';
 import { sideTotal } from './load';
 import { useBackSwipe, useCircle, useSwipe } from './swipe';
-import { ActionBar, Back } from './Actions';
+import { Back } from './Actions';
 import { MottoEditor } from './MottoEditor';
 import { DayFull } from './DayFull';
 import { haptic } from './haptics';
-import type { Event } from '../types';
 import { CRIMSON, DOT, EMBER, GOLD, INK, INK2, SEPIA, SKY, dayNow, dstr, fromDstr, todayStr, type Mode } from './skins';
 
-const Dot = ({ e, onOpen }: { e: Event; onOpen: () => void }) => {
-  const src = useStimuli().art(e.type, e.category), [rim, fill] = RIM[e.type];
-  return (
-    <button className="press" onClick={onOpen} aria-label={`${e.category}, open in Present`} style={{ width: 34, height: 34, flex: 'none', borderRadius: '50%', display: 'grid', placeItems: 'center', background: fill, boxShadow: `inset 0 0 0 1.5px ${rim}` }}>
-      {src ? <img src={src} alt="" draggable={false} style={{ width: 28, height: 28 }} /> : <b style={{ color: rim, fontSize: 13 }}>{e.category[0]}</b>}
-    </button>
-  );
-};
 interface Todo { label: string; done: boolean; act: () => void }
 
-export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onPulse: () => void }) => {
+export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string, focusId?: string) => void; onPulse: (day?: string) => void }) => {
   const { state } = useApp();
   const { items } = useItems();
   const answers = useAnswers();
@@ -66,7 +55,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
   const told = !!td?.note?.trim();
   // must-do: the three habits the app exists for. Optional: everything else worth a nudge.
   const critical: Todo[] = [
-    { label: answered >= nq ? 'Evening pulse, done' : answered ? `Evening pulse · ${nq - answered} left` : 'Evening pulse', done: answered >= nq, act: onPulse },
+    { label: answered >= nq ? 'Evening pulse, done' : answered ? `Evening pulse · ${nq - answered} left` : 'Evening pulse', done: answered >= nq, act: () => onPulse() },
     { label: stimN ? `Logged today · ${stimN}` : 'Log at least one stimulus', done: stimN > 0, act: () => go('present') },
     { label: qWeek >= 2 ? `Questions this week · ${qWeek} of 2` : `Answer a question · ${qWeek} of 2 this week`, done: qWeek >= 2, act: () => go('past') },
   ];
@@ -86,13 +75,12 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
 
   const sd = sel ? state.days[sel] : null;
   const selAns = sel ? answers.filter(p => p.day === sel) : [];
-  const selNote = sd?.note?.trim() ?? '';
   const selEv = [...(sd?.events ?? [])].sort((a, b) => String(a.custom_data?.time ?? '').localeCompare(String(b.custom_data?.time ?? '')));
   const selFut = sel ? items.filter(i => i.kind === 'future' && i.board !== '__trash' && i.day === sel) : [];
   const selVals = sd ? Object.values(sd.answers) : [];
   const selAvg = selVals.length ? (selVals.reduce((a, b) => a + b, 0) / selVals.length).toFixed(1) : null;
 
-  if (full) return <DayFull day={full} go={go} onBack={() => setFull(null)} />;
+  if (full) return <DayFull day={full} go={go} onPulse={onPulse} onBack={() => setFull(null)} />;
 
   if (more) {
     return (
@@ -111,7 +99,6 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
             </button>
           ))}
         </div>
-        <ActionBar cancel="Home" h={48} onCancel={() => setMore(false)} />
       </div>
     );
   }
@@ -176,18 +163,19 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, day?: string) => void; onP
             <span><b style={{ color: GOLD }}>{sd?.events.filter(e => e.type === 'win').length ?? 0}</b> wins</span>
             <span style={{ marginLeft: 'auto' }}>pulse <b className="serif" style={{ color: INK }}>{selAvg ?? '—'}</b></span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, height: 38 }}>
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingLeft: 2 }}>
-              {selEv.slice(0, 6).map((e, k) => <span key={e.id} style={{ marginLeft: k ? -10 : 0, zIndex: 10 - k, display: 'flex' }}><Dot e={e} onOpen={() => go('present', sel)} /></span>)}
-              {selEv.length > 6 && <span style={{ marginLeft: -10, height: 34, minWidth: 34, padding: '0 6px', flex: 'none', borderRadius: 17, display: 'grid', placeItems: 'center', fontSize: 11.5, color: INK2, background: 'rgba(255,255,255,.92)', boxShadow: 'inset 0 0 0 1.4px rgba(43,50,71,.18)' }} aria-label={`${selEv.length - 6} more`}>+{selEv.length - 6}</span>}
-              {!selEv.length && <span className="it mute" style={{ fontSize: 13 }}>nothing logged</span>}
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, height: 44 }}>
+            {([
+              { k: 'logged', n: selEv.length, art: <Drg n="riderg" w={50} style={{ width: "auto", maxWidth: 50, maxHeight: 38 }} />, act: () => go('present', sel) },
+              { k: 'answers', n: selAns.length, art: <Drg n="swirl" w={50} style={{ width: "auto", maxWidth: 50, maxHeight: 38 }} />, act: () => go('past') },
+              { k: 'pins', n: selFut.length, art: <Drg n="legs" w={50} style={{ width: "auto", maxWidth: 50, maxHeight: 38 }} />, act: () => go('future') },
+            ]).map(c => (
+              <button key={c.k} className="press" onClick={c.act} aria-label={`${c.n} ${c.k}`} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center', opacity: c.n ? 1 : .38 }}>
+                <span style={{ width: 54, height: 40, display: 'grid', placeItems: 'center', flex: 'none', overflow: 'hidden' }}>{c.art}</span>
+                <b className="serif" style={{ fontSize: 22, fontWeight: 400, color: INK }}>{c.n}</b>
+              </button>
+            ))}
             <button className="chip press" onClick={() => setFull(sel)} style={{ height: 34, flex: 'none', fontSize: 12.5, padding: '0 14px' }}>Full day ›</button>
           </div>
-          {selNote && <div className="it" style={{ fontSize: 14, lineHeight: 1.5, marginTop: 8, color: '#3A4156', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>“{selNote.split('\n').filter(Boolean).join(' ')}”</div>}
-          {!selNote && selAns[0] && <div className="it" style={{ fontSize: 14, lineHeight: 1.5, marginTop: 8, color: '#3A4156', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>“{selAns[0].body.split('\n').filter(Boolean).join('. ')}”</div>}
-          {selFut.slice(0, 1).map(i => <div key={i.id} style={{ fontSize: 13, marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span style={{ color: CRIMSON }}>✦ </span>{i.body.split('\n')[0]}</div>)}
-          {!selNote && !selAns.length && !selEv.length && !selFut.length && <div className="it mute" style={{ fontSize: 14, marginTop: 8 }}>A quiet day in the record.</div>}
         </div>
       ) : (
         <div style={{ position: 'relative' }}>

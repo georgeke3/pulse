@@ -5,7 +5,7 @@ import { haptic } from './haptics';
 import { ActionBar } from './Actions';
 import { useSwipe } from './swipe';
 import { Sheet } from './Sheet';
-import { DUSK, GOLD, INK, INK2, dayNow, dstr, todayStr } from './skins';
+import { DUSK, GOLD, INK, INK2, dayNow, dstr, fromDstr, todayStr } from './skins';
 
 const ASK: Record<string, string> = {
   driver: 'What drove your effort today?',
@@ -43,7 +43,7 @@ export const PulseFlow = ({ day, onClose }: { day?: string; onClose: () => void 
 
   const step = (n: number) => { haptic(6); setI(k => Math.max(0, Math.min(qs.length, k + n))); };
   const swipe = useSwipe(() => step(1), () => step(-1));
-  if (i >= qs.length) return <Recap ans={ans} onEdit={setI} onBack={() => step(-1)} onClose={onClose} />;
+  if (i >= qs.length) return <Recap title={day && day !== todayStr() ? fromDstr(day).toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'short' }) : 'Tonight'} ans={ans} onEdit={setI} onBack={() => step(-1)} onClose={onClose} />;
   const q = qs[i], { name, sub } = parse(q.prompt);
   return (
     <Sheet mode="present">
@@ -88,7 +88,7 @@ export const PulseFlow = ({ day, onClose }: { day?: string; onClose: () => void 
 };
 
 /* Tonight, as a constellation: ten answers on a ring, with the week's average dashed behind. */
-const Recap = ({ ans, onEdit, onBack, onClose }: { ans: Record<string, number>; onEdit: (k: number) => void; onBack: () => void; onClose: () => void }) => {
+const Recap = ({ title, ans, onEdit, onBack, onClose }: { title: string; ans: Record<string, number>; onEdit: (k: number) => void; onBack: () => void; onClose: () => void }) => {
   const swipe = useSwipe(() => {}, onBack);
   const { state } = useApp();
   const qs = state.config.daily_questions;
@@ -118,7 +118,7 @@ const Recap = ({ ans, onEdit, onBack, onClose }: { ans: Record<string, number>; 
       <div {...swipe} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', ...swipe.style }}>
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 22px 0' }}>
         <button className="press" onClick={onBack} aria-label="Back to the questions" style={{ fontSize: 13, color: INK2, flex: 1, textAlign: 'left', whiteSpace: 'nowrap' }}>‹ Questions</button>
-        <span className="it" style={{ fontSize: 16 }}>Tonight</span><span style={{ flex: 1 }} />
+        <span className="it" style={{ fontSize: 16 }}>{title}</span><span style={{ flex: 1 }} />
       </div>
       <div className="q" style={{ position: 'relative', textAlign: 'center', marginTop: 10 }}>
         <div className="caps">your pulse</div>

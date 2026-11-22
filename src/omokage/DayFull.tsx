@@ -1,12 +1,14 @@
 import { useApp } from '../store';
-import { ActionBar, Back } from './Actions';
+import { Drg } from './Sym';
+import { Back } from './Actions';
 import { Art, evOrder, evStart } from './Instances';
 import { useItems } from './items';
 import { loadOf, sideTotal, heat } from './load';
 import { pulseWord } from './Pulse';
 import { useAnswers } from './qa';
 import { useBackSwipe } from './swipe';
-import { fmtMin, fromDstr, CRIMSON, EMBER, GOLD, INK, INK2, SEPIA, SKY, type Mode } from './skins';
+const clip = (n: number): React.CSSProperties => ({ display: '-webkit-box', WebkitLineClamp: n, WebkitBoxOrient: 'vertical', overflow: 'hidden' });
+import { fmtMin, fromDstr, EMBER, GOLD, INK2, SKY, type Mode } from './skins';
 
 const Meter = ({ label, pct, color }: { label: string; pct: number; color: string }) => (
   <div style={{ flex: 1, minWidth: 0 }}>
@@ -21,7 +23,7 @@ const Meter = ({ label, pct, color }: { label: string; pct: number; color: strin
 const Sec = ({ t, children }: { t: string; children: React.ReactNode }) => <section style={{ marginTop: 22 }}><div className="caps" style={{ marginBottom: 6 }}>{t}</div>{children}</section>;
 
 /** The whole day on one page, with a way out to each tab. Nested inside Home (Back, not Close). */
-export const DayFull = ({ day, go, onBack }: { day: string; go: (m: Mode, d?: string) => void; onBack: () => void }) => {
+export const DayFull = ({ day, go, onPulse, onBack }: { day: string; go: (m: Mode, d?: string, focusId?: string) => void; onPulse: (day?: string) => void; onBack: () => void }) => {
   const { state } = useApp();
   const { items } = useItems();
   const answers = useAnswers();
@@ -49,7 +51,7 @@ export const DayFull = ({ day, go, onBack }: { day: string; go: (m: Mode, d?: st
         </div>
         <div style={{ display: 'flex', gap: 22, marginTop: 16, alignItems: 'baseline' }}>
           <span><b className="serif" style={{ fontSize: 22, color: GOLD }}>{wins.length}</b> <span style={{ fontSize: 12, color: INK2 }}>win{wins.length === 1 ? '' : 's'}</span></span>
-          {avg !== null && <span><b className="serif" style={{ fontSize: 22 }}>{avg.toFixed(1)}</b> <span style={{ fontSize: 12, color: INK2 }}>pulse · {pulseWord(avg)}</span></span>}
+          {avg !== null && <button className="press" onClick={() => onPulse(day)} style={{ textAlign: 'left' }}><b className="serif" style={{ fontSize: 22 }}>{avg.toFixed(1)}</b> <span style={{ fontSize: 12, color: INK2 }}>pulse · {pulseWord(avg)} ›</span></button>}
         </div>
 
         {stim.length > 0 && (
@@ -70,29 +72,31 @@ export const DayFull = ({ day, go, onBack }: { day: string; go: (m: Mode, d?: st
         {ans.length > 0 && (
           <Sec t="asked & answered">
             {ans.map(a => (
-              <div key={a.id} style={{ marginBottom: 12 }}>
-                <div className="it" style={{ fontSize: 15, color: SEPIA }}>{a.question}</div>
-                <div style={{ fontSize: 14.5, lineHeight: 1.5, marginTop: 2, whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.body}</div>
-              </div>
+              <button key={a.id} className="irow press" onClick={() => go('past', undefined, a.id)}>
+                <Drg n="swirl" w={34} />
+                <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <span className="it" style={{ display: 'block', fontSize: 14.5, ...clip(1) }}>{a.question || 'Free writing'}</span>
+                  <span style={{ display: 'block', fontSize: 12.5, color: INK2, ...clip(1) }}>{a.body}</span>
+                </span>
+                <span style={{ color: INK2 }}>›</span>
+              </button>
             ))}
           </Sec>
         )}
         {fut.length > 0 && (
           <Sec t="set aside for later">
-            {fut.map(i => <div key={i.id} style={{ fontSize: 14, lineHeight: 1.45, marginBottom: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}><span style={{ color: CRIMSON }}>✦ </span>{i.body}</div>)}
+            {fut.map(i => (
+              <button key={i.id} className="irow press" onClick={() => go('future', undefined, i.id)}>
+                <Drg n="legs" w={38} />
+                <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 13.5, ...clip(2) }}>{i.body || 'Photo'}</span>
+                <span style={{ color: INK2 }}>›</span>
+              </button>
+            ))}
           </Sec>
         )}
         {empty && <div className="it mute" style={{ fontSize: 15, marginTop: 24 }}>A quiet day in the record.</div>}
 
-        <Sec t="go to">
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="chip press" onClick={() => go('present', day)} style={{ height: 40, color: INK }}>Present ›</button>
-            <button className="chip press" onClick={() => go('past')} style={{ height: 40, color: INK }}>Past ›</button>
-            <button className="chip press" onClick={() => go('future')} style={{ height: 40, color: INK }}>Future ›</button>
-          </div>
-        </Sec>
       </div>
-      <ActionBar cancel="Home" h={48} onCancel={onBack} />
     </div>
   );
 };

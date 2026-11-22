@@ -1,8 +1,8 @@
 import { Drg } from './Sym';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Fly, Pencil } from './Art';
 import { useItems } from './items';
-import { ActionBar, Back } from './Actions';
+import { Back } from './Actions';
 import { useBackSwipe } from './swipe';
 import { BANK, THEMES, TOPICS, qid, randomQ, useAnswers, useTonight, type Answer, type Q } from './qa';
 import { INK, INK2, SEPIA, ago, fromDstr, todayStr } from './skins';
@@ -30,7 +30,7 @@ const dayLabel = (d: string) => (d === todayStr() ? 'tonight' : fromDstr(d).toLo
 interface Writing { q: string; existing?: Answer }
 
 /** Every question in the bank, by theme. Today's answers are marked; tap one to answer it (or edit what you wrote). */
-const Questions = ({ answeredToday, seen, onPick, onBack, onHome }: { answeredToday: Set<string>; seen: Set<string>; onPick: (q: Q) => void; onBack: () => void; onHome: () => void }) => {
+const Questions = ({ answeredToday, seen, onPick, onBack }: { answeredToday: Set<string>; seen: Set<string>; onPick: (q: Q) => void; onBack: () => void }) => {
   const swipe = useBackSwipe(onBack);
   const [theme, setTheme] = useState<string>('All');
   const list = theme === 'All' ? BANK : BANK.filter(q => q.theme === theme);
@@ -56,13 +56,12 @@ const Questions = ({ answeredToday, seen, onPick, onBack, onHome }: { answeredTo
           </button>
         ))}
       </div>
-      <ActionBar cancel="Home" h={48} onCancel={onHome} />
     </div>
   );
 };
 
 /** Everything you've answered, newest first, filtered by question (and topic). */
-const History = ({ answers, onOpen, onBack, onHome }: { answers: Answer[]; onOpen: (a: Answer) => void; onBack: () => void; onHome: () => void }) => {
+const History = ({ answers, onOpen, onBack }: { answers: Answer[]; onOpen: (a: Answer) => void; onBack: () => void }) => {
   const swipe = useBackSwipe(onBack);
   const [q, setQ] = useState<string | null>(null);
   const [topic, setTopic] = useState<string | null>(null);
@@ -116,12 +115,11 @@ const History = ({ answers, onOpen, onBack, onHome }: { answers: Answer[]; onOpe
           </button>
         ))}
       </div>
-      <ActionBar cancel="Home" h={48} onCancel={onHome} />
     </div>
   );
 };
 
-export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: boolean) => void }) => {
+export const Past = ({ typing, setTyping, focusId }: { typing: boolean; setTyping: (b: boolean) => void; focusId?: string | null }) => {
   const { add, update, remove } = useItems();
   const answers = useAnswers();
   const today = todayStr();
@@ -138,6 +136,9 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
   const write = (q: string, existing?: Answer) => { setW({ q, existing }); setTyping(true); };
   const writeQ = (q: Q) => write(q.text, todays.find(a => a.qid === q.id));
   const close = () => { setW(null); setTyping(false); };
+  // arriving from a day's full page: open that answer to read it
+  const focused = useRef(false);
+  useEffect(() => { if (!focusId || focused.current) return; const a = answers.find(x => x.id === focusId); if (a) { focused.current = true; write(a.question || 'Free writing', a); } }, [focusId, answers]); // eslint-disable-line react-hooks/exhaustive-deps
   const sheet = typing && w && (
     <Typing mode="past" label={w.existing ? `past · ${dayLabel(w.existing.day)}` : 'past · writing'} prompt={w.q} topics={TOPICS}
       initialText={w.existing?.body} initialTags={w.existing?.tags} placeholder="Whatever comes…"
@@ -150,8 +151,8 @@ export const Past = ({ typing, setTyping }: { typing: boolean; setTyping: (b: bo
       }} />
   );
 
-  if (screen === 'questions') return <><Questions answeredToday={answeredToday} seen={seen} onBack={() => setScreen('main')} onHome={() => setScreen('main')} onPick={q => { setScreen('main'); writeQ(q); }} />{sheet}</>;
-  if (screen === 'history') return <><History answers={answers} onBack={() => setScreen('main')} onHome={() => setScreen('main')} onOpen={a => write(a.question || 'Free writing', a)} />{sheet}</>;
+  if (screen === 'questions') return <><Questions answeredToday={answeredToday} seen={seen} onBack={() => setScreen('main')} onPick={q => { setScreen('main'); writeQ(q); }} />{sheet}</>;
+  if (screen === 'history') return <><History answers={answers} onBack={() => setScreen('main')} onOpen={a => write(a.question || 'Free writing', a)} />{sheet}</>;
 
   return (
     <div className="screen">

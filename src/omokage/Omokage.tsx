@@ -40,11 +40,13 @@ const Inner = () => {
   }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { warmArt(); }, []);
   const [pulse, setPulse] = useState(false);
+  const [pulseDay, setPulseDay] = useState<string | null>(null);
+  const [focusId, setFocusId] = useState<string | null>(null);
   const [settings, setSettings] = useState(false);
   const [tick, setTick] = useState(0);
   const [typing, setTyping] = useState(false);
   const [dump, setDump] = useState(false);
-  const go = (m: Mode, d?: string) => { if (m !== mode) haptic(6); setMode(m); setPday(m === 'present' && d && d !== todayStr() ? d : null); setPulse(false); setTyping(false); };
+  const go = (m: Mode, d?: string, focus?: string) => { if (m !== mode) haptic(6); setFocusId(focus ?? null); setMode(m); setPday(m === 'present' && d && d !== todayStr() ? d : null); setPulse(false); setPulseDay(null); setTyping(false); };
   const now = dayNow();
   // paint the page itself in the mode's ground, so nothing behind the app can ever show as a band
   useEffect(() => { document.documentElement.style.background = GROUND[mode]; document.body.style.background = GROUND[mode]; }, [mode]);
@@ -95,10 +97,10 @@ const Inner = () => {
         <span className="s">{sub[mode]}</span>
       </header>
       <main className="body" key={mode + (pday ?? '') + tick}>
-        {mode === 'home' && <Home go={go} onPulse={() => setPulse(true)} />}
-        {mode === 'past' && <Past typing={typing} setTyping={setTyping} />}
-        {mode === 'present' && <Present day={day} onExitDay={() => setPday(null)} onDump={() => setDump(true)} onPulse={() => setPulse(true)} />}
-        {mode === 'future' && <Future typing={typing} setTyping={setTyping} />}
+        {mode === 'home' && <Home go={go} onPulse={d => { setPulseDay(d ?? null); setPulse(true); }} />}
+        {mode === 'past' && <Past typing={typing} setTyping={setTyping} focusId={focusId} />}
+        {mode === 'present' && <Present day={day} onExitDay={() => setPday(null)} onDump={() => setDump(true)} onPulse={() => { setPulseDay(null); setPulse(true); }} />}
+        {mode === 'future' && <Future typing={typing} setTyping={setTyping} focusId={focusId} />}
       </main>
       <nav className="tabs">
         {TABS.map(t => (
@@ -108,7 +110,7 @@ const Inner = () => {
         ))}
       </nav>
       {settings && <Settings onClose={() => setSettings(false)} onChanged={() => setTick(t => t + 1)} />}
-      {pulse && <PulseFlow day={mode === 'present' ? day : undefined} onClose={() => setPulse(false)} />}
+      {pulse && <PulseFlow day={pulseDay ?? (mode === 'present' ? day : undefined)} onClose={() => { setPulse(false); setPulseDay(null); }} />}
       {dump && <Typing mode="present" label={`present · ${state.days[day]?.note?.trim() ? 'the day, told' : 'dump the day'}`} initialText={state.days[day]?.note ?? ''}
         prompt={state.days[day]?.note?.trim() ? 'The day so far. Change anything, add the rest.' : 'Say it however it comes. Dictation works too.'} placeholder="Rough meeting at two, a nap, a walk with Mila…"
         onCancel={() => setDump(false)} onSave={t => { updateDayNote(day, t); setDump(false); }} />}

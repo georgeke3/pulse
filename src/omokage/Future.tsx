@@ -95,12 +95,15 @@ const Grid = ({ shots, onOpen }: { shots: Shot[]; onOpen: (k: number) => void })
   );
 };
 
-export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: boolean) => void }) => {
+export const Future = ({ typing, setTyping, focusId }: { typing: boolean; setTyping: (b: boolean) => void; focusId?: string | null }) => {
   const { items, add, remove, update } = useItems();
   const [custom, setCustom] = useState<string[]>(loadBoards);
-  const [board, setBoard] = useState<string | null>(null);
+  // arriving from a day's full page: land in the pin's board with it open
+  const fi = focusId ? items.find(i => i.id === focusId && i.kind === 'future' && i.board !== TRASH) : undefined;
+  const [board, setBoard] = useState<string | null>(fi ? (fi.board || 'Inbox') : null);
   const [naming, setNaming] = useState(false);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(fi ? fi.id : null);
+  useEffect(() => { if (!fi) return; const t = setTimeout(() => document.querySelector(`[data-pin="${fi.id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350); return () => clearTimeout(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [seen, setSeen] = useState(() => localStorage.getItem(HK));
   const [view, setView] = useState<{ shots: Shot[]; start: number } | null>(null);
   const [photosOnly, setPhotosOnly] = useState(false);
@@ -211,7 +214,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
             {[0, 1].map(col => <div key={col} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, paddingTop: col ? 14 : 0 }}>{list.map((i, k) => k % 2 !== col ? null : (() => {
               const d = domain(i.body), isQ = i.body.trim().endsWith('?'), isOpen = open === i.id;
               return (
-                <div key={i.id} className="pinned" onClick={() => { setOpen(isOpen ? null : i.id); setSure(null); }} style={{ transform: `rotate(${TILT[k % TILT.length] * .6}deg)`, animation: `enter .4s ${Math.min(k, 8) * 35}ms both` }}>
+                <div key={i.id} data-pin={i.id} className="pinned" onClick={() => { setOpen(isOpen ? null : i.id); setSure(null); }} style={{ transform: `rotate(${TILT[k % TILT.length] * .6}deg)`, animation: `enter .4s ${Math.min(k, 8) * 35}ms both` }}>
                   <Pics item={i} onOpen={n => openPic(list, i, n)} />
                   {d && <div className="caps" style={{ marginBottom: 4 }}>↗ {d}</div>}
                   {(i.body || !imgsOf(i).length) && <div className={isQ ? 'it' : ''} style={{ fontSize: isQ ? 15 : 13.5, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text', WebkitUserSelect: 'text' }}>{d ? i.body.replace(URL_RE, '').trim() || d : i.body}</div>}
