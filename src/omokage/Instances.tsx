@@ -13,7 +13,7 @@ const when = (e: Event) => {
   const d = evDurH(e);
   return d ? `${fmtMin(s)} – ${fmtMin(s + d * 60)}` : fmtMin(s);
 };
-const Art = ({ e, s }: { e: Event; s: number }) => {
+export const Art = ({ e, s }: { e: Event; s: number }) => {
   const src = useStimuli().art(e.type, e.category), [rim, fill] = RIM[e.type];
   return (
     <span style={{ width: s, height: s, borderRadius: '50%', flex: 'none', display: 'grid', placeItems: 'center', background: fill, boxShadow: `inset 0 0 0 1.5px ${rim}` }}>

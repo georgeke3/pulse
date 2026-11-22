@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Omokage demos: sun-faded skin</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap">
+<style>
+:root{--paper:#F2EEE6;--paper2:#F7F4EE;--sand:#E3D6BE;--dusk:#8FA3B8;--ink:#34405A;--ember:#D4775A;--brass:#C9A86A;--crest:#9B3A44;--mist:#D3DAE3;--mist2:#E8ECF1;--mute:#7A7566;--serif:'Lora',Georgia,serif;--sans:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#E9E5DC;font-family:var(--sans);color:var(--ink);padding:16px 12px 40px}
+.wrap{max-width:430px;margin:0 auto}
+h1{font-family:var(--serif);font-weight:500;font-size:20px;margin:4px 0 2px}
+.sub{font-size:13px;color:var(--mute);margin:0 0 12px}
+.tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:12px}
+.tabs button{font:500 13px var(--sans);padding:9px 6px;border-radius:10px;border:1px solid #cfc8b8;background:transparent;color:var(--ink);cursor:pointer}
+.tabs button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.note{font-size:12.5px;color:var(--mute);margin:10px 2px;line-height:1.5}
+.ctl{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--mute);margin:0 0 10px;flex-wrap:wrap}
+.ctl button{font:500 12px var(--sans);padding:5px 10px;border-radius:99px;border:1px solid #cfc8b8;background:transparent;color:var(--ink);cursor:pointer}
+.ctl button.on{background:var(--sand);border-color:var(--brass)}
+.phone{position:relative;width:100%;height:700px;border-radius:34px;border:8px solid #2b2f38;overflow:hidden;background:var(--paper);display:flex;flex-direction:column}
+.status{height:26px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:6px 20px 0;font-size:12px;font-weight:500}
+.scr{flex:1;overflow:auto;padding:14px 16px 20px;position:relative}
+.serif{font-family:var(--serif)}
+.btn{font:500 14px var(--sans);padding:12px 16px;border-radius:12px;border:0;background:var(--ink);color:var(--paper);cursor:pointer;width:100%}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--dusk)}
+.chip{display:inline-block;font:500 13px var(--sans);padding:8px 13px;border-radius:99px;background:var(--sand);color:#5A4A30;border:1px solid transparent;margin:0 6px 8px 0;cursor:pointer}
+.chip.on{background:var(--ink);color:var(--paper)}
+textarea,input[type=text]{width:100%;font:15px var(--serif);color:var(--ink);background:var(--paper2);border:1.5px dashed var(--dusk);border-radius:6px 14px 8px 12px;padding:12px;resize:none;outline:none}
+.mic{width:54px;height:54px;border-radius:50%;border:2px solid var(--ink);background:var(--paper2);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;user-select:none;touch-action:none}
+.mic.rec{background:var(--ember);border-color:var(--ember);color:#fff;transform:scale(1.08)}
+.toast{position:absolute;left:12px;right:12px;bottom:14px;background:var(--ink);color:var(--paper);border-radius:14px;padding:11px 14px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:8px;z-index:20}
+.toast b{font-weight:500}
+.dots{display:flex;gap:6px}
+.dots span{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--brass);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;color:#fff}
+.dots span.on{background:var(--ember);border-color:var(--ember)}
+.thenbg{background:var(--paper)}
+.nowbg{background:#E8DCC4}
+.somebg{background:var(--mist)}
+.med{width:56px;height:56px;border-radius:50%;background:var(--ink);color:var(--paper);border:2.5px solid var(--brass);display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0 auto;transition:transform .12s}
+.med:active{transform:scale(.92)}
+.med.rest{background:var(--paper);color:var(--ink)}
+.ml{font-size:12px;text-align:center;margin-top:4px;color:#4A4030}
+.grid4{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 6px}
+.bar{height:7px;border-radius:4px;background:#D8CBB0;overflow:hidden;flex:1}
+.bar i{display:block;height:100%}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--paper);border-radius:20px 20px 0 0;padding:16px;z-index:30;box-shadow:0 -6px 30px rgba(0,0,0,.25);max-height:88%;overflow:auto}
+.scrim{position:absolute;inset:0;background:rgba(20,24,34,.45);z-index:25}
+.lock{position:absolute;inset:0;z-index:40;background:linear-gradient(#34405A,#16192B);color:#fff;padding:60px 24px 24px;display:flex;flex-direction:column;align-items:center}
+.card{background:var(--paper2);border-radius:12px;padding:12px 14px;border:1px solid #e0d8c6}
+.tile{border-radius:10px;padding:11px;font-size:13.5px;line-height:1.4}
+.tag{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--sand);color:#5A4A30;display:inline-block;margin-right:4px}
+.sw{display:flex;justify-content:space-between;align-items:center}
+.small{font-size:12px;color:var(--mute)}
+.shbtn{display:flex;flex-direction:column;align-items:center;gap:5px;width:70px;font-size:11px;text-align:center;flex:none}
+.shbtn i{width:54px;height:54px;border-radius:13px;background:#e6e6ea;display:block}
+.hide{display:none!important}
+#fbBar{position:fixed;right:12px;bottom:12px;z-index:100;display:flex;gap:6px}
+#fbBar button{font:500 13px var(--sans);padding:10px 14px;border-radius:99px;border:1.5px solid var(--brass);background:var(--ink);color:var(--paper);cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#fbBar button.on{background:var(--ember);border-color:var(--ember)}
+#fbBanner{display:none;position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:100;background:var(--ember);color:#fff;font:500 12.5px var(--sans);padding:7px 14px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2);pointer-events:none}
+#fbLayer{position:absolute;inset:0;z-index:50;pointer-events:none}
+.fbPin{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:var(--ember);border:2px solid #fff;color:#fff;font:500 11px var(--sans);display:flex;align-items:center;justify-content:center;pointer-events:auto;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.fbPin{text-align:center}
+.fbPin.pend{background:transparent;border:2.5px dashed var(--ember);pointer-events:none}
+#fbPop{position:fixed;z-index:120;background:var(--paper);border:1.5px solid var(--brass);border-radius:14px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.fbToast{position:fixed;left:50%;transform:translateX(-50%);bottom:64px;z-index:130;background:var(--ink);color:var(--paper);font-size:13px;padding:10px 14px;border-radius:12px;max-width:90vw}
+#fbPanel{position:fixed;left:0;right:0;bottom:0;z-index:110;background:var(--paper);border-radius:20px 20px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.3);max-height:82vh;overflow:auto;padding:16px;max-width:460px;margin:0 auto}
+#fbScrim{position:fixed;inset:0;z-index:105;background:rgba(20,24,34,.45)}
+.fbi{border-bottom:1px solid #d8cbb0;padding:9px 0;font-size:13.5px;line-height:1.45}
+.fbi .m{font-size:11.5px;color:var(--mute);margin-bottom:2px;display:flex;justify-content:space-between;gap:8px}
+.fbi a{color:var(--crest);cursor:pointer;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Omokage demos</h1>
+  <p class="sub">Sun-faded skin. Everything is fake data, so tap freely.</p>
+  <div class="tabs" id="tabs"></div>
+  <div id="ctl"></div>
+  <div class="phone" id="phone"></div>
+  <p class="note" id="note"></p>
+</div>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const el=(h)=>{const d=document.createElement('div');d.innerHTML=h.trim();return d.firstChild};
+const ic={mic:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+share:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 8l4-4 4 4M6 12H5a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1h-1"/></svg>',
+briefcase:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/></svg>',
+moon:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>',
+dot:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/></svg>',
+leaf:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-9 6-14 15-14 0 9-5 15-14 15M5 19l7-7"/></svg>'};
+const status=(c='var(--ink)')=>`<div class="status" style="color:${c}"><span>3:42</span><span>5G ▮▮▮</span></div>`;
+
+const DEMOS=[
+ {id:'then',label:'Then · answer a question'},
+ {id:'log',label:'Now · log load or rest'},
+ {id:'pulse',label:'Now · evening pulse'},
+ {id:'some',label:'Someday · save while scrolling'}];
+let cur=location.hash.slice(1)||'then';
+if(!DEMOS.find(d=>d.id===cur))cur='then';
+
+function mount(id){
+  cur=id;history.replaceState(null,'','#'+id);
+  $('#tabs').innerHTML='';
+  DEMOS.forEach(d=>{const b=el(`<button class="${d.id===id?'on':''}">${d.label}</button>`);b.onclick=()=>mount(d.id);$('#tabs').append(b)});
+  $('#ctl').innerHTML='';$('#phone').innerHTML='';
+  ({then:demoThen,log:demoLog,pulse:demoPulse,some:demoSome})[id]();
+}
+
+/* ---------- THEN ---------- */
+function demoThen(){
+  let mode='normal',chips=new Set(),saved=null;
+  const ph=$('#phone');ph.className='phone thenbg';
+  $('#ctl').innerHTML='';
+  const ctl=el(`<div class="ctl">Pretend today was: <button data-m="heavy">heavy</button><button data-m="normal" class="on">ordinary</button></div>`);
+  $('#ctl').append(ctl);
+  ctl.querySelectorAll('button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;chips.clear();saved=null;ctl.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));draw()});
+  $('#note').innerHTML='The question changes with the day, which comes from your Now logs. Type, use your keyboard\'s dictation, or hold the mic. The mic here is simulated: in the real app it sends audio to Gemini, which returns tidy text, and the audio is thrown away. Raw text is kept.';
+  function draw(){
+    ph.innerHTML=status()+`<div class="scr" id="s"></div>`;
+    const s=$('#s');
+    if(saved){
+      s.innerHTML=`<p class="small" style="margin:6px 0 0">Thursday 19 November</p>
+      <div style="border:1.5px dashed var(--dusk);border-radius:4px 14px 6px 12px;padding:14px;background:var(--paper2);margin-top:10px">
+      <p class="small" style="margin:0 0 6px">Saved to your story</p>
+      <p class="serif" style="font-size:17px;line-height:1.5;margin:0">${saved.text||'<i style="color:var(--mute)">(chips only)</i>'}</p>
+      <div style="margin-top:10px">${saved.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div></div>
+      <p class="serif small" style="margin:14px 2px;font-style:italic">Tomorrow's question will be lighter if tomorrow is.</p>
+      <button class="btn ghost" id="again">Try again</button>`;
+      $('#again').onclick=()=>{saved=null;chips.clear();draw()};return;
+    }
+    const q=mode==='heavy'?'What\'s weighing on you most right now?':'What felt heavy this week, and what felt light?';
+    s.innerHTML=`<p class="small" style="margin:6px 0 0">One question today</p>
+    <p class="serif" style="font-size:21px;line-height:1.4;margin:6px 0 16px">${q}</p>
+    <div id="body"></div>`;
+    const b=$('#body');
+    if(mode==='heavy'){
+      b.innerHTML=`<div id="ch">${['sleep','work','Mila','money','health','something else'].map(c=>`<span class="chip ${chips.has(c)?'on':''}" data-c="${c}">${c}</span>`).join('')}</div>
+      <p class="small" style="margin:6px 0 8px"><a href="#" id="more" style="color:var(--ink)">say more (optional)</a></p>
+      <div id="mw" class="hide"><textarea id="t" rows="4" placeholder="Anything else. A few words is plenty."></textarea></div>`;
+      $('#more').onclick=e=>{e.preventDefault();$('#mw').classList.remove('hide');$('#t').focus()};
+      b.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{chips.has(c.dataset.c)?chips.delete(c.dataset.c):chips.add(c.dataset.c);c.classList.toggle('on')});
+    }else{
+      b.innerHTML=`<textarea id="t" rows="7" placeholder="Type, or tap your keyboard's mic, or hold the circle below."></textarea>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:14px"><div class="mic" id="mic">${ic.mic}</div><div class="small" id="ms">Hold to talk. Let go to finish.</div></div>`;
+      const mic=$('#mic'),ms=$('#ms'),t=$('#t');let tm;
+      const start=e=>{e.preventDefault();mic.classList.add('rec');ms.textContent='Listening…'};
+      const end=e=>{if(!mic.classList.contains('rec'))return;mic.classList.remove('rec');ms.textContent='Tidying…';clearTimeout(tm);tm=setTimeout(()=>{t.value+=(t.value?' ':'')+'Mostly felt heavy because I\'m not sleeping and work is piling up. The light part was a walk with Mila on Sunday.';ms.textContent='Added. You can edit it.'},900)};
+      mic.addEventListener('pointerdown',start);window.addEventListener('pointerup',end,{once:false});
+    }
+    s.append(el(`<div style="margin-top:20px"><button class="btn" id="save">Save</button><p class="small" style="text-align:center;margin:10px 0 0">Or skip. Nothing piles up.</p></div>`));
+    $('#save').onclick=()=>{const text=($('#t')||{}).value||'';const tags=[...chips];if(!tags.length)tags.push(/sleep/i.test(text)?'sleep':'life');saved={text:text.trim(),tags:tags.concat(['core: top worry'])};draw()};
+  }
+  draw();
+}
+
+/* ---------- NOW LOG ---------- */
+function demoLog(){
+  const ph=$('#phone');ph.className='phone nowbg';
+  const cats={load:[['work','briefcase'],['errands','dot'],['people','dot'],['decisions','dot'],['screens','dot'],['worry','dot']],rest:[['nap','moon'],['walk','leaf'],['quiet','moon'],['play','leaf'],['meal','dot'],['music','dot']]};
+  let kind='load',entries=[{k:'load',c:'work',i:3,t:'9:10'},{k:'rest',c:'walk',i:3,t:'12:30'}],toast=null,tt,sheet=null,lockStage=null;
+  $('#ctl').innerHTML=`<div class="ctl"><button id="b1">Out of the app: Back Tap</button><button id="b2">Night: dump the day</button></div>`;
+  $('#note').innerHTML='Tap a medallion and it\'s logged straight away at your usual intensity, at "now". The toast lets you change it or undo. Everything else (duration, notes) is optional and added later. Order here is for mid-afternoon, so your usual afternoon things come first.';
+  $('#b1').onclick=()=>{lockStage='lock';draw()};
+  $('#b2').onclick=()=>{sheet='dump';draw()};
+  const add=(k,c,i=3)=>{entries.push({k,c,i,t:'3:42'});toast={k,c,idx:entries.length-1};clearTimeout(tt);tt=setTimeout(()=>{toast=null;draw()},4500)};
+  function sums(){const L=entries.filter(e=>e.k==='load').reduce((a,e)=>a+e.i,0),R=entries.filter(e=>e.k==='rest').reduce((a,e)=>a+e.i,0);return[L,R]}
+  function draw(){
+    const [L,R]=sums();
+    ph.innerHTML=status()+`<div class="scr" id="s"></div>`;
+    const s=$('#s');
+    s.innerHTML=`<div class="sw"><span class="serif" style="font-size:20px">Today's sheet</span><span class="small">Thu · ${entries.length} logged</span></div>
+    <div style="display:flex;gap:6px;margin:12px 0 16px"><span class="chip ${kind==='load'?'on':''}" data-k="load" style="flex:1;text-align:center;margin:0">Load</span><span class="chip ${kind==='rest'?'on':''}" data-k="rest" style="flex:1;text-align:center;margin:0">Rest</span></div>
+    <div class="grid4">${cats[kind].map(([c,i])=>`<div><div class="med ${kind==='rest'?'rest':''}" data-c="${c}">${ic[i]}</div><div class="ml">${c}</div></div>`).join('')}</div>
+    <div style="margin-top:22px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span class="small" style="width:40px">load</span><span class="bar"><i style="width:${Math.min(100,L*7)}%;background:var(--ember)"></i></span><span class="small" style="width:20px">${L}</span></div>
+      <div style="display:flex;gap:8px;align-items:center"><span class="small" style="width:40px">rest</span><span class="bar"><i style="width:${Math.min(100,R*7)}%;background:var(--ink)"></i></span><span class="small" style="width:20px">${R}</span></div>
+    </div>
+    <div style="margin-top:16px">${entries.slice().reverse().map(e=>`<div class="sw" style="padding:7px 0;border-bottom:1px solid #d8cbb0;font-size:13.5px"><span><span class="tag" style="background:${e.k==='load'?'#F4D9CE':'#D3DAE3'}">${e.k}</span> ${e.c}</span><span class="small">${e.t} · ${e.i}/5</span></div>`).join('')}</div>`;
+    s.querySelectorAll('[data-k]').forEach(c=>c.onclick=()=>{kind=c.dataset.k;draw()});
+    s.querySelectorAll('.med').forEach(m=>m.onclick=()=>{add(kind,m.dataset.c);draw()});
+    if(toast){const e=entries[toast.idx];
+      const t=el(`<div class="toast"><span>Logged <b>${e.c}</b> · intensity <span class="dots" style="display:inline-flex;vertical-align:middle;margin-left:4px">${[1,2,3,4,5].map(n=>`<span data-n="${n}" style="width:18px;height:18px;font-size:10px;${n<=e.i?'background:var(--ember);border-color:var(--ember)':'border-color:#8a93a8'}">${n}</span>`).join('')}</span></span><a href="#" id="und" style="color:var(--brass)">Undo</a></div>`);
+      ph.append(t);
+      t.querySelectorAll('[data-n]').forEach(d=>d.onclick=()=>{e.i=+d.dataset.n;clearTimeout(tt);tt=setTimeout(()=>{toast=null;draw()},2500);draw()});
+      $('#und').onclick=ev=>{ev.preventDefault();entries.splice(toast.idx,1);toast=null;draw()};
+    }
+    if(sheet==='dump'){
+      ph.append(el('<div class="scrim" id="sc"></div>'));
+      const sh=el(`<div class="sheet"><p class="serif" style="font-size:18px;margin:0 0 4px">Dump the day</p><p class="small" style="margin:0 0 10px">Say or type it all at once. Rough is fine.</p><textarea id="dt" rows="3" placeholder="e.g. rough meeting at 2, then a nap, walked with Mila"></textarea><div style="display:flex;gap:8px;margin-top:10px"><div class="mic" id="dm" style="width:46px;height:46px">${ic.mic}</div><button class="btn" id="dgo">Draft entries</button></div><div id="dr"></div></div>`);
+      ph.append(sh);
+      $('#sc').onclick=()=>{sheet=null;draw()};
+      $('#dm').onclick=()=>{$('#dt').value='Rough meeting at two, then a short nap, walked with Mila, a lot of screens tonight';};
+      $('#dgo').onclick=()=>{
+        const txt=($('#dt').value||'Rough meeting at two, then a short nap, walked with Mila, a lot of screens tonight').toLowerCase();
+        const map=[['meeting','load','work',4],['work','load','work',3],['nap','rest','nap',3],['walk','rest','walk',3],['screen','load','screens',3],['errand','load','errands',2],['quiet','rest','quiet',3]];
+        const found=map.filter(m=>txt.includes(m[0]));
+        $('#dr').innerHTML=`<p class="small" style="margin:14px 0 6px">Drafted. Untick anything wrong.</p>`+found.map((m,i)=>`<label class="sw" style="padding:8px 0;border-bottom:1px solid #e0d8c6;font-size:14px"><span><input type="checkbox" checked data-i="${i}"> ${m[2]} <span class="small">(${m[1]}, ${m[3]}/5)</span></span></label>`).join('')+`<button class="btn" id="dok" style="margin-top:12px">Add ticked</button>`;
+        $('#dok').onclick=()=>{$('#dr').querySelectorAll('input:checked').forEach(c=>{const m=found[+c.dataset.i];entries.push({k:m[1],c:m[2],i:m[3],t:'tonight'})});sheet=null;draw()};
+      };
+    }
+    if(lockStage)drawLock();
+  }
+  function drawLock(){
+    const lk=el(`<div class="lock"><div style="font-size:64px;font-weight:300;margin-top:10px">3:42</div><div style="opacity:.7">Thursday, November 19</div><div id="lbody" style="margin-top:auto;width:100%"></div></div>`);
+    ph.append(lk);const lb=$('#lbody',lk);
+    if(lockStage==='lock'){lb.innerHTML=`<p style="text-align:center;font-size:13px;opacity:.8;margin-bottom:16px">Phone in one hand, other hand full.<br>Double-tap the back of the phone.</p><button class="btn" id="bt" style="background:var(--brass);color:#2a2418">Back Tap</button><button class="btn ghost" id="lx" style="margin-top:8px;color:#fff;border-color:#ffffff55">Close</button>`;
+      $('#bt').onclick=()=>{lockStage='pick';draw()};$('#lx').onclick=()=>{lockStage=null;draw()};}
+    else if(lockStage==='pick'){lb.innerHTML=`<div style="background:#f2eee6;color:var(--ink);border-radius:20px;padding:16px"><p class="serif" style="margin:0 0 10px;font-size:17px">Log what?</p>${['work (load)','people (load)','nap (rest)','walk (rest)'].map((x,i)=>`<div class="card sw" data-x="${x}" style="margin-bottom:8px;cursor:pointer">${x}<span>›</span></div>`).join('')}</div>`;
+      lb.querySelectorAll('[data-x]').forEach(d=>d.onclick=()=>{const m=d.dataset.x.match(/(\w+) \((\w+)\)/);entries.push({k:m[2],c:m[1],i:3,t:'3:43'});lockStage='done';lk.dataset.m=m[1];draw()});}
+    else if(lockStage==='done'){const last=entries[entries.length-1];lb.innerHTML=`<div style="background:#ffffff22;border-radius:16px;padding:14px;font-size:14px"><b style="font-weight:500">Omokage</b><br>Logged ${last.c}. Intensity 3, now.</div><button class="btn" id="ok" style="margin-top:14px">Done, back to my day</button>`;
+      $('#ok').onclick=()=>{lockStage=null;draw()};}
+  }
+  draw();
+}
+
+/* ---------- PULSE ---------- */
+function demoPulse(){
+  const ph=$('#phone');ph.className='phone nowbg';$('#ctl').innerHTML='';
+  const Q=[['How heavy did your head feel today?',['light','','medium','','crushing']],['How much did you get done that mattered?',['little','','some','','a lot']],['How rested does your body feel?',['wrecked','','ok','','good']],['How connected did you feel to people?',['alone','','some','','close']],['How much did you look forward to tomorrow?',['dreaded','','neutral','','excited']]];
+  let i=0,ans=[];
+  $('#note').innerHTML='End of night, before sleep. One question per card, one tap, it advances by itself. Never pre-filled from yesterday. Whole thing should be under 30 seconds.';
+  function draw(){
+    ph.innerHTML=status()+'<div class="scr" id="s"></div>';const s=$('#s');
+    if(i>=Q.length){
+      const hv=ans[0],rest=ans[2];
+      s.innerHTML=`<p class="serif" style="font-size:21px;margin:8px 0 14px">Pulse taken</p>
+      ${Q.map((q,j)=>`<div style="margin-bottom:12px"><div class="small" style="margin-bottom:4px">${q[0]}</div><div class="bar"><i style="width:${ans[j]*20}%;background:${j===0?'var(--ember)':'var(--ink)'}"></i></div></div>`).join('')}
+      <div class="card serif" style="font-size:15px;line-height:1.5;margin-top:16px">${hv>=4&&rest<=2?'Heavy head and a tired body, third night in a row. Worth protecting some rest tomorrow.':'Fairly even day. Load and rest are close to balanced.'}</div>
+      <button class="btn ghost" id="rs" style="margin-top:14px">Do it again</button>`;
+      $('#rs').onclick=()=>{i=0;ans=[];draw()};return;}
+    const [q,lab]=Q[i];
+    s.innerHTML=`<div class="sw"><span class="small">${i+1} of ${Q.length}</span><a href="#" id="sk" class="small" style="color:var(--ink)">skip</a></div>
+    <div class="bar" style="margin:8px 0 28px"><i style="width:${i/Q.length*100}%;background:var(--brass)"></i></div>
+    <div id="card" style="background:var(--paper2);border:2px solid var(--brass);border-radius:18px;padding:26px 18px;transition:transform .25s,opacity .25s">
+    <p class="serif" style="font-size:21px;line-height:1.4;margin:0 0 26px;text-align:center">${q}</p>
+    <div style="display:flex;justify-content:space-between">${[1,2,3,4,5].map(n=>`<div style="text-align:center"><div class="med" data-n="${n}" style="width:46px;height:46px;font-size:16px">${n}</div><div class="ml" style="font-size:11px">${lab[n-1]}</div></div>`).join('')}</div></div>
+    <p class="small" style="text-align:center;margin-top:24px">Tap a number. No typing.</p>`;
+    const go=v=>{const c=$('#card');c.style.transform='translateX(-110%)';c.style.opacity='0';setTimeout(()=>{ans[i]=v;i++;draw()},240)};
+    s.querySelectorAll('[data-n]').forEach(m=>m.onclick=()=>go(+m.dataset.n));
+    $('#sk').onclick=e=>{e.preventDefault();go(3)};
+  }
+  draw();
+}
+
+/* ---------- SOMEDAY ---------- */
+function demoSome(){
+  const ph=$('#phone');$('#ctl').innerHTML='';
+  const st={boards:['Japan','Home','Teach Mila'],tiles:[{b:'Japan',t:'link',x:'Slow travel in Kyoto',s:'kyotoslowtravel.com'},{b:'Japan',t:'q',x:'What would a slow year in Japan look like?'},{b:'Teach Mila',t:'idea',x:'Cook family recipes together'}],inbox:[{x:'A quote about wandering',s:'note'}],scene:'chrome',sheet:null,toast:null,clip:false,tab:'boards',open:null};
+  $('#ctl').innerHTML=`<div class="ctl"><button id="a">1 · Scrolling in Chrome</button><button id="b">2 · I copied an image</button><button id="c">3 · Open Omokage</button></div>`;
+  $('#a').onclick=()=>{st.scene='chrome';st.sheet=null;draw()};
+  $('#b').onclick=()=>{st.clip=true;st.scene='app';st.tab='boards';draw()};
+  $('#c').onclick=()=>{st.scene='app';draw()};
+  $('#note').innerHTML='1: In Chrome tap Share, then "Save to Omokage" (the iOS Shortcut you install once). A tiny sheet offers your recent boards, so you are back to scrolling in about two taps. 2: a copied image shows up as a banner when you open the app. 3: the Inbox holds anything unsorted, with a suggested board you can accept with one tap. The Share Sheet and Chrome here are mock-ups of the real ones.';
+  const toast=(m)=>{st.toast=m;draw();setTimeout(()=>{if(st.toast===m){st.toast=null;draw()}},2600)};
+  function draw(){
+    if(st.scene==='chrome')return drawChrome();
+    ph.className='phone somebg';
+    ph.innerHTML=status()+'<div class="scr" id="s"></div>';
+    const s=$('#s');
+    s.innerHTML=`<div class="sw"><span class="serif" style="font-size:22px">Someday</span><span class="small">${st.tiles.length} saved</span></div>
+    <div style="display:flex;gap:6px;margin:12px 0"><span class="chip ${st.tab==='boards'?'on':''}" data-t="boards" style="margin:0">Boards</span><span class="chip ${st.tab==='inbox'?'on':''}" data-t="inbox" style="margin:0">Inbox${st.inbox.length?' · '+st.inbox.length:''}</span></div><div id="b2"></div>`;
+    s.querySelectorAll('[data-t]').forEach(c=>c.onclick=()=>{st.tab=c.dataset.t;st.open=null;draw()});
+    const b=$('#b2');
+    if(st.clip){b.append(el(`<div class="card" style="background:#fff;margin-bottom:12px;border-color:var(--crest)"><div style="display:flex;gap:10px;align-items:center"><svg width="52" height="52" viewBox="0 0 52 52"><rect width="52" height="52" rx="8" fill="#8FA3B8"/><circle cx="18" cy="18" r="6" fill="#E3D6BE"/><path d="M0 44l16-16 12 10 10-8 14 14v8H0z" fill="#34405A"/></svg><div style="font-size:13px;line-height:1.4"><b style="font-weight:500">You copied an image.</b><br>Add to a board?</div></div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="cy" style="padding:9px">Add</button><button class="btn ghost" id="cn" style="padding:9px">Not now</button></div></div>`));
+      $('#cy').onclick=()=>{st.sheet={kind:'clip'};draw()};$('#cn').onclick=()=>{st.clip=false;draw()};}
+    if(st.tab==='inbox'){
+      if(!st.inbox.length)b.append(el('<p class="small">Inbox is empty. Things you "just save" land here.</p>'));
+      st.inbox.forEach((it,ix)=>{const sg=it.x.match(/quote|wander/i)?'Home':st.boards[0];const c=el(`<div class="card" style="margin-bottom:10px"><div style="font-size:14px">${it.x}</div><div class="small" style="margin:4px 0 10px">${it.s}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" style="width:auto;padding:8px 12px;font-size:13px" data-a="${sg}">Add to ${sg}</button><button class="btn ghost" style="width:auto;padding:8px 12px;font-size:13px" data-o="1">Other board</button></div></div>`);
+        b.append(c);
+        $('[data-a]',c).onclick=e=>{st.tiles.push({b:e.target.dataset.a,t:'note',x:it.x});st.inbox.splice(ix,1);toast('Filed in '+e.target.dataset.a)};
+        $('[data-o]',c).onclick=()=>{st.sheet={kind:'move',ix};draw()};});
+    }else if(st.open){
+      b.innerHTML=`<a href="#" id="bk" class="small" style="color:var(--ink)">‹ All boards</a><p class="serif" style="font-size:20px;margin:6px 0 10px">${st.open}</p><div id="tg" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"></div>`;
+      $('#bk').onclick=e=>{e.preventDefault();st.open=null;draw()};
+      st.tiles.filter(t=>t.b===st.open).forEach(t=>$('#tg').append(tileEl(t)));
+    }else{
+      b.append(el(`<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">${st.boards.map(n=>{const c=st.tiles.filter(t=>t.b===n).length;return`<div class="tile" data-b="${n}" style="background:var(--mist2);cursor:pointer;min-height:84px"><div class="serif" style="font-size:16px">${n}</div><div class="small">${c} saved</div></div>`}).join('')}<div class="tile" id="nb" style="border:1.5px dashed var(--dusk);cursor:pointer;color:var(--mute);text-align:center;padding-top:26px">+ New board</div></div>`));
+      b.querySelectorAll('[data-b]').forEach(t=>t.onclick=()=>{st.open=t.dataset.b;draw()});
+      $('#nb').onclick=()=>{st.sheet={kind:'newonly'};draw()};
+    }
+    if(st.sheet&&['clip','move','newonly'].includes(st.sheet.kind))drawPicker(ph);
+    if(st.toast)ph.append(el(`<div class="toast"><span>${st.toast}</span></div>`));
+  }
+  function tileEl(t){const bg=t.t==='q'?'var(--mist2)':t.t==='idea'?'var(--ink)':t.t==='img'?'#8FA3B8':'#fff';const col=t.t==='idea'?'var(--paper)':'var(--ink)';
+    return el(`<div class="tile ${t.t==='q'?'serif':''}" style="background:${bg};color:${col}">${t.t==='q'?'<span style="color:var(--crest)">?</span> ':''}${t.t==='img'?'<svg width="100%" height="64" viewBox="0 0 100 64" preserveAspectRatio="none"><rect width="100" height="64" fill="#8FA3B8"/><circle cx="22" cy="18" r="7" fill="#E3D6BE"/><path d="M0 52l24-22 20 16 18-12 38 26v4H0z" fill="#34405A"/></svg>':''}${t.x||''}${t.s?`<div class="small" style="margin-top:4px;color:inherit;opacity:.7">${t.s}</div>`:''}</div>`)}
+  function drawPicker(host,item){
+    host.append(el('<div class="scrim"></div>'));
+    const sh=el(`<div class="sheet"><div class="sw"><span class="serif" style="font-size:17px">${st.sheet.kind==='newonly'?'New board':'Which board?'}</span><a href="#" id="px" class="small" style="color:var(--ink)">cancel</a></div>
+    ${st.sheet.kind==='save'?`<div class="card" style="margin:10px 0"><div style="font-size:14px">Slow travel in Kyoto: a month without a plan</div><div class="small">kyotoslowtravel.com</div></div>`:''}
+    <div style="margin:10px 0 6px">${st.sheet.kind==='newonly'?'':st.boards.map(b=>`<span class="chip" data-b="${b}">${b}</span>`).join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:4px"><input type="text" id="nbn" placeholder="+ New board name" style="font-family:var(--sans);font-size:14px;padding:9px 12px"><button class="btn" id="nbg" style="width:auto;padding:9px 14px">Add</button></div>
+    ${st.sheet.kind==='save'?`<div style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="text" id="nt" placeholder="Optional note" style="font-family:var(--sans);font-size:14px;padding:9px 12px"><div class="mic" style="width:40px;height:40px">${ic.mic}</div></div>`:''}
+    ${st.sheet.kind==='save'||st.sheet.kind==='clip'?`<button class="btn ghost" id="js" style="margin-top:12px">Just save to Inbox</button>`:''}</div>`);
+    host.append(sh);
+    const done=(board)=>{const k=st.sheet.kind;
+      if(k==='save'){st.tiles.push({b:board,t:'link',x:'Slow travel in Kyoto',s:'kyotoslowtravel.com'});st.sheet=null;st.scene='chrome';st.toast='Saved to '+board;drawChrome();setTimeout(()=>{st.toast=null;if(st.scene==='chrome')drawChrome()},2400);return}
+      if(k==='clip'){st.tiles.push({b:board,t:'img',x:''});st.clip=false}
+      if(k==='move'){const it=st.inbox.splice(st.sheet.ix,1)[0];st.tiles.push({b:board,t:'note',x:it.x})}
+      st.sheet=null;toast('Added to '+board)};
+    $('#px',sh).onclick=e=>{e.preventDefault();st.sheet=null;st.scene==='chrome'?drawChrome():draw()};
+    sh.querySelectorAll('[data-b]').forEach(c=>c.onclick=()=>{if(!st.boards.includes(c.dataset.b))st.boards.push(c.dataset.b);done(c.dataset.b)});
+    $('#nbg',sh).onclick=()=>{const v=$('#nbn',sh).value.trim();if(!v)return;st.boards.push(v);if(st.sheet.kind==='newonly'){st.sheet=null;draw()}else done(v)};
+    const js=$('#js',sh);if(js)js.onclick=()=>{if(st.sheet.kind==='save'){st.inbox.push({x:'Slow travel in Kyoto',s:'kyotoslowtravel.com'});st.sheet=null;st.scene='chrome';st.toast='Saved to Inbox';drawChrome();setTimeout(()=>{st.toast=null;if(st.scene==='chrome')drawChrome()},2400)}else{st.inbox.push({x:'Copied image',s:'image'});st.clip=false;st.sheet=null;toast('Saved to Inbox')}};
+  }
+  function drawChrome(){
+    ph.className='phone';ph.style.background='#fff';
+    ph.innerHTML=`<div class="status" style="background:#f1f3f4">${'<span>3:42</span><span>5G ▮▮▮</span>'}</div>
+    <div style="background:#f1f3f4;padding:6px 12px 8px"><div style="background:#fff;border-radius:99px;padding:8px 14px;font-size:13px;color:#444;border:1px solid #dadce0">kyotoslowtravel.com</div></div>
+    <div class="scr" style="background:#fff;padding:0">
+      <svg width="100%" height="150" viewBox="0 0 300 150" preserveAspectRatio="none"><rect width="300" height="150" fill="#cdd8cf"/><circle cx="230" cy="40" r="22" fill="#f1dfc1"/><path d="M0 110l60-50 50 40 70-60 120 90v20H0z" fill="#6c8277"/></svg>
+      <div style="padding:14px 16px;font-family:Georgia,serif;color:#222"><div style="font-size:11px;color:#888;letter-spacing:.05em">TRAVEL</div><div style="font-size:21px;line-height:1.25;margin:4px 0 10px">Slow travel in Kyoto: a month without a plan</div>${'<div style="height:9px;background:#eee;border-radius:3px;margin:8px 0"></div>'.repeat(3)}<div style="height:9px;width:60%;background:#eee;border-radius:3px;margin:8px 0"></div>${'<div style="height:9px;background:#eee;border-radius:3px;margin:8px 0"></div>'.repeat(4)}</div>
+    </div>
+    <div style="background:#f1f3f4;display:flex;justify-content:space-around;align-items:center;padding:10px 0 14px;color:#444"><span>‹</span><span>›</span><span id="shr" style="cursor:pointer;padding:4px 10px;border-radius:8px;outline:2px dashed var(--ember);outline-offset:2px">${ic.share}</span><span>▢</span><span>⋯</span></div>`;
+    if(st.toast)ph.append(el(`<div class="toast" style="bottom:70px"><span>${st.toast}</span></div>`));
+    $('#shr').onclick=()=>{st.sheet={kind:'share'};drawShare()};
+    if(st.sheet&&st.sheet.kind==='save'){ph.append(el('<div style="position:absolute;inset:0;"></div>'));drawPicker(ph)}
+  }
+  function drawShare(){
+    ph.append(el('<div class="scrim"></div>'));
+    const sh=el(`<div class="sheet" style="background:#ececf0"><div class="card sw" style="background:#fff;margin-bottom:12px"><span style="font-size:13px">Slow travel in Kyoto<br><span class="small">kyotoslowtravel.com</span></span><a href="#" id="sx" class="small" style="color:#444">✕</a></div>
+    <div class="small" style="margin:0 0 6px">Apps</div><div style="display:flex;gap:10px;overflow:auto;padding-bottom:10px">${['Messages','Mail','Notes','Reminders'].map(n=>`<div class="shbtn"><i></i>${n}</div>`).join('')}</div>
+    <div class="small" style="margin:6px 0">Actions</div><div style="background:#fff;border-radius:12px">
+      <div class="sw" id="so" style="padding:13px 14px;border-bottom:1px solid #eee;cursor:pointer;outline:2px dashed var(--ember);outline-offset:-2px;border-radius:12px"><span style="font-size:15px">Save to Omokage</span><span style="width:24px;height:24px;border-radius:6px;background:var(--ink);display:inline-block"></span></div>
+      <div class="sw" style="padding:13px 14px;font-size:15px;color:#888">Copy</div></div></div>`);
+    ph.append(sh);
+    $('#sx').onclick=e=>{e.preventDefault();st.sheet=null;drawChrome()};
+    $('#so').onclick=()=>{st.sheet={kind:'save'};drawChrome()};
+  }
+  draw();
+}
+mount(cur);
+
+/* ---------- PINNED NOTES ---------- */
+(function(){
+  const LS='omokage_demo_notes';
+  const KINDS=[['love','Love this'],['change','Change this'],['confusing','Confusing'],['idea','Idea']];
+  let db=null,notes=[],mode=false,listOpen=false,pop=null;
+  try{notes=JSON.parse(localStorage.getItem(LS)||'[]')}catch(e){}
+  const lsSet=()=>{try{localStorage.setItem(LS,JSON.stringify(notes))}catch(e){}};
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const wrap=document.querySelector('.wrap');wrap.style.position='relative';
+  const layer=document.createElement('div');layer.id='fbLayer';wrap.append(layer);
+  const bar=document.createElement('div');bar.id='fbBar';document.body.append(bar);
+  const banner=document.createElement('div');banner.id='fbBanner';banner.textContent='Tap anything to leave a note on it';document.body.append(banner);
+  const label=()=>(DEMOS.find(d=>d.id===cur)||{}).label||cur;
+  const kindLabel=k=>(KINDS.find(x=>x[0]===k)||[])[1]||k;
+
+  function describe(t){
+    if(!t||!t.closest)return{name:'page',text:''};
+    const inter=t.closest('button,a,.chip,.med,.mic,.tile,.card,textarea,input,label,.toast,.tag,.bar,.status,.shbtn,.dots');
+    const el=inter||t;
+    let txt=(el.innerText||el.value||el.placeholder||el.getAttribute('aria-label')||'').replace(/\s+/g,' ').trim();
+    if(el.matches('.med')&&el.nextElementSibling)txt=(el.nextElementSibling.innerText||'').trim()||txt;
+    txt=txt.slice(0,70);
+    let name=el.matches('.med')?'medallion':el.matches('.mic')?'mic button':el.matches('.chip')?'chip':el.matches('.tile')?'tile':el.matches('.card')?'card':el.matches('.toast')?'toast':el.matches('.bar')?'progress bar':el.matches('.status')?'status bar':el.tagName==='BUTTON'?'button':(el.tagName==='TEXTAREA'||el.tagName==='INPUT')?'text field':el.tagName==='A'?'link':el.tagName==='svg'?'icon':/^H\d$/.test(el.tagName)?'heading':'area';
+    const path=[];let p=el;for(let i=0;i<4&&p&&p!==document.body;i++){path.push(p.tagName.toLowerCase()+(p.id?'#'+p.id:'')+(p.classList&&p.classList[0]?'.'+p.classList[0]:''));p=p.parentElement}
+    return{name,text:txt,path:path.reverse().join(' > ')};
+  }
+  const tlabel=t=>t.name+(t.text?` "${t.text}"`:'');
+  const screenCtx=()=>{const ph=document.getElementById('phone');return{text:((ph&&ph.innerText)||'').replace(/\s+/g,' ').slice(0,400),state:[...document.querySelectorAll('#ctl button.on')].map(b=>b.textContent).join(', ')}};
+
+  function renderBar(){
+    const n=notes.length;
+    bar.innerHTML=`<button id="fbMode" class="${mode?'on':''}">${mode?'Done commenting':'Comment on UI'}</button><button id="fbList">Notes${n?' · '+n:''}</button>`;
+    banner.style.display=mode?'block':'none';
+    bar.querySelector('#fbMode').onclick=()=>{mode=!mode;pop=null;listOpen=false;renderAll()};
+    bar.querySelector('#fbList').onclick=()=>{listOpen=true;pop=null;renderAll()};
+  }
+  function renderPins(){
+    layer.innerHTML='';
+    if(!mode)return;
+    const here=notes.filter(n=>n.demo===cur&&typeof n.x==='number');
+    here.forEach((n,i)=>{
+      const d=document.createElement('div');d.className='fbPin';d.textContent=i+1;d.style.left=(n.x*100)+'%';d.style.top=n.y+'px';
+      d.onclick=e=>{e.stopPropagation();pop={editId:n.id,x:n.x,y:n.y,cx:e.clientX,cy:e.clientY,target:n.target,kind:n.kind,draft:n.text};renderPop();renderPins()};
+      layer.append(d);
+    });
+    if(pop&&!pop.editId){const d=document.createElement('div');d.className='fbPin pend';d.style.left=(pop.x*100)+'%';d.style.top=pop.y+'px';layer.append(d)}
+  }
+  function renderPop(){
+    document.querySelectorAll('#fbPop').forEach(n=>n.remove());
+    if(!pop)return;
+    const w=Math.min(310,window.innerWidth-16);
+    const left=Math.max(8,Math.min(window.innerWidth-w-8,pop.cx-w/2));
+    const below=pop.cy<window.innerHeight*0.45;
+    const p=document.createElement('div');p.id='fbPop';
+    p.style.cssText=`left:${left}px;width:${w}px;${below?`top:${Math.min(pop.cy+18,window.innerHeight-250)}px`:`bottom:${Math.max(8,window.innerHeight-pop.cy+18)}px`}`;
+    p.innerHTML=`<div class="small" style="margin-bottom:6px">Pointing at <b style="font-weight:500;color:var(--ink)">${esc(tlabel(pop.target))}</b></div>
+    <div>${KINDS.map(([k,l])=>`<span class="chip ${k===pop.kind?'on':''}" data-k="${k}" style="padding:5px 10px;font-size:12px">${l}</span>`).join('')}</div>
+    <textarea id="fbT" rows="3" placeholder="Your note. Your keyboard's mic works here too.">${esc(pop.draft||'')}</textarea>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" id="fbS" style="padding:9px">Save</button><button class="btn ghost" id="fbC" style="padding:9px">Cancel</button>${pop.editId?'<button class="btn ghost" id="fbD" style="padding:9px;color:var(--crest);border-color:var(--crest)">Delete</button>':''}</div>
+    <p class="small" id="fbSt" style="margin:6px 0 0"></p>`;
+    document.body.append(p);
+    const t=p.querySelector('#fbT');
+    p.querySelectorAll('[data-k]').forEach(c=>c.onclick=()=>{pop.draft=t.value;pop.kind=c.dataset.k;renderPop()});
+    p.querySelector('#fbC').onclick=()=>{pop=null;renderPop();renderPins()};
+    p.querySelector('#fbS').onclick=()=>save(t.value);
+    const dl=p.querySelector('#fbD');if(dl)dl.onclick=()=>{const id=pop.editId;pop=null;del(id)};
+    setTimeout(()=>t.focus(),30);
+  }
+  async function save(text){
+    text=text.trim();
+    if(!text){const s=document.getElementById('fbSt');if(s)s.textContent='Write something first.';return}
+    let n;
+    if(pop.editId){n=notes.find(x=>x.id===pop.editId);n.text=text;n.kind=pop.kind;n.kindLabel=kindLabel(pop.kind)}
+    else{const sc=screenCtx();n={id:'n'+Date.now(),text,kind:pop.kind,kindLabel:kindLabel(pop.kind),demo:cur,demoLabel:label(),x:pop.x,y:Math.round(pop.y),target:pop.target,screenText:sc.text,screenState:sc.state,at:new Date().toISOString()};notes.push(n)}
+    pop=null;lsSet();renderAll();
+    if(db){try{await db.doc('feedback/'+n.id).set(n)}catch(e){toast('Saved on this device only. Claude could not read it yet.')}}
+    else toast('Saved on this device only (sign-in needed for Claude to read it).');
+  }
+  async function del(id){
+    notes=notes.filter(n=>n.id!==id);lsSet();renderAll();
+    if(db){try{await db.doc('feedback/'+id).delete()}catch(e){}}
+  }
+  function toast(m){const t=document.createElement('div');t.className='fbToast';t.textContent=m;document.body.append(t);setTimeout(()=>t.remove(),3200)}
+  function renderList(){
+    document.querySelectorAll('#fbPanel,#fbScrim').forEach(n=>n.remove());
+    if(!listOpen)return;
+    const scrim=document.createElement('div');scrim.id='fbScrim';scrim.onclick=()=>{listOpen=false;renderList()};
+    const p=document.createElement('div');p.id='fbPanel';
+    p.innerHTML=`<div class="sw"><span class="serif" style="font-size:18px">Your notes</span><a href="#" id="fbX" class="small" style="color:var(--ink)">close</a></div>
+    ${notes.length?'':'<p class="small">No notes yet. Tap "Comment on UI", then tap anything.</p>'}
+    ${notes.slice().reverse().map(n=>`<div class="fbi"><div class="m"><span>${esc(n.kindLabel)} · ${esc(n.demoLabel)}</span><a data-d="${n.id}">delete</a></div>${n.target?`<div class="small" style="margin-bottom:2px">on ${esc(tlabel(n.target))}</div>`:''}${esc(n.text)}</div>`).join('')}`;
+    document.body.append(scrim,p);
+    p.querySelector('#fbX').onclick=e=>{e.preventDefault();listOpen=false;renderList()};
+    p.querySelectorAll('[data-d]').forEach(a=>a.onclick=()=>del(a.dataset.d));
+  }
+  function renderAll(){renderBar();renderPins();renderPop();renderList()}
+
+  const UI='#fbBar,#fbPop,#fbPanel,#fbScrim,.fbPin,.fbToast';
+  ['pointerdown','pointerup','mousedown','mouseup'].forEach(ev=>document.addEventListener(ev,e=>{
+    if(!mode||(e.target.closest&&e.target.closest(UI)))return;
+    e.stopImmediatePropagation();if(ev==='pointerdown'||ev==='mousedown')e.preventDefault();
+  },true));
+  document.addEventListener('click',e=>{
+    if(!mode||(e.target.closest&&e.target.closest(UI)))return;
+    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+    const r=wrap.getBoundingClientRect();
+    pop={editId:null,cx:e.clientX,cy:e.clientY,x:Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),y:e.clientY-r.top,target:describe(e.target),kind:'change',draft:''};
+    renderPop();renderPins();
+  },true);
+
+  const origMount=window.mount;
+  window.mount=function(id){origMount(id);pop=null;renderAll()};
+  renderAll();
+
+  (async()=>{
+    try{
+      db=await claude.use('db');
+      if(!db)return;
+      const snap=await Promise.race([db.collection('feedback').orderBy('at').get(),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),10000))]);
+      const remote=snap.docs.map(d=>d.data());
+      const ids=new Set(remote.map(n=>n.id));
+      for(const n of notes){if(!ids.has(n.id)){try{await db.doc('feedback/'+n.id).set(n)}catch(e){}remote.push(n)}}
+      notes=remote.sort((a,b)=>a.at<b.at?-1:1);lsSet();renderAll();
+    }catch(e){}
+  })();
+})();
+</script>
+</body>
+</html>

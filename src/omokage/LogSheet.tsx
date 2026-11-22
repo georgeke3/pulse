@@ -72,6 +72,8 @@ const LoadScrub = ({ type, pct, before, rim, onPct }: { type: 'training' | 'reco
 /** The logging sheet: scrub the intensity, say or type what happened, confirm. Nothing saves until you press the button. */
 export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, onClose, onPct, before }: Props) => {
   const stim = useStimuli();
+  const first = useRef({ lvl: d.lvl, pct: d.pct, note: d.note });
+  const dirty = d.note.trim() !== first.current.note.trim() || (d.cell.type !== 'win' && (d.lvl !== first.current.lvl || d.pct !== first.current.pct));
   const isWin = d.cell.type === 'win', [rim, fill] = RIM[d.cell.type];
   const a = anchors.find(x => x.value === d.lvl);
   const zone = useRef<HTMLDivElement>(null);
@@ -146,7 +148,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
         <Mic onText={add} size={56} />
       </div>
 
-      <ActionBar keepFocus onCancel={onClose} primary={d.editId ? 'Save' : 'Log it'} onPrimary={onConfirm} />
+      <ActionBar keepFocus dirty={dirty} onCancel={onClose} primary={d.editId ? 'Save' : 'Log it'} onPrimary={onConfirm} />
       <div onPointerDown={() => ta.current?.blur()} style={{ position: 'absolute', inset: 0, zIndex: 4, background: 'rgba(251,250,247,.72)', opacity: open ? 1 : 0, pointerEvents: open ? 'auto' : 'none', transition: 'opacity .2s' }} />
       <div style={{ position: 'absolute', left: 12, right: 12, top: 'calc(var(--top) + 8px)', zIndex: 5, padding: '14px 14px 10px', borderRadius: 24, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.1), 0 14px 34px rgba(43,50,71,.14)',
         opacity: open ? 1 : 0, transform: open ? 'none' : 'translateY(-10px)', pointerEvents: open ? 'auto' : 'none', transition: 'opacity .18s, transform .22s cubic-bezier(.2,.8,.2,1)' }}>

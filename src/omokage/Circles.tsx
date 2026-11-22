@@ -87,6 +87,8 @@ const Editor = ({ id, type, onClose }: { id?: string; type: StimType; onClose: (
   const [icon, setIcon] = useState(cur?.icon ?? 'mono');
   const [short, setShort] = useState(cur?.short ?? '');
   const [err, setErr] = useState('');
+  const dirty = cur ? name !== cur.name || icon !== cur.icon || short !== (cur.short ?? '') : !!(name.trim() || short.trim() || icon !== 'mono');
+  const [sureArch, setSureArch] = useState(false);
   const preview = { icon, name: name || '?', type };
   const save = () => {
     if (!name.trim()) { setErr('Give it a name.'); return; }
@@ -120,13 +122,13 @@ const Editor = ({ id, type, onClose }: { id?: string; type: StimType; onClose: (
           ))}
         </div>
         {cur && (
-          <button className="cm-add press" style={{ marginTop: 22, color: '#A5483A' }} onClick={() => { haptic(10); st.setArchived(cur.id, !cur.archived); onClose(); }}>
-            {cur.archived ? 'Restore this circle' : 'Archive this circle'}
+          <button className="cm-add press" style={{ marginTop: 22, color: '#A5483A' }} onClick={() => { if (!cur.archived && !sureArch) { setSureArch(true); return; } haptic(10); st.setArchived(cur.id, !cur.archived); onClose(); }}>
+            {cur.archived ? 'Restore this circle' : sureArch ? 'Tap again to archive' : 'Archive this circle'}
           </button>
         )}
         {cur && !cur.archived && <p className="cm-note">Archiving takes it off the Present tab. Everything you logged with it stays in your history, and you can restore it any time.</p>}
       </div>
-      <ActionBar onCancel={onClose} primary="Save" onPrimary={save} />
+      <ActionBar dirty={dirty} onCancel={onClose} primary="Save" onPrimary={save} />
     </Sheet>
   );
 };

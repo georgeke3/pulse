@@ -35,6 +35,7 @@ export const PinEdit = ({ item, onSave, onClose }: { item: Item; onSave: (body: 
     void dropImages(start.filter(s => !imgs.some(x => x.id === s.id)).map(s => s.id));
     onSave(t.trim(), imgs.map(x => (x.cap?.trim() ? { ...x, cap: x.cap.trim() } : { id: x.id, w: x.w, h: x.h })));
   };
+  const dirty = t !== item.body || imgs.length !== start.length || imgs.some((x, k) => x.id !== start[k]?.id || (x.cap ?? '') !== (start[k]?.cap ?? ''));
   const ok = (t.trim() || imgs.length) && !busy;
   return (
     <Sheet mode="future">
@@ -48,7 +49,7 @@ export const PinEdit = ({ item, onSave, onClose }: { item: Item; onSave: (body: 
         </div>
         {imgs.map(r => <Row key={r.id} r={r} onCap={c => setImgs(v => v.map(x => (x.id === r.id ? { ...x, cap: c } : x)))} onRemove={() => { setImgs(v => v.filter(x => x.id !== r.id)); if (added([r]).length) void dropImages([r.id]); }} />)}
       </div>
-      <ActionBar onCancel={cancel} primary="Save" onPrimary={save} disabled={!ok} />
+      <ActionBar dirty={dirty} onCancel={cancel} primary="Save" onPrimary={save} disabled={!ok} />
     </Sheet>
   );
 };

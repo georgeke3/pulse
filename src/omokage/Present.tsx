@@ -8,7 +8,7 @@ import { layout } from './layout';
 import { labelOf, monoOf, useStimuli } from './stimuli';
 import { WIN_ICON } from './icons';
 import { haptic } from './haptics';
-import { EventCard, TodayList, evStart } from './Instances';
+import { Art, EventCard, TodayList, evStart } from './Instances';
 import { LogSheet, RIM, beadX, type Cell, type Draft } from './LogSheet';
 import { EMBER, GOLD, INK, INK2, SKY, fmtMin, fromDstr, hhmm, todayStr } from './skins';
 import { heat, loadOf, sideTotal } from './load';
@@ -55,6 +55,7 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
   const [held, setHeld] = useState<string | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
+  const [pick, setPick] = useState<{ x: number; y: number; ids: string[] } | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [bursts, setBursts] = useState<Burst[]>([]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4800); return () => clearTimeout(t); }, [toast]);
@@ -133,6 +134,33 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
   const counts = (c: Cell) => events.filter(e => mine(e, c)).length;
   const loadN = sideTotal(events, 'training'), restN = sideTotal(events, 'recovery'), winN = events.filter(e => e.type === 'win').length;
 
+  // every spoke's geometry, shared by drawing and by tap-picking (a tap where several overlap lists them all)
+  const spokes = cells.flatMap((c, k) => {
+    if (c.type === 'win') return [];
+    const ev = events.filter(e => mine(e, c)); if (!ev.length) return [];
+    const { x, y } = cellPts[k] ?? { x: 0, y: 0 }, d = Math.hypot(cx - x, cy - y) || 1, base = Math.atan2(cy - y, cx - x);
+    const room = Math.max(10, d - crest / 2 - sz / 2 - 8), rim = RIM[c.type][0], side = c.type === 'recovery' ? 'recovery' : 'training';
+    return ev.map((e, j) => {
+      const th = base + (j - (ev.length - 1) / 2) * Math.min(.2, .9 / ev.length);   // several events on one circle fan out
+      // length = load (share of the day), colour = intensity; instances logged before load existed get a short neutral spoke
+      const p = loadOf(e), len = sz / 2 + 4 + (p == null ? .16 : Math.max(.06, Math.min(1, p / 100))) * room;
+      const fill = p == null ? 'rgba(43,50,71,.18)' : heat(side, e.objectiveIntensity || 1);
+      const dx = Math.cos(th), dy = Math.sin(th);
+      return { id: e.id, e, c, p, rim, fill, x, y, dx, dy, px: -dy, py: dx, w: 3 + len * .035, tx: x + dx * len, ty: y + dy * len, mx: x + dx * len * .5, my: y + dy * len * .5 };
+    });
+  });
+  type Spoke = (typeof spokes)[number];
+  const openSpoke = (ev: React.MouseEvent<SVGGElement>, sp: Spoke) => {
+    const r = ev.currentTarget.ownerSVGElement!.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top;
+    const near = (q: Spoke) => {
+      const vx = q.tx - q.x, vy = q.ty - q.y, t = Math.max(0, Math.min(1, ((px - q.x) * vx + (py - q.y) * vy) / (vx * vx + vy * vy || 1)));
+      return Math.hypot(px - (q.x + vx * t), py - (q.y + vy * t)) <= Math.max(11, q.w + 5);
+    };
+    const ids = spokes.filter(q => q.id === sp.id || near(q)).sort((a, b) => (evMin(a.e) ?? 1e4) - (evMin(b.e) ?? 1e4)).map(q => q.id);
+    haptic(8);
+    if (ids.length > 1) setPick({ x: px, y: py, ids }); else setDetail(sp.id);
+  };
+
   return (
     <div className="screen" ref={screenRef} style={{ padding: '0 0 10px' }}>
       {!isToday && (
@@ -156,26 +184,12 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
           <ellipse cx={cx} cy={cy} rx={rx + 34} ry={ry + 30} fill="none" stroke={GOLD} strokeWidth=".8" opacity=".35" strokeDasharray="1 5" />
         </svg>
         <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} aria-hidden="true">
-          {cells.map((c, k) => {
-            if (c.type === 'win') return null;
-            const ev = events.filter(e => mine(e, c)); if (!ev.length) return null;
-            const { x, y } = cellPts[k] ?? { x: 0, y: 0 }, d = Math.hypot(cx - x, cy - y) || 1, base = Math.atan2(cy - y, cx - x);
-            const room = Math.max(10, d - crest / 2 - sz / 2 - 8), rim = RIM[c.type][0], side = c.type === 'recovery' ? 'recovery' : 'training';
-            return ev.map((e, j) => {
-              const th = base + (j - (ev.length - 1) / 2) * Math.min(.2, .9 / ev.length);   // several events on one circle fan out
-              // length = load (share of the day), colour = intensity; instances logged before load existed get a short neutral spoke
-              const p = loadOf(e), L = sz / 2 + 4 + (p == null ? .16 : Math.max(.06, Math.min(1, p / 100))) * room;
-              const fill = p == null ? 'rgba(43,50,71,.18)' : heat(side, e.objectiveIntensity || 1);
-              const dx = Math.cos(th), dy = Math.sin(th), px = -dy, py = dx, w = 3 + L * .035;
-              const tx = x + dx * L, ty = y + dy * L, mx = x + dx * L * .5, my = y + dy * L * .5;
-              return (
-                <g key={e.id} onClick={() => { haptic(8); setDetail(e.id); }} style={{ pointerEvents: 'auto', cursor: 'pointer' }} role="button" aria-label={`${c.name} ${p ?? '?'} percent, intensity ${Math.round(e.objectiveIntensity)}, open`}>
-                  <path d={`M${x} ${y} Q ${mx + px * w} ${my + py * w} ${tx} ${ty} Q ${mx - px * w} ${my - py * w} ${x} ${y} Z`} fill={fill} stroke={rim} strokeWidth=".6" opacity=".85" />
-                  <line x1={x + dx * (sz / 2)} y1={y + dy * (sz / 2)} x2={tx} y2={ty} stroke="transparent" strokeWidth="20" strokeLinecap="round" />
-                </g>
-              );
-            });
-          })}
+          {spokes.map(sp => (
+            <g key={sp.id} onClick={ev => openSpoke(ev, sp)} style={{ pointerEvents: 'auto', cursor: 'pointer' }} role="button" aria-label={`${sp.c.name} ${sp.p ?? '?'} percent, intensity ${Math.round(sp.e.objectiveIntensity)}, open`}>
+              <path d={`M${sp.x} ${sp.y} Q ${sp.mx + sp.px * sp.w} ${sp.my + sp.py * sp.w} ${sp.tx} ${sp.ty} Q ${sp.mx - sp.px * sp.w} ${sp.my - sp.py * sp.w} ${sp.x} ${sp.y} Z`} fill={sp.fill} stroke={sp.rim} strokeWidth=".6" opacity=".85" />
+              <line x1={sp.x + sp.dx * (sz / 2)} y1={sp.y + sp.dy * (sz / 2)} x2={sp.tx} y2={sp.ty} stroke="transparent" strokeWidth="20" strokeLinecap="round" />
+            </g>
+          ))}
         </svg>
         {cells.map((c, k) => {
           const { x, y, a } = cellPts[k] ?? { x: 0, y: 0, a: 0 };
@@ -198,6 +212,29 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
             </span>
           );
         })}
+        {pick && (() => {
+          const rows = pick.ids.map(id => events.find(e => e.id === id)).filter((e): e is Event => !!e);
+          const W = 232, h = 14 + rows.length * 52, left = Math.max(8, Math.min(ring.w - W - 8, pick.x - W / 2));
+          const top = Math.max(4, pick.y + 16 + h > ring.h ? pick.y - 16 - h : pick.y + 16);
+          return (
+            <>
+              <div style={{ position: 'absolute', inset: 0, zIndex: 20 }} onClick={() => setPick(null)} />
+              <div role="dialog" aria-label="Which one?" style={{ position: 'absolute', left, top, width: W, maxHeight: Math.max(120, ring.h - 8), overflowY: 'auto', zIndex: 21, borderRadius: 20, padding: '6px 6px 8px', background: 'rgba(255,255,255,.98)', boxShadow: '0 0 0 1px rgba(43,50,71,.08), 0 18px 44px rgba(43,50,71,.28)', animation: 'rise .22s var(--ease)' }}>
+                <div className="caps" style={{ padding: '6px 10px 2px' }}>Which one?</div>
+                {rows.map(e => (
+                  <button key={e.id} className="irow press" style={{ padding: '7px 8px' }} onClick={() => { setPick(null); setDetail(e.id); }}>
+                    <Art e={e} s={34} />
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span className="serif" style={{ fontSize: 16, display: 'block', lineHeight: 1.15 }}>{e.category}</span>
+                      <span style={{ fontSize: 11.5, color: INK2 }}>{evMin(e) != null ? fmtMin(evMin(e)!, true) : 'no time'} · {loadOf(e) != null ? `${loadOf(e)}%` : '—'}</span>
+                    </span>
+                    <span style={{ color: INK2, fontSize: 15 }}>›</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          );
+        })()}
         <button className="crest" onClick={onPulse} style={{ left: cx - crest / 2, top: cy - crest / 2, width: crest, height: crest }}>
           <Drg n="riderg" w={42} o={answered >= nq ? 1 : .32} />
           <span className="it" style={{ fontSize: 15 }}>{answered >= nq ? 'Pulse done' : 'Evening pulse'}</span>

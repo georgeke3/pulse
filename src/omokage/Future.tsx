@@ -277,7 +277,7 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
           <div style={{ fontSize: 11.5, color: INK2, marginTop: 8 }}>{bOf(resurface)} · saved {ago(resurface.day)}</div>
           <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
             <button className="chip on" style={{ height: 38, padding: '0 18px', gap: 8 }} onClick={() => { update(resurface.id, { meta: { ...(resurface.meta ?? {}), kept: todayStr() } }); markSeen(); }}><Sym n="seal" on s={18} /> Yes, keep it</button>
-            <button className="chip" style={{ height: 38, padding: '0 18px' }} onClick={() => { toTrash(resurface); markSeen(); }}>Let it go</button>
+            <button className="chip" style={{ height: 38, padding: '0 18px', ...(sure === 'rs' ? { background: CRIMSON, color: '#fff' } : {}) }} onClick={() => { if (sure !== 'rs') { setSure('rs'); return; } toTrash(resurface); markSeen(); }}>{sure === 'rs' ? 'Tap again to let go' : 'Let it go'}</button>
           </div>
         </div>
       ) : mine.length === 0 ? (

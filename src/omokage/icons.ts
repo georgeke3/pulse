@@ -37,7 +37,8 @@ import i_friction from './assets/cat-friction.png';
 import i_care from './assets/cat-care.png';
 
 export interface IconDef { key: string; label: string; src: string }
-export const ICONS: IconDef[] = [
+import { MORE_ICONS } from './iconsMore';
+const BASE_ICONS: IconDef[] = [
   { key: 'work', label: 'Work', src: i_work }, { key: 'nucleus', label: 'Nucleus', src: i_nucleus }, { key: 'family', label: 'Family', src: i_family },
   { key: 'family-rest', label: 'Family (rest)', src: i_family_rest }, { key: 'friends', label: 'Friends', src: i_friends }, { key: 'chaos', label: 'Chaos', src: i_chaos },
   { key: 'baseline', label: 'Baseline', src: i_baseline }, { key: 'finances', label: 'Finances', src: i_finances }, { key: 'journaling', label: 'Journaling', src: i_journaling },
@@ -51,6 +52,7 @@ export const ICONS: IconDef[] = [
   { key: 'solitude', label: 'Solitude', src: i_solitude }, { key: 'sleep', label: 'Sleep', src: i_sleep }, { key: 'movement', label: 'Movement', src: i_movement },
   { key: 'friction', label: 'Friction', src: i_friction }, { key: 'care', label: 'Care', src: i_care },
 ];
+export const ICONS: IconDef[] = [...BASE_ICONS, ...MORE_ICONS];
 const BY_KEY = new Map(ICONS.map(i => [i.key, i.src]));
 export const WIN_ICON = i_win;
 /** The painted icon for a key; undefined (the "letter" option, or an unknown key) falls back to the monogram. */

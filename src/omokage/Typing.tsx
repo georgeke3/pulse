@@ -6,8 +6,10 @@ import { INK2, type Mode } from './skins';
 
 /** Writing sheet: prompt stays put at the top, text fills the middle, chips + Save ride the keyboard. */
 const Thumb = ({ id, onRemove }: { id: string; onRemove: () => void }) => {
+  const [sure, setSure] = useState(false);
+  useEffect(() => { if (!sure) return; const t = setTimeout(() => setSure(false), 3000); return () => clearTimeout(t); }, [sure]);
   const u = useImg(id, 'thumb');
-  return <span className="th">{u && <img src={u} alt="" />}<b role="button" aria-label="Remove photo" onClick={onRemove}>✕</b></span>;
+  return <span className="th">{u && <img src={u} alt="" />}<b role="button" aria-label={sure ? 'Tap again to remove photo' : 'Remove photo'} onClick={() => (sure ? onRemove() : setSure(true))} style={sure ? { background: '#B5483A', color: '#fff', width: 'auto', padding: '0 6px' } : undefined}>{sure ? 'Remove?' : '✕'}</b></span>;
 };
 
 export const Typing = ({ mode, label, prompt, chips, topics, initialTags, initialText, placeholder, photos, initialImages, onSave, onCancel, onDelete }: {
@@ -42,9 +44,13 @@ export const Typing = ({ mode, label, prompt, chips, topics, initialTags, initia
     if (photos && files.length) { e.preventDefault(); void attach(files); }
   };
   const removeImg = (id: string) => { setImgs(v => v.filter(x => x.id !== id)); void dropImages([id]); };
-  const cancel = () => { if (photos) void dropImages(imgs.map(x => x.id).filter(id => !(initialImages ?? []).some(i => i.id === id))); onCancel(); };
+  const cancelNow = () => { if (photos) void dropImages(imgs.map(x => x.id).filter(id => !(initialImages ?? []).some(i => i.id === id))); onCancel(); };
   const [t, setT] = useState(initialText ?? '');
   const [tags, setTags] = useState<string[]>(initialTags ?? []);
+  const [armed, setArmed] = useState(false);
+  useEffect(() => { if (!armed) return; const id = setTimeout(() => setArmed(false), 3500); return () => clearTimeout(id); }, [armed]);
+  const dirty = t.trim() !== (initialText ?? '').trim() || tags.join('|') !== (initialTags ?? []).join('|') || imgs.map(x => x.id).join('|') !== (initialImages ?? []).map(x => x.id).join('|');
+  const cancel = () => (dirty && !armed ? setArmed(true) : cancelNow());
   const ta = useRef<HTMLTextAreaElement>(null);
   const [browsing, setBrowsing] = useState(false);
   const [sure, setSure] = useState(false);
@@ -90,7 +96,7 @@ export const Typing = ({ mode, label, prompt, chips, topics, initialTags, initia
         </>
       )}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px calc(8px + var(--sb))', background: 'rgba(255,255,255,.55)', boxShadow: '0 -1px 0 rgba(43,50,71,.08)' }}>
-        <button className="chip press" style={{ flex: 'none', height: 40, fontSize: 14 }} onMouseDown={e => e.preventDefault()} onClick={cancel}>Cancel</button>
+        <button className="chip press" onMouseDown={e => e.preventDefault()} onClick={cancel} style={{ flex: 'none', height: 40, fontSize: 14, ...(armed ? { background: '#B5483A', color: '#fff', boxShadow: 'none' } : {}) }}>{armed ? 'Discard?' : 'Cancel'}</button>
         <div className="scroll" style={{ flex: 1, display: 'flex', gap: 6, overflowX: 'auto' }}>
           {topics && <button className="chip press" style={{ flex: 'none', height: 32, gap: 4, background: browsing ? '#2B3247' : '#fff', color: browsing ? '#fff' : undefined }} onMouseDown={e => e.preventDefault()} onClick={browsing ? closeTopics : openTopics}>{browsing ? 'Done' : `# Topics${tags.length ? ` · ${tags.length}` : ''}`}</button>}
           {topics && tags.map(c => <button key={c} className="chip on" style={{ flex: 'none', height: 32 }} onMouseDown={e => e.preventDefault()} onClick={() => flipTag(c)}>{c} ✕</button>)}
