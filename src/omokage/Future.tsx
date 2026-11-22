@@ -245,7 +245,8 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
         {photoItems.length > 0 && <button className="chip press" style={{ height: 34 }} onClick={() => setAllPhotos(true)}>Photos · {photoItems.reduce((n, i) => n + imgsOf(i).length, 0)}</button>}
       </div>
 
-      <div className="scroll" style={{ position: 'relative', margin: '14px -24px 0', padding: '10px 24px 8px', maxHeight: 310 }}>
+      {/* boards and the resurfaced idea share one full-height scroll that runs under the capture bar (no boxed area) */}
+      <div className="scroll grow" style={{ position: 'relative', margin: '4px -24px -12px', padding: '20px 24px 96px', WebkitMaskImage: FADE, maskImage: FADE }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '22px 14px', alignItems: 'start' }}>
           {shown.map((b, k) => {
             const list = inBoard(b);
@@ -266,10 +267,9 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
             : <button className="press" onClick={() => setNaming(true)} style={{ height: 56, borderRadius: 6, border: '1.2px dashed rgba(43,50,71,.3)', fontSize: 13, color: INK2, transform: 'rotate(1.5deg)', marginTop: 8 }}>+ new board</button>}
         </div>
         {trash.length > 0 && <button className="press" onClick={() => setBoard(TRASH)} style={{ display: 'block', margin: '16px auto 0', fontSize: 12.5, color: INK2 }}>Trash · {trash.length}</button>}
-      </div>
 
       {resurface ? (
-        <div style={{ position: 'relative', marginTop: 18, animation: 'enter .5s .15s both' }}>
+        <div style={{ position: 'relative', marginTop: 56, animation: 'enter .5s .15s both' }}>
           <Drg n="peek" w={84} style={{ position: 'absolute', right: 0, top: -44 }} />
           <div className="caps">still excited about this?</div>
           {imgsOf(resurface).length > 0 && <div style={{ marginTop: 10 }}><Mini id={imgsOf(resurface)[0].id} s={72} /></div>}
@@ -287,9 +287,8 @@ export const Future = ({ typing, setTyping }: { typing: boolean; setTyping: (b: 
           <Drg n="legs" w={150} o={.9} style={{ margin: '22px 0 0 auto' }} />
         </div>
       ) : null}
-
-      <div className="grow" />
-      <Capture label="Save an idea, link or question…" onTap={() => setTyping(true)} onPhotos={takePhotos} />
+      </div>
+      <div style={{ position: 'absolute', left: 24, right: 24, bottom: 12, zIndex: 2 }}><Capture label="Save an idea, link or question…" onTap={() => setTyping(true)} onPhotos={takePhotos} /></div>
       {sheet}{viewer}
     </div>
   );
