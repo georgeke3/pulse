@@ -1,5 +1,6 @@
 import { subjectiveFor } from '../intensity';
 import { isStim, isText, sleepReserve } from './special';
+import { wisp } from './wisp';
 import { TabMark, Sym } from './Sym';
 import { useNavState } from './nav';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -151,19 +152,21 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
   const counts = (c: Cell) => events.filter(e => mine(e, c)).length;
   const loadN = sideTotal(events, 'training'), restN = sideTotal(events, 'recovery'), winN = events.filter(e => e.type === 'win').length;
 
-  // every spoke's geometry, shared by drawing and by tap-picking (a tap where several overlap lists them all)
+  // every wisp's geometry, shared by drawing and by tap-picking (a tap where several overlap lists them all)
+  const csz = (k: number) => (cellPts[k]?.inner ? Math.round(sz * .92) : sz);
   const spokes = cells.flatMap((c, k) => {
     if (!isStim(c.type)) return [];
     const ev = events.filter(e => mine(e, c)); if (!ev.length) return [];
-    const { x, y } = cellPts[k] ?? { x: 0, y: 0 }, d = Math.hypot(cx - x, cy - y) || 1, base = Math.atan2(cy - y, cx - x);
-    const room = Math.max(10, d - crest / 2 - sz / 2 - 8), rim = RIM[c.type][0], side = c.type === 'recovery' ? 'recovery' : 'training';
+    const { x, y } = cellPts[k] ?? { x: 0, y: 0 }, cs = csz(k), d = Math.hypot(cx - x, cy - y) || 1, base = Math.atan2(cy - y, cx - x);
+    const room = Math.max(16, d - cs / 2 - crest / 2 * .6 - 4), rim = RIM[c.type][0], side = c.type === 'recovery' ? 'recovery' : 'training';
     return ev.map((e, j) => {
-      const th = base + (j - (ev.length - 1) / 2) * Math.min(.2, .9 / ev.length);   // several events on one circle fan out
-      // length = load (share of the day), colour = intensity; instances logged before load existed get a short neutral spoke
-      const p = loadOf(e), len = sz / 2 + 4 + (p == null ? .16 : Math.max(.06, Math.min(1, p / 100))) * room;
-      const fill = p == null ? 'rgba(43,50,71,.18)' : heat(side, e.objectiveIntensity || 1);
-      const dx = Math.cos(th), dy = Math.sin(th);
-      return { id: e.id, e, c, p, rim, fill, x, y, dx, dy, px: -dy, py: dx, w: 3 + len * .035, tx: x + dx * len, ty: y + dy * len, mx: x + dx * len * .5, my: y + dy * len * .5 };
+      const th = base + (j - (ev.length - 1) / 2) * Math.min(.34, 1.1 / ev.length);   // several events on one circle fan out
+      // length = load (share of the day), width swells with it, colour = intensity; instances logged before load existed get a short neutral wisp
+      const p = loadOf(e), frac = p == null ? .2 : Math.max(.12, Math.min(1, p / 100)), len = cs / 2 + 4 + frac * room, W = p == null ? 4 : 6 + 9 * frac;
+      const col = p == null ? 'rgb(150,156,172)' : heat(side, e.objectiveIntensity || 1);
+      const dx = Math.cos(th), dy = Math.sin(th), h = [...e.id].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+      const w = wisp(x, y, dx, dy, len, W, 1 + (h % 5) * .08);
+      return { id: e.id, e, c, p, rim, col, x, y, dx, dy, px: -dy, py: dx, w: W, tx: x + dx * len, ty: y + dy * len, d: w.d, vein: w.vein, delay: -(h % 70) / 10 };
     });
   });
   type Spoke = (typeof spokes)[number];
@@ -201,31 +204,42 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
           <ellipse cx={cx} cy={cy} rx={rx + 34} ry={ry + 30} fill="none" stroke={GOLD} strokeWidth=".8" opacity=".35" strokeDasharray="1 5" />
         </svg>
         <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} aria-hidden="true">
+          <defs><filter id="wglow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.2" /></filter></defs>
           {spokes.map(sp => (
             <g key={sp.id} onClick={ev => openSpoke(ev, sp)} style={{ pointerEvents: 'auto', cursor: 'pointer' }} role="button" aria-label={`${sp.c.name} ${sp.p ?? '?'} percent, intensity ${Math.round(sp.e.objectiveIntensity)}, open`}>
-              <path d={`M${sp.x} ${sp.y} Q ${sp.mx + sp.px * sp.w} ${sp.my + sp.py * sp.w} ${sp.tx} ${sp.ty} Q ${sp.mx - sp.px * sp.w} ${sp.my - sp.py * sp.w} ${sp.x} ${sp.y} Z`} fill={sp.fill} stroke={sp.rim} strokeWidth=".6" opacity=".85" />
-              <line x1={sp.x + sp.dx * (sz / 2)} y1={sp.y + sp.dy * (sz / 2)} x2={sp.tx} y2={sp.ty} stroke="transparent" strokeWidth="20" strokeLinecap="round" />
+              <linearGradient id={`wg-${sp.id}`} gradientUnits="userSpaceOnUse" x1={sp.x} y1={sp.y} x2={sp.tx} y2={sp.ty}>
+                <stop offset="0" stopColor={sp.col} stopOpacity="1" /><stop offset=".55" stopColor={sp.col} stopOpacity=".82" /><stop offset="1" stopColor={sp.col} stopOpacity=".12" />
+              </linearGradient>
+              <g className="wsway" style={{ transformOrigin: `${sp.x}px ${sp.y}px`, animationDelay: `${sp.delay}s` }}>
+                <g className="win" style={{ transformOrigin: `${sp.x}px ${sp.y}px` }}>
+                  <path d={sp.d} fill={sp.col} opacity=".45" filter="url(#wglow)" />
+                  <path d={sp.d} fill={`url(#wg-${sp.id})`} stroke={sp.rim} strokeWidth=".6" strokeOpacity=".5" strokeLinejoin="round" />
+                  <path d={sp.vein} fill="none" stroke="#fff" strokeWidth="1.1" strokeOpacity=".5" strokeLinecap="round" />
+                </g>
+              </g>
+              <line x1={sp.x + sp.dx * (sz / 2)} y1={sp.y + sp.dy * (sz / 2)} x2={sp.tx} y2={sp.ty} stroke="transparent" strokeWidth={Math.max(22, sp.w * 2)} strokeLinecap="round" />
             </g>
           ))}
         </svg>
         {cells.map((c, k) => {
           const { x, y, a } = cellPts[k] ?? { x: 0, y: 0, a: 0 };
           const [r, f] = RIM[c.type], n = counts(c), id = c.type + c.name;
-          const co = Math.cos(a), si = Math.sin(a), off = sz / 2 + 6;
+          const cs = csz(k), co = Math.cos(a), si = Math.sin(a), off = cs / 2 + 6;
           const lab: React.CSSProperties = co > .35 ? { left: x + off, top: y, transform: 'translateY(-50%)' }
             : co < -.35 ? { left: x - off, top: y, transform: 'translate(-100%,-50%)' }
-            : { left: x, top: y + (si > 0 ? off + 3 : -off - 3), transform: 'translate(-50%,-50%)' };
+            : { left: x, top: y + (si > 0 ? off + 3 : -off - 3), transform: `translate(${x < cx - 2 ? '-82%' : x > cx + 2 ? '-18%' : '-50%'},-50%)` };   // top and bottom neighbours lean apart so their names never touch
+          const tag: React.CSSProperties = { left: x, top: y + cs / 2 - 2, transform: 'translate(-50%,0)' };   // inner-ring circles wear their name as a small tag instead
           return (
             <span key={id}>
               <button className={`node ${held === id ? 'held' : ''}`} aria-label={`Log ${c.name}`}
-                style={{ left: x, top: y, ['--r' as string]: r, ['--f' as string]: f, ['--sz' as string]: `${sz}px` }}
+                style={{ left: x, top: y, ['--r' as string]: r, ['--f' as string]: f, ['--sz' as string]: `${cs}px` }}
                 onPointerDown={openFor(c)} onPointerMove={e => move(e.clientX)} onPointerUp={() => { release(); setHeld(null); }} onPointerCancel={() => { release(); setHeld(null); }} onContextMenu={e => e.preventDefault()}>
                 <i />{c.type === 'win' || c.art
-                  ? <img className="catart" src={c.type === 'win' ? WIN_ICON : c.art} alt="" draggable={false} style={{ marginTop: !isStim(c.type) && n ? -5 : 0, width: sz * .8, height: sz * .8 }} />
+                  ? <img className="catart" src={c.type === 'win' ? WIN_ICON : c.art} alt="" draggable={false} style={{ marginTop: !isStim(c.type) && n ? -5 : 0, width: cs * .8, height: cs * .8 }} />
                   : <b style={{ fontSize: c.mono.length > 1 ? 12.5 : 16, marginTop: n ? -4 : 0 }}>{c.mono}</b>}
                 {!isStim(c.type) && n > 0 && <span className="pips">{Array.from({ length: Math.min(n, 4) }, (_, i) => <s key={i} />)}</span>}
               </button>
-              {(L.labels || held === id) && <span className="nl" style={lab}>{c.label}</span>}
+              <span className={`nl${cellPts[k]?.inner ? ' tag' : ''}`} style={cellPts[k]?.inner ? tag : lab}>{c.label}</span>
             </span>
           );
         })}
@@ -252,11 +266,11 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
             </>
           );
         })()}
-        <button className="crest" onClick={onPulse} style={{ left: cx - crest / 2, top: cy - crest / 2, width: crest, height: crest }}>
+        <button className="crest" onClick={onPulse} style={{ ['--cf' as string]: crest < 106 ? .82 : 1, left: cx - crest / 2, top: cy - crest / 2, width: crest, height: crest }}>
           <TabMark m="present" o={answered >= nq ? 1 : .32} />
-          <span className="it" style={{ fontSize: 15 }}>{answered >= nq ? 'Pulse done' : 'Evening pulse'}</span>
-          <span style={{ display: 'flex', gap: 3, marginTop: 3 }}>{Array.from({ length: nq }, (_, k) => <i key={k} style={{ width: 5, height: 5, borderRadius: 3, background: k < answered ? GOLD : 'rgba(43,50,71,.15)' }} />)}</span>
-          <span className="caps" style={{ fontSize: 8.5, marginTop: 3 }}>{answered} of {nq}</span>
+          <span className="it" style={{ fontSize: 'calc(15px * var(--cf, 1))', lineHeight: 1.15, textAlign: 'center' }}>{answered >= nq ? 'Pulse done' : 'Evening pulse'}</span>
+          <span style={{ display: 'flex', gap: 3, marginTop: 3 }}>{Array.from({ length: nq }, (_, k) => <i key={k} style={{ width: 'calc(5px * var(--cf, 1))', height: 'calc(5px * var(--cf, 1))', borderRadius: 3, background: k < answered ? GOLD : 'rgba(43,50,71,.15)' }} />)}</span>
+          <span className="caps" style={{ fontSize: 'calc(8.5px * var(--cf, 1))', marginTop: 3 }}>{answered} of {nq}</span>
         </button>
       </div>
 

@@ -5,14 +5,14 @@
 //  - Within a half, circle i takes slot i (its order among the shown ones). Appending a circle only spreads the half a little:
 //    re-divides, and then nobody moves by more than one slot (the ones nearest the top barely move at all).
 //  - Past the outer ring's capacity circles spill onto an inner ring; the outer ring is then full and stays fixed.
-export interface Pt { x: number; y: number; a: number }   // a = ellipse angle, used to place labels outward
+export interface Pt { x: number; y: number; a: number; inner?: boolean }   // a = ellipse angle, used to place labels outward
 export interface Layout {
   win: Pt; gratitude: Pt; sleep: Pt; load: Pt[]; rest: Pt[];
   sz: number; spacing: number; labels: boolean; crest: number;
   cx: number; cy: number; rx: number; ry: number; inner: { rx: number; ry: number } | null;
 }
 
-const MIN_SPACING = 40, INNER = 0.6, S = 480;
+const MIN_SPACING = 40, INNER = 0.62, S = 480;
 export const tier = (n: number) => Math.max(6, n);
 
 interface Half { len: number; at: (frac: number) => Pt }
@@ -32,7 +32,7 @@ const half = (cx: number, cy: number, rx: number, ry: number, side: 1 | -1): Hal
 export function layout(w: number, h: number, nLoad: number, nRest: number): Layout {
   const cx = w / 2, cy = h / 2;
   const rx = Math.max(90, Math.min(128, w / 2 - 70));
-  const ry = Math.max(100, Math.min(rx * 1.15, h / 2 - 84));      // close to a circle, with room above and below
+  const ry = Math.max(100, Math.min(rx * 1.3, h / 2 - 98));      // a little taller than wide: more room for circles and for wisps, with the special row above
   const out = { l: half(cx, cy, rx, ry, -1), r: half(cx, cy, rx, ry, 1) };
   const capMax = Math.max(6, Math.floor(out.r.len / MIN_SPACING - 0.5));
   const n0L = Math.min(nLoad, capMax), n0R = Math.min(nRest, capMax);
@@ -44,17 +44,20 @@ export function layout(w: number, h: number, nLoad: number, nRest: number): Layo
 
   const rx1 = rx * INNER, ry1 = ry * INNER;
   const inn = used1 ? { l: half(cx, cy, rx1, ry1, -1), r: half(cx, cy, rx1, ry1, 1) } : null;
-  const slots = (n: number, n0: number, H0: number, n1: number, side: 'l' | 'r'): Pt[] => {
-    const H1 = tier(n1);
-    return Array.from({ length: n }, (_, i) => (i < n0 || !inn ? out[side].at((i + 1) / (H0 + 0.5)) : inn[side].at((i - n0 + 1) / (H1 + 0.5))));
+  // Inner ring circles sit between the outer circles' radial lines (a brick pattern), every other gap first, so no circle blocks
+  // another's wisp and nobody moves when one is added. Each half keeps its own order.
+  const gaps = (H0: number) => { const m = Math.max(1, H0 - 1), e: number[] = [], o: number[] = []; for (let g = 0; g < m; g++) (g % 2 ? o : e).push(g); return [...e, ...o]; };
+  const slots = (n: number, n0: number, H0: number, side: 'l' | 'r'): Pt[] => {
+    const order = gaps(H0);
+    return Array.from({ length: n }, (_, i) => (i < n0 || !inn ? out[side].at((i + 1) / (H0 + 0.5)) : { ...inn[side].at((order[(i - n0) % order.length] + 1.5) / (H0 + 0.5)), inner: true }));
   };
 
   let crest = Math.min(120, 2 * Math.min(rx, ry) - 96);
-  if (used1) crest = Math.max(64, Math.min(crest, 2 * Math.min(rx1, ry1) - sz - 14));
+  if (used1) crest = Math.max(96, Math.min(crest, 2 * rx1 - sz * 0.92 - 34));
   return {
     // the three special circles crown the ring in a row: gratitude, win, sleep
     gratitude: { x: cx - 64, y: cy - ry - 58, a: -Math.PI / 2 }, win: { x: cx, y: cy - ry - 62, a: -Math.PI / 2 }, sleep: { x: cx + 64, y: cy - ry - 58, a: -Math.PI / 2 },
-    load: slots(nLoad, n0L, H0L, n1L, 'l'), rest: slots(nRest, n0R, H0R, n1R, 'r'),
-    sz, spacing, labels: !used1, crest, cx, cy, rx, ry, inner: used1 ? { rx: rx1, ry: ry1 } : null,
+    load: slots(nLoad, n0L, H0L, 'l'), rest: slots(nRest, n0R, H0R, 'r'),
+    sz, spacing, labels: true, crest, cx, cy, rx, ry, inner: used1 ? { rx: rx1, ry: ry1 } : null,
   };
 }
