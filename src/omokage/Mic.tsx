@@ -11,6 +11,7 @@ const pickType = () => {
 };
 
 /** One stream shared by every mic, kept warm for a few seconds so the next tap starts instantly (and iOS does not re-ask). */
+const MAX_SECS = 300;   // 5 min: at 32 kbps that is ~1.2 MB, far below the 4 MB upload limit
 let warm: MediaStream | null = null, warmTimer: ReturnType<typeof setTimeout> | undefined;
 const getStream = async () => {
   clearTimeout(warmTimer);
@@ -54,7 +55,7 @@ export const Mic = ({ onText, size = 52 }: { onText: (t: string) => void; size?:
     try {
       const stream = await getStream();
       if (!want.current) { cool(); return; }                          // tapped stop before the mic was ready
-      const type = pickType(), r = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+      const type = pickType(), r = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), audioBitsPerSecond: 32000 });
       chunks.current = [];
       r.ondataavailable = ev => { if (ev.data.size) chunks.current.push(ev.data); };
       r.onstop = async () => {
@@ -67,7 +68,7 @@ export const Mic = ({ onText, size = 52 }: { onText: (t: string) => void; size?:
         catch (x) { if (live.current) { setPhase('idle'); setErr((x as Error).message); } }
       };
       rec.current = r; t0.current = Date.now(); r.start();
-      tick.current = setInterval(() => { const s = Math.floor((Date.now() - t0.current) / 1000); setSecs(s); if (s >= 90) stop(); }, 250);
+      tick.current = setInterval(() => { const s = Math.floor((Date.now() - t0.current) / 1000); setSecs(s); if (s >= MAX_SECS) stop(); }, 250);
     } catch {
       want.current = false; setPhase('idle'); setErr('Allow the microphone to dictate.');
     }

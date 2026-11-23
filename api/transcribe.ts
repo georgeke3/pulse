@@ -45,7 +45,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-      method: 'POST', headers: { Authorization: `Bearer ${apiKey}` }, body: form, signal: AbortSignal.timeout(20000),
+      method: 'POST', headers: { Authorization: `Bearer ${apiKey}` }, body: form, signal: AbortSignal.timeout(40000),
     });
     if (!r.ok) {
       const j: any = await r.json().catch(() => ({}));
