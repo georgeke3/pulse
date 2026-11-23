@@ -9,16 +9,16 @@ export const NavBar = () => {
   const [trail, setTrail] = useState<string[] | null>(null);
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
-  if (!n.showBack && !n.canForward) return null;
+  if (!n.row) return null;
   const down = () => { held.current = false; t.current = setTimeout(() => { held.current = true; haptic(12); setTrail(n.trailLabels()); }, 420); };
   const up = () => { if (t.current) clearTimeout(t.current); };
   return (
-    <div style={{ position: 'absolute', left: 24, right: 22, top: 'calc(var(--top) - 6px)', height: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 8, WebkitFontSmoothing: 'antialiased' }}>
-      {n.showBack
+    <div style={{ position: 'absolute', left: 24, right: 22, top: 'calc(var(--top) + 22px)', height: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 8, WebkitFontSmoothing: 'antialiased' }}>
+      {n.showBack && !n.sheet
         ? <button aria-label={`Back to ${n.backLabel}`} onPointerDown={down} onPointerUp={up} onPointerLeave={up} onPointerCancel={up}
-            onClick={() => { if (held.current) { held.current = false; return; } haptic(6); nav.back(); }} style={{ fontSize: 13, lineHeight: '24px', height: 24, color: INK2, padding: 0, whiteSpace: 'nowrap', maxWidth: '70%', overflow: 'hidden', textOverflow: 'ellipsis' }}>‹ {n.backLabel}</button>
+            onClick={() => { if (held.current) { held.current = false; return; } haptic(6); nav.back(); }} style={{ fontSize: 13, lineHeight: '22px', height: 22, color: INK2, padding: 0, whiteSpace: 'nowrap', maxWidth: '70%', overflow: 'hidden', textOverflow: 'ellipsis' }}>‹ {n.backLabel}</button>
         : <span />}
-      {n.canForward && <button aria-label={`Forward to ${n.forwardLabel}`} onClick={() => { haptic(6); nav.forward(); }} style={{ fontSize: 13, lineHeight: '24px', height: 24, color: '#8A90A3', padding: 0 }}>{n.forwardLabel} ›</button>}
+      {n.canForward && !n.sheet && <button aria-label={`Forward to ${n.forwardLabel}`} onClick={() => { haptic(6); nav.forward(); }} style={{ fontSize: 13, lineHeight: '22px', height: 22, color: '#8A90A3', padding: 0 }}>{n.forwardLabel} ›</button>}
       {trail && (
         <>
           <div className="backdrop" style={{ position: 'fixed', inset: 0, zIndex: 30 }} onClick={() => setTrail(null)} />

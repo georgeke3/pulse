@@ -104,6 +104,8 @@ export const useNavInfo = () => {
     mode: v.mode as Mode,
     backLabel: prev ? describe(prev) : '',
     // tab-bar landings are roots: ‹ shows only after you've gone somewhere. Sheets have their own Close.
+    /** whether the header makes room for the ‹ › row (kept steady while a sheet is open) */
+    row: (I > 0 && cur().via === 'nav') || I < H.length - 1,
     showBack: I > 0 && cur().via === 'nav' && !sheetOpen(v),
     canForward: I < H.length - 1 && !sheetOpen(v),
     forwardLabel: I < H.length - 1 ? describe(H[I + 1].view) : '',
