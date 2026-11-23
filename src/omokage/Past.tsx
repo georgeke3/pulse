@@ -5,6 +5,9 @@ import { useItems } from './items';
 import { useNavState } from './nav';
 import { ALLQ, THEMES, TOPICS, qid, randomQ, useAnchorStatus, useAnswers, useTonight, type Answer, type Q } from './qa';
 import { TIER_LABEL, useRhythm, type Status } from './rhythm';
+import { findQuestions, pickWithGemini } from './qfind';
+import { useCurated } from './curated';
+import { useApp } from '../store';
 import type { Tier } from './anchors';
 import { INK, INK2, SEPIA, ago, fromDstr, todayStr } from './skins';
 import { Typing } from './Typing';
@@ -45,9 +48,32 @@ const Questions = ({ answeredToday, seen, onPick }: { answeredToday: Set<string>
   const [theme, setTheme] = useNavState<string>('past.theme', 'All', 'replace');
   const { all: anchors, due, byId } = useAnchorStatus(), rh = useRhythm();
   const [editing, setEditing] = useState<string | null>(null);
+  const { state } = useApp();
+  const [qr, setQr] = useState('');
+  const [gem, setGem] = useState<{ for: string; list: Q[] } | null>(null);
+  const [busy, setBusy] = useState(false), [gerr, setGerr] = useState('');
   const asQ = (s: Status): Q => ({ id: s.a.id, theme: s.a.theme, text: s.a.text });
   const themes = ['All', ...(due.length ? ['Due'] : []), 'Anchors', ...THEMES];
-  const list = theme === 'All' ? ALLQ : theme === 'Due' ? due.map(asQ) : theme === 'Anchors' ? [...anchors].sort((a, b) => a.due.localeCompare(b.due)).map(asQ) : ALLQ.filter(q => q.theme === theme);
+  const found = qr.trim() ? findQuestions(qr).slice(0, 15) : null;
+  const ask = async () => { const f = qr.trim(); if (!f || busy) return; setBusy(true); setGerr(''); try { setGem({ for: f, list: await pickWithGemini(f, state.geminiKey) }); } catch (e) { setGerr(e instanceof Error ? e.message : 'Could not reach Gemini.'); } finally { setBusy(false); } };
+  const list = found ?? (theme === 'All' ? ALLQ : theme === 'Due' ? due.map(asQ) : theme === 'Anchors' ? [...anchors].sort((a, b) => a.due.localeCompare(b.due)).map(asQ) : ALLQ.filter(q => q.theme === theme));
+  const row = (q: Q) => {
+    const st = byId.get(q.id);
+    return (
+      <div key={q.id}>
+        <button className="irow press" onClick={() => onPick(q)}>
+          <Mark s={30} on={answeredToday.has(q.id)} />
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span className="it" style={{ display: 'block', fontSize: 16, lineHeight: 1.35 }}>{q.text}</span>
+            {st && <span role="button" tabIndex={0} className="caps" style={{ fontSize: 8.5, display: 'inline-block', marginTop: 3, textDecoration: 'underline', textUnderlineOffset: 2, color: st.phase === 'later' ? INK2 : INK }}
+              onClick={e => { e.stopPropagation(); setEditing(editing === q.id ? null : q.id); }}>{cadence(st)}{st.last ? ` · answered ${shortDay(st.last)}` : ''}</span>}
+          </span>
+          {answeredToday.has(q.id) && <span className="caps" style={{ fontSize: 8.5 }}>edit</span>}
+        </button>
+        {st && editing === q.id && <CadencePick s={st} onPick={t => { rh.setTier(q.id, t); setEditing(null); }} />}
+      </div>
+    );
+  };
   const dice = () => { const q = randomQ(list.filter(x => !answeredToday.has(x.id)), seen); if (q) onPick(q); };
   return (
     <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }}>
@@ -57,27 +83,25 @@ const Questions = ({ answeredToday, seen, onPick }: { answeredToday: Set<string>
         <span className="caps">{list.length}</span>
       </div>
       <button className="chip on press" onClick={dice} style={{ position: 'relative', flex: 'none', height: 46, margin: '2px 0 10px', fontSize: 15 }}>Pick a random question</button>
-      <div className="scroll" style={{ position: 'relative', display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -24px', padding: '2px 24px 10px', flex: 'none' }}>
+      <input className="cm-input" value={qr} onChange={e => { setQr(e.target.value); setGerr(''); }} placeholder="Search, or how you feel (numb, off, wired…)" aria-label="Search questions" autoCapitalize="none" autoCorrect="off" style={{ position: 'relative', flex: 'none', margin: '0 0 10px' }} />
+      {!found && <div className="scroll" style={{ position: 'relative', display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -24px', padding: '2px 24px 10px', flex: 'none' }}>
         {themes.map(t => <button key={t} className={`chip ${theme === t ? 'on' : ''}`} style={{ flex: 'none' }} onClick={() => setTheme(t)}>{t}</button>)}
-      </div>
+      </div>}
       <div className="scroll grow" style={{ position: 'relative', margin: '0 -24px', padding: '0 24px 12px' }}>
-        {list.map(q => {
-          const st = byId.get(q.id);
-          return (
-            <div key={q.id}>
-              <button className="irow press" onClick={() => onPick(q)}>
-                <Mark s={30} on={answeredToday.has(q.id)} />
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span className="it" style={{ display: 'block', fontSize: 16, lineHeight: 1.35 }}>{q.text}</span>
-                  {st && <span role="button" tabIndex={0} className="caps" style={{ fontSize: 8.5, display: 'inline-block', marginTop: 3, textDecoration: 'underline', textUnderlineOffset: 2, color: st.phase === 'later' ? INK2 : INK }}
-                    onClick={e => { e.stopPropagation(); setEditing(editing === q.id ? null : q.id); }}>{cadence(st)}{st.last ? ` · answered ${shortDay(st.last)}` : ''}</span>}
-                </span>
-                {answeredToday.has(q.id) && <span className="caps" style={{ fontSize: 8.5 }}>edit</span>}
-              </button>
-              {st && editing === q.id && <CadencePick s={st} onPick={t => { rh.setTier(q.id, t); setEditing(null); }} />}
-            </div>
-          );
-        })}
+        {found && (
+          <div style={{ padding: '2px 0 8px' }}>
+            <button className="chip press" onClick={ask} disabled={busy} style={{ height: 34, fontSize: 13 }}>{busy ? 'Asking Gemini…' : gem && gem.for === qr.trim() ? 'Ask Gemini again' : 'Not quite? Ask Gemini to find ones that fit'}</button>
+            {gerr && <p className="cm-err" style={{ marginTop: 6 }}>{gerr}</p>}
+            {!list.length && !gem && <p className="cm-note">Nothing matches yet. Try a feeling word, or ask Gemini.</p>}
+          </div>
+        )}
+        {found && gem && gem.for === qr.trim() && gem.list.length > 0 && (
+          <div style={{ paddingBottom: 6 }}>
+            <div className="caps" style={{ padding: '4px 0' }}>picked for “{gem.for}”</div>
+            {gem.list.map(row)}
+          </div>
+        )}
+        {list.map(row)}
       </div>
     </div>
   );
@@ -160,6 +184,7 @@ export const Past = () => {
   useEffect(() => { try { if (anchorId) localStorage.setItem(AK, anchorId); else localStorage.removeItem(AK); } catch { /* private mode */ } }, [AK, anchorId]);
   const anchorSt = anchorId ? byId.get(anchorId) : undefined;
   const tonight: Q = (anchorSt && ALLQ.find(x => x.id === anchorSt.a.id)) || bankTonight;
+  const cur = useCurated(today, [tonight.text, ...answers.slice(0, 30).map(a => a.question).filter(Boolean)]);
   const [offer, setOffer] = useState<{ id: string; text: string } | null>(null);
   const [cad, setCad] = useState(false);
   const mainAns = todays.find(a => a.qid === tonight.id);
@@ -195,7 +220,7 @@ export const Past = () => {
           <span className="caps" style={{ marginLeft: 'auto', opacity: .7 }}>{tonight.theme}</span>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginTop: 10 }}>
-          <div className="it" style={{ flex: 1, fontSize: 27, lineHeight: 1.28 }}>{tonight.text}</div>
+          <div className="it" style={{ flex: 1, fontSize: tonight.text.length > 85 ? 21 : tonight.text.length > 55 ? 24 : 27, lineHeight: 1.28 }}>{tonight.text}</div>
           <Drg n="swirl" w={62} style={{ marginTop: -4 }} />
         </div>
         {mainAns ? (
@@ -235,6 +260,25 @@ export const Past = () => {
           </div>
         )}
       </div>
+
+      {(cur.busy && !cur.text || cur.err) && (
+        <div className="caps" style={{ position: 'relative', marginTop: 20, opacity: .7 }}>
+          {cur.busy ? 'writing a question from your week…' : <>{cur.err} <button className="caps" style={{ textDecoration: 'underline' }} onClick={cur.retry}>try again</button></>}
+        </div>
+      )}
+      {cur.text && !answeredToday.has(qid(cur.text)) && (
+        <div style={{ position: 'relative', marginTop: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span className="caps">for tonight · from your week</span>
+            <button className="press" aria-label="A different one" onClick={cur.retry} disabled={cur.busy} style={{ fontSize: 15, color: INK2, padding: '0 2px', opacity: cur.busy ? .4 : 1 }}>↻</button>
+          </div>
+          <button className="irow press" onClick={() => write(cur.text!)}>
+            <Mark s={32} src={icFeather} />
+            <span className="it" style={{ flex: 1, fontSize: 16, lineHeight: 1.35 }}>{cur.text}</span>
+            <span style={{ color: INK2 }}>›</span>
+          </button>
+        </div>
+      )}
 
       {others.length > 0 && (
         <div style={{ position: 'relative', marginTop: 20 }}>
