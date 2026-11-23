@@ -13,6 +13,7 @@ import { labelOf, monoOf, useStimuli } from './stimuli';
 import { WIN_ICON } from './icons';
 import { haptic } from './haptics';
 import { Art, EventCard, TodayList, evOrder, evStart } from './Instances';
+import { More } from './More';
 import { LogSheet, RIM, beadX, type Cell, type Draft } from './LogSheet';
 import { EMBER, GOLD, INK, INK2, SKY, fmtMin, fromDstr, hhmm, todayStr } from './skins';
 import { heat, loadOf, sideTotal } from './load';
@@ -44,15 +45,22 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
   const answered = Object.keys(state.days[today]?.answers ?? {}).length, nq = state.config.daily_questions.length;
 
   const stim = useStimuli();
-  const loadS = stim.ring('training'), restS = stim.ring('recovery').filter(x => x.name.trim().toLowerCase() !== 'sleep');   // Sleep is a special circle now
+  // pinned circles live on the ring; an unpinned one that was logged today joins it as a guest (at the end of its side, so pinned ones never move)
+  const isSleepName = (x: { name: string }) => x.name.trim().toLowerCase() === 'sleep';   // Sleep is a special circle now
+  const usedToday = (x: { id: string; name: string; type: string }) => events.some(e => (e.custom_data?.sid ? e.custom_data.sid === x.id : e.type === x.type && e.category === x.name));
+  const guestIds = new Set(stim.active.filter(x => !x.shown && !isSleepName(x) && usedToday(x)).map(x => x.id));
+  const sideOf = (t: 'training' | 'recovery') => [...stim.ring(t).filter(x => !isSleepName(x)), ...stim.active.filter(x => x.type === t && guestIds.has(x.id))];
+  const loadS = sideOf('training'), restS = sideOf('recovery');
+  const moreS = stim.active.filter(x => !x.shown && !isSleepName(x) && !guestIds.has(x.id));
   const cells: Cell[] = useMemo(() => [
     { name: 'Gratitude', type: 'gratitude' as const, mono: '✿', art: stim.art('gratitude', 'Gratitude'), label: 'Gratitude' },
     { name: 'Win', type: 'win' as const, mono: '★', label: 'Win' },
     { name: 'Sleep', type: 'sleep' as const, mono: 'z', art: stim.art('sleep', 'Sleep'), label: 'Sleep' },
-    ...restS.map(x => ({ id: x.id, name: x.name, type: 'recovery' as const, mono: monoOf(x.name), art: stim.art('recovery', x.name), label: labelOf(x) })),
-    ...loadS.map(x => ({ id: x.id, name: x.name, type: 'training' as const, mono: monoOf(x.name), art: stim.art('training', x.name), label: labelOf(x) })),
+    ...restS.map(x => ({ id: x.id, name: x.name, type: 'recovery' as const, mono: monoOf(x.name), art: stim.art('recovery', x.name), label: labelOf(x), guest: guestIds.has(x.id) })),
+    ...loadS.map(x => ({ id: x.id, name: x.name, type: 'training' as const, mono: monoOf(x.name), art: stim.art('training', x.name), label: labelOf(x), guest: guestIds.has(x.id) })),
   ], [loadS, restS, stim]);
   const [managing, setManaging] = useNavState('present.managing', false);
+  const [moreOpen, setMoreOpen] = useNavState('present.more', false);
 
   const [screenRef] = useSize<HTMLDivElement>();
   const [ringRef, ring] = useSize<HTMLDivElement>();
@@ -107,11 +115,18 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
     e.currentTarget.setPointerCapture(e.pointerId);
     const r = e.currentTarget.getBoundingClientRect(), sr = screenRef.current!.getBoundingClientRect();
     const from = { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 };
+    const d = draftFor(c, from);
+    haptic(10); setHeld(c.type + c.name); begin(e.clientX, d); setDraft(d);
+  };
+  const draftFor = (c: Cell, from?: { x: number; y: number }): Draft => {
     const sleepToday = c.type === 'sleep' ? events.find(x => x.type === 'sleep') : undefined, ls = c.type === 'sleep' ? lastSleep() : null;
-    const d: Draft = sleepToday
+    return sleepToday
       ? { cell: c, lvl: Math.max(1, Math.min(10, Math.round(sleepToday.objectiveIntensity))), pct: typeof sleepToday.custom_data?.amount === 'number' ? sleepToday.custom_data.amount : 80, note: sleepToday.notes ?? '', editId: sleepToday.id, from }
       : { cell: c, lvl: isText(c.type) ? 1 : ls ? ls.lvl : lastLevel(c), pct: isText(c.type) ? 0 : ls ? ls.pct : lastPct(c), note: '', from };
-    haptic(10); setHeld(c.type + c.name); begin(e.clientX, d); setDraft(d);
+  };
+  const pickMore = (x: { id: string; name: string; type: 'training' | 'recovery' }) => {
+    setMoreOpen(false);
+    setDraft(draftFor({ id: x.id, name: x.name, type: x.type, mono: monoOf(x.name), art: stim.art(x.type, x.name), label: labelOf(x), guest: true }));
   };
   const editEvent = (ev: Event) => {
     const c = cells.find(x => mine(ev, x)) ?? { name: ev.category, type: ev.type, mono: monoOf(ev.category), art: stim.art(ev.type, ev.category) };
@@ -278,6 +293,9 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
         <button className="chip press" onClick={() => setManaging(true)} style={{ height: 36, gap: 8, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.14),0 6px 16px rgba(43,50,71,.08)' }}>
           <span className="it" style={{ fontSize: 14 }}>Circles</span>
         </button>
+        {moreS.length > 0 && <button className="chip press" onClick={() => setMoreOpen(true)} aria-label="More circles" style={{ height: 36, gap: 6, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.14),0 6px 16px rgba(43,50,71,.08)' }}>
+          <span className="it" style={{ fontSize: 14 }}>More</span><span className="caps" style={{ fontSize: 10 }}>{moreS.length}</span>
+        </button>}
         <button className="chip press" onClick={onDump} style={{ height: 36, gap: 8, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.14),0 6px 16px rgba(43,50,71,.08)' }}>
           <Sym n="wisp" on={told} s={20} />
           <span className="it" style={{ fontSize: 14 }}>{told ? 'The day, told' : 'Dump the day'}</span>
@@ -289,8 +307,9 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
           onDown={e => { begin(e.clientX, draft); e.currentTarget.setPointerCapture(e.pointerId); }}
           onMove={e => move(e.clientX)} onUp={release}
           onNote={t => setDraft(v => (v ? { ...v, note: t } : v))} onConfirm={commit}
-          onPct={p => setDraft(v => (v ? { ...v, pct: p } : v))} before={draft.cell.type === 'training' || draft.cell.type === 'recovery' ? sideTotal(events, draft.cell.type, draft.editId) : 0} onClose={() => setDraft(null)} />
+          onPct={p => setDraft(v => (v ? { ...v, pct: p } : v))} onPin={draft.cell.guest && draft.cell.id ? () => { stim.setShown([draft.cell.id!], true); haptic(8); } : undefined} before={draft.cell.type === 'training' || draft.cell.type === 'recovery' ? sideTotal(events, draft.cell.type, draft.editId) : 0} onClose={() => setDraft(null)} />
       )}
+      {moreOpen && <More circles={moreS} onPick={pickMore} onClose={() => setMoreOpen(false)} />}
       {managing && <Circles onClose={() => setManaging(false)} />}
       {listOpen && <TodayList events={events} title={isToday ? 'Today' : fromDstr(day).toLocaleDateString('en', { weekday: 'long' })} onOpen={id => { setListOpen(false); setDetail(id); }} onClose={() => setListOpen(false)} />}
       {detailEv && (

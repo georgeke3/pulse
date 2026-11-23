@@ -22,8 +22,8 @@ const cur = () => H[I];
 export const view = () => cur().view;
 
 /** keys that are an overlay (sheet / modal / viewer) rather than a page */
-export const SHEETS = ['app.pulse', 'app.settings', 'app.dump', 'home.mottos', 'app.mottos', 'past.w', 'future.compose', 'future.view', 'future.editing', 'present.draft', 'present.managing', 'present.list', 'present.detail'];
-const same = (a: unknown, b: unknown) => { if (a === b || (a == null && b == null)) return true; try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; } };
+export const SHEETS = ['app.pulse', 'app.settings', 'app.dump', 'home.mottos', 'app.mottos', 'past.w', 'future.compose', 'future.view', 'future.editing', 'present.draft', 'present.managing', 'present.more', 'present.list', 'present.detail'];
+const same = (a: unknown, b: unknown) => { if (a === b || ((a == null || a === false) && (b == null || b === false))) return true; try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; } };
 
 const push = (view: View, pushed?: string[], via: Entry['via'] = 'nav') => { H = [...H.slice(0, I + 1), { view, via, pushed }]; I = H.length - 1; emit(); };
 

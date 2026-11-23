@@ -13,7 +13,7 @@ export const STEP_Y = 16;
 export const MAX_STEP_X = 34;  // px per intensity level (shrinks near the edges)
 export const RIM: Record<EventType, [string, string]> = { training: [EMBER, '#F3C9B4'], recovery: [SKY, '#C9D7E9'], win: [GOLD, '#F1DDAE'], sleep: [DREAM, '#DDD7EE'], gratitude: [ROSE, '#F3D3DB'] };
 
-export interface Cell { name: string; type: EventType; mono: string; id?: string; art?: string; label?: string }
+export interface Cell { name: string; type: EventType; mono: string; id?: string; art?: string; label?: string; guest?: boolean }
 export interface Draft { cell: Cell; lvl: number; pct: number; note: string; editId?: string; from?: { x: number; y: number }; kx?: number | null }
 /** x of intensity bead v (1-10) in a zone w px wide. While dragging, the knob follows the thumb freely (kx) and the level is whichever bead it is nearest. */
 export const beadX = (v: number, w: number) => 34 + (v - 1) * ((w - 68) / 9);
@@ -27,6 +27,8 @@ interface Props {
   onNote: (t: string) => void; onConfirm: () => void; onClose: () => void;
   /** share of the day's capacity (load or recovery), and what the rest of the day already adds up to on that side */
   onPct: (p: number) => void; before: number;
+  /** a guest circle (one that isn't pinned) can be kept on the ring from its own sheet */
+  onPin?: () => void;
 }
 
 const ZH = 160;  // height of the intensity scrubbing zone
@@ -82,7 +84,8 @@ const LoadScrub = ({ type, pct, before, rim, onPct, q }: { type: 'training' | 'r
 };
 
 /** The logging sheet: scrub the intensity, say or type what happened, confirm. Nothing saves until you press the button. */
-export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, onClose, onPct, before }: Props) => {
+export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, onClose, onPct, before, onPin }: Props) => {
+  const [pinned, setPinned] = useState(false);
   const stim = useStimuli();
   const first = useRef({ lvl: d.lvl, pct: d.pct, note: d.note });
   const dirty = d.note.trim() !== first.current.note.trim() || (!isText(d.cell.type) && (d.lvl !== first.current.lvl || d.pct !== first.current.pct));
@@ -152,6 +155,11 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
       {!isWin && <LoadScrub type={d.cell.type === 'sleep' ? 'sleep' : d.cell.type === 'recovery' ? 'recovery' : 'training'} pct={d.pct} before={before} rim={rim} onPct={onPct} q={d.lvl} />}
       </div>
 
+      {onPin && (
+        <div style={{ flex: 'none', textAlign: 'center', padding: '0 20px 8px' }}>
+          <button type="button" className="cm-link press" style={{ padding: '2px 8px' }} disabled={pinned} onClick={() => { setPinned(true); onPin(); }}>{pinned ? 'On your ring from now on' : 'Keep on ring'}</button>
+        </div>
+      )}
       <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px 12px' }}>
         <button type="button" className="press" onClick={openComposer} aria-label="Add details"
           style={{ flex: 1, minWidth: 0, height: 64, display: 'flex', alignItems: 'center', textAlign: 'left', padding: '0 20px', borderRadius: 32, background: 'rgba(255,255,255,.75)', boxShadow: 'inset 0 0 0 1px rgba(43,50,71,.14)' }}>

@@ -7,7 +7,7 @@ import { RIM } from './LogSheet';
 import { INK2 } from './skins';
 import { labelOf, monoOf, useStimuli, type StimType, type Stimulus } from './stimuli';
 
-const Face = ({ s, size }: { s: { icon: string; name: string; type: StimType }; size: number }) => {
+export const Face = ({ s, size }: { s: { icon: string; name: string; type: StimType }; size: number }) => {
   const [rim, fill] = RIM[s.type], src = iconSrc(s.icon);
   return (
     <span className="cface" style={{ width: size, height: size, background: fill, boxShadow: `inset 0 0 0 1.5px ${rim}`, color: rim }}>
