@@ -1,78 +1,34 @@
-import { useEffect, useRef, useState } from 'react';
-import { cloud, cloudConfigured } from '../cloudClient';
+import { useEffect, useRef } from 'react';
 import { haptic } from './haptics';
 import { EMBER, INK } from './skins';
+import { clearDictationError, deliver, recoverJob, releaseDictation, startDictation, stopDictation, useDictation, type Job } from './dictation';
 
-type Phase = 'idle' | 'rec' | 'busy';
-
-const pickType = () => {
-  const ok = (t: string) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t);
-  return ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find(ok) ?? '';
-};
-
-/** One stream shared by every mic, kept warm for a few seconds so the next tap starts instantly (and iOS does not re-ask). */
-const MAX_SECS = 300;   // 5 min: at 32 kbps that is ~1.2 MB, far below the 4 MB upload limit
-let warm: MediaStream | null = null, warmTimer: ReturnType<typeof setTimeout> | undefined;
-const getStream = async () => {
-  clearTimeout(warmTimer);
-  if (warm && warm.getAudioTracks().some(t => t.readyState === 'live')) return warm;
-  warm = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-  return warm;
-};
-const cool = () => { clearTimeout(warmTimer); warmTimer = setTimeout(() => { warm?.getTracks().forEach(t => t.stop()); warm = null; }, 12000); };
-
-export async function transcribe(blob: Blob): Promise<string> {
-  const token = cloudConfigured ? cloud?.getSession()?.access_token : undefined;
-  if (!token) throw new Error('Sign in to use the mic.');
-  const r = await fetch('/api/transcribe', { method: 'POST', headers: { 'content-type': blob.type || 'audio/mp4', Authorization: `Bearer ${token}` }, body: blob });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j?.error || `Server error ${r.status}`);
-  return String(j.text || '');
-}
+export { transcribe } from './dictation';
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+let seq = 0;
 
-/** Tap to start, tap again to stop. The text lands through onText a moment later. */
+/** Tap to start, tap again to stop. The text lands through onText a moment later. Recording itself lives in dictation.ts (saved as it goes, retried, recoverable). */
 export const Mic = ({ onText, size = 52 }: { onText: (t: string) => void; size?: number }) => {
-  const [phase, setPhase] = useState<Phase>('idle');
-  const [secs, setSecs] = useState(0);
-  const [err, setErr] = useState('');
-  const rec = useRef<MediaRecorder | null>(null), chunks = useRef<Blob[]>([]), t0 = useRef(0), want = useRef(false), live = useRef(true), tick = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  useEffect(() => () => {
-    live.current = false; clearInterval(tick.current);
-    try { rec.current?.state === 'recording' && rec.current.stop(); } catch { /* ignore */ }
-    cool();
-  }, []);
-  useEffect(() => { if (!err) return; const t = setTimeout(() => setErr(''), 3600); return () => clearTimeout(t); }, [err]);
+  const me = useRef(`mic${++seq}`).current;
+  const d = useDictation();
+  const live = useRef(true), cb = useRef(onText); cb.current = onText;
+  useEffect(() => { live.current = true; return () => { live.current = false; releaseDictation(me); }; }, [me]);
 
-  const stop = () => {
-    want.current = false; clearInterval(tick.current);
-    const r = rec.current;
-    if (r && r.state === 'recording') { haptic(6); r.stop(); } else setPhase('idle');
+  const mine = d.owner === me, phase = mine ? d.phase : 'idle', secs = d.secs, blocked = d.phase !== 'idle' && !mine;
+  const err = d.errOwner === me ? d.err : '';
+  useEffect(() => { if (!err) return; const t = setTimeout(clearDictationError, 6000); return () => clearTimeout(t); }, [err]);
+  const give = async (id: string, text: string) => { if (text && live.current && await deliver(id)) { cb.current(text); haptic(8); } };
+
+  const tap = async () => {
+    if (blocked) return;
+    if (phase === 'rec') { stopDictation(); return; }
+    if (phase !== 'idle') return;
+    const r = await startDictation(me);
+    if (r) r.done.then(t => give(r.id, t), () => undefined);
   };
-  const start = async () => {
-    setErr(''); haptic(10); want.current = true; setSecs(0); setPhase('rec');
-    try {
-      const stream = await getStream();
-      if (!want.current) { cool(); return; }                          // tapped stop before the mic was ready
-      const type = pickType(), r = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), audioBitsPerSecond: 32000 });
-      chunks.current = [];
-      r.ondataavailable = ev => { if (ev.data.size) chunks.current.push(ev.data); };
-      r.onstop = async () => {
-        cool(); rec.current = null;
-        if (!live.current) return;
-        const blob = new Blob(chunks.current, { type: r.mimeType || type || 'audio/mp4' });
-        if (Date.now() - t0.current < 450 || blob.size < 800) { setPhase('idle'); return; }
-        setPhase('busy');
-        try { const t = await transcribe(blob); if (live.current) { setPhase('idle'); t && onText(t); haptic(8); } }
-        catch (x) { if (live.current) { setPhase('idle'); setErr((x as Error).message); } }
-      };
-      rec.current = r; t0.current = Date.now(); r.start();
-      tick.current = setInterval(() => { const s = Math.floor((Date.now() - t0.current) / 1000); setSecs(s); if (s >= MAX_SECS) stop(); }, 250);
-    } catch {
-      want.current = false; setPhase('idle'); setErr('Allow the microphone to dictate.');
-    }
-  };
+  const recover = async (j: Job) => { try { await give(j.id, await recoverJob(j, me)); } catch { /* shown through state.err */ } };
+  const job = d.phase === 'idle' ? d.pending[0] : undefined;
 
   const on = phase === 'rec';
   return (
@@ -84,9 +40,15 @@ export const Mic = ({ onText, size = 52 }: { onText: (t: string) => void; size?:
           <span style={{ opacity: .6 }}>· tap to stop</span>
         </span>
       )}
-      <button type="button" className="press" aria-label={on ? 'Stop recording' : 'Dictate'} onClick={() => (on ? stop() : phase === 'idle' ? void start() : undefined)} onMouseDown={e => e.preventDefault()} onContextMenu={e => e.preventDefault()}
+      {job && !on && phase === 'idle' && (
+        <button type="button" className="press" onClick={() => void recover(job)} aria-label="Recover unsent recording"
+          style={{ position: 'absolute', right: size + 10, top: '50%', transform: 'translateY(-50%)', whiteSpace: 'nowrap', padding: '8px 13px', borderRadius: 99, fontSize: 12.5, color: '#fff', background: EMBER, boxShadow: '0 4px 14px rgba(43,50,71,.14)' }}>
+          {job.state === 'done' ? 'Insert saved recording' : 'Retry saved recording'}{d.pending.length > 1 ? ` · ${d.pending.length}` : ''}
+        </button>
+      )}
+      <button type="button" className="press" aria-label={on ? 'Stop recording' : 'Dictate'} onClick={() => void tap()} onMouseDown={e => e.preventDefault()} onContextMenu={e => e.preventDefault()}
         style={{ width: size, height: size, borderRadius: size / 2, display: 'grid', placeItems: 'center', WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none',
-          background: on ? EMBER : '#fff', color: on ? '#fff' : INK, boxShadow: on ? '0 0 0 5px rgba(208,122,85,.2), 0 0 0 12px rgba(208,122,85,.08)' : '0 0 0 1px rgba(43,50,71,.18), 0 6px 14px rgba(43,50,71,.08)', transition: 'box-shadow .2s, background-color .2s' }}>
+          opacity: blocked ? .45 : 1, background: on ? EMBER : '#fff', color: on ? '#fff' : INK, boxShadow: on ? '0 0 0 5px rgba(208,122,85,.2), 0 0 0 12px rgba(208,122,85,.08)' : '0 0 0 1px rgba(43,50,71,.18), 0 6px 14px rgba(43,50,71,.08)', transition: 'box-shadow .2s, background-color .2s' }}>
         {phase === 'busy'
           ? <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.6" fill="none" strokeDasharray="14 30" strokeLinecap="round"><animateTransform attributeName="transform" type="rotate" from="0 10 10" to="360 10 10" dur=".8s" repeatCount="indefinite" /></circle></svg>
           : on ? <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="3" fill="currentColor" /></svg>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { addImage, dropImages, useImg, type ImgRef } from './images';
 import { Mic } from './Mic';
+import { flushDictation, useDictation } from './dictation';
 import { Sheet } from './Sheet';
 import { INK2, type Mode } from './skins';
 
@@ -44,8 +45,28 @@ export const Typing = ({ mode, label, prompt, chips, topics, initialTags, initia
     if (photos && files.length) { e.preventDefault(); void attach(files); }
   };
   const removeImg = (id: string) => { setImgs(v => v.filter(x => x.id !== id)); void dropImages([id]); };
-  const cancelNow = () => { if (photos) void dropImages(imgs.map(x => x.id).filter(id => !(initialImages ?? []).some(i => i.id === id))); onCancel(); };
-  const [t, setT] = useState(initialText ?? '');
+  const cancelNow = () => { clearDraft(); if (photos) void dropImages(imgs.map(x => x.id).filter(id => !(initialImages ?? []).some(i => i.id === id))); onCancel(); };
+  // an unsaved draft survives a closed sheet, a reload or the app being killed; it is cleared only by Save or a confirmed Discard
+  const DK = `omk_draft:${mode}:${label}`, drafts = initialText === undefined && !onDelete;
+  const [t, setT] = useState(() => { if (initialText !== undefined) return initialText; try { return localStorage.getItem(DK) ?? ''; } catch { return ''; } });
+  const [restored] = useState(() => drafts && t.trim().length > 0);
+  useEffect(() => { if (!drafts) return; try { if (t.trim()) localStorage.setItem(DK, t); else localStorage.removeItem(DK); } catch { /* storage full */ } }, [t]); // eslint-disable-line react-hooks/exhaustive-deps
+  const clearDraft = () => { try { localStorage.removeItem(DK); } catch { /* ignore */ } };
+  const dict = useDictation();
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState('');
+  const save = async () => {
+    if (saving) return;
+    let text = t;
+    if (dict.phase !== 'idle') {                       // Save pressed mid-recording / mid-transcription: finish it first, then save everything
+      setSaving(true); setSaveErr('');
+      try { const tail = await flushDictation(); if (tail) text = text.trim() ? `${text.trimEnd()} ${tail}` : tail; }
+      catch (e) { setSaving(false); setSaveErr(`${(e as Error).message} Nothing was saved yet.`); return; }
+      setSaving(false);
+    }
+    if (!text.trim() && !imgs.length) return;
+    clearDraft(); onSave(text.trim(), tags, imgs);
+  };
   const [tags, setTags] = useState<string[]>(initialTags ?? []);
   const [armed, setArmed] = useState(false);
   useEffect(() => { if (!armed) return; const id = setTimeout(() => setArmed(false), 3500); return () => clearTimeout(id); }, [armed]);
@@ -58,7 +79,7 @@ export const Typing = ({ mode, label, prompt, chips, topics, initialTags, initia
   const flipTag = (c: string) => setTags(v => (v.includes(c) ? v.filter(x => x !== c) : [...v, c]));
   const openTopics = () => { ta.current?.blur(); setBrowsing(true); };
   const closeTopics = () => { setBrowsing(false); setTimeout(() => ta.current?.focus(), 40); };
-  const ok = (t.trim().length > 0 || imgs.length > 0) && !busy;
+  const ok = (t.trim().length > 0 || imgs.length > 0 || dict.phase !== 'idle') && !busy && !saving;
   return (
     <Sheet mode={mode}>
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 22px 0', fontSize: 14, color: INK2 }}>
@@ -84,6 +105,7 @@ export const Typing = ({ mode, label, prompt, chips, topics, initialTags, initia
         )}
         <textarea ref={ta} value={t} style={browsing ? { display: 'none' } : undefined} onChange={e => setT(e.target.value)} onPaste={onPaste} placeholder={placeholder ?? 'Write freely…'} aria-label={prompt} />
       </div>
+      {(restored || saveErr) && <div role={saveErr ? 'alert' : undefined} style={{ position: 'relative', padding: '0 24px 6px', fontSize: 12.5, color: saveErr ? '#A8323E' : INK2 }}>{saveErr || 'Picked up your unsaved draft.'}</div>}
       {photos && (
         <>
           {note && <div style={{ position: 'relative', padding: '0 24px 6px', fontSize: 12.5, color: INK2 }}>{note}</div>}
@@ -106,7 +128,7 @@ export const Typing = ({ mode, label, prompt, chips, topics, initialTags, initia
           })}
         </div>
         <Mic size={40} onText={x => setT(v => (v.trim() ? `${v.trimEnd()} ${x}` : x))} />
-        <button className="ink-btn press" onMouseDown={e => e.preventDefault()} onClick={() => ok && onSave(t.trim(), tags, imgs)} style={{ height: 40, padding: '0 20px', fontSize: 14, fontWeight: 600, opacity: ok ? 1 : .35 }}>Save</button>
+        <button className="ink-btn press" onMouseDown={e => e.preventDefault()} onClick={() => ok && void save()} style={{ height: 40, padding: '0 20px', fontSize: 14, fontWeight: 600, opacity: ok ? 1 : .35 }}>{saving ? 'Finishing…' : 'Save'}</button>
       </div>
     </Sheet>
   );

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type PointerEvent as RPE } from 'react';
 import type { EventType } from '../types';
 import { ActionBar } from './Actions';
+import { flushDictation, useDictation } from './dictation';
 import { useStimuli } from './stimuli';
 import { Mic } from './Mic';
 import { Sheet } from './Sheet';
@@ -112,6 +113,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
   const ky = by(Math.max(1, Math.min(10, 1 + (kx - bx(1)) / ((zw - 68) / 9))));
   const art = d.cell.type === 'win' ? stim.art('win', 'Win') : d.cell.art ?? stim.art(d.cell.type, d.cell.name);
   const face = art ? <img className="catart" src={art} alt="" style={{ width: isWin ? 50 : 44, height: isWin ? 50 : 44 }} /> : <b>{d.cell.mono}</b>;
+  const dict = useDictation();
   const add = (t: string) => onNote(d.note.trim() ? `${d.note.trimEnd()} ${t}` : t);
 
   return (
@@ -168,7 +170,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
         <Mic onText={add} size={56} />
       </div>
 
-      <ActionBar keepFocus dirty={dirty} onCancel={onClose} primary={d.editId ? 'Save' : 'Log it'} onPrimary={onConfirm} />
+      <ActionBar keepFocus dirty={dirty} onCancel={onClose} primary={d.editId ? 'Save' : 'Log it'} onPrimary={() => { if (dict.phase !== 'idle') void flushDictation().then(x => x && add(x), () => undefined); else onConfirm(); }} />
       <div onPointerDown={() => ta.current?.blur()} style={{ position: 'absolute', inset: 0, zIndex: 4, background: 'rgba(251,250,247,.72)', opacity: open ? 1 : 0, pointerEvents: open ? 'auto' : 'none', transition: 'opacity .2s' }} />
       <div style={{ position: 'absolute', left: 12, right: 12, top: 'calc(var(--top) + 8px)', zIndex: 5, padding: '14px 14px 10px', borderRadius: 24, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.1), 0 14px 34px rgba(43,50,71,.14)',
         opacity: open ? 1 : 0, transform: open ? 'none' : 'translateY(-10px)', pointerEvents: open ? 'auto' : 'none', transition: 'opacity .18s, transform .22s cubic-bezier(.2,.8,.2,1)' }}>
