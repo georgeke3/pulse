@@ -8,6 +8,7 @@ import { CRIMSON, INK, INK2, SKY, ago, todayStr } from './skins';
 import { Typing } from './Typing';
 import { Viewer, type Shot } from './Viewer';
 import { PinEdit } from './PinEdit';
+import { LinkCard, linkOf, noteOf, useUnfurl } from './link';
 
 export const TRASH = '__trash';
 const KEEP_DAYS = 30;
@@ -17,6 +18,8 @@ const BK = 'omokage_boards', HK = 'omokage_resurface_seen';
 const loadBoards = (): string[] => { try { return JSON.parse(localStorage.getItem(BK) || '[]'); } catch { return []; } };
 const URL_RE = /(https?:\/\/[^\s]+)/i;
 const domain = (s: string) => { const m = s.match(URL_RE); if (!m) return null; try { return new URL(m[1]).hostname.replace(/^www\./, ''); } catch { return null; } };
+/** One short line describing a pin: a link's title (or tweet text) when it has a preview, else its domain or text. */
+const gist = (i: Item) => { const l = linkOf(i); if (l) return l.kind === 'tweet' ? (l.text || l.article?.title || 'Post on X') : (l.title || '↗ ' + domain(i.body)); return domain(i.body) ? '↗ ' + domain(i.body) : i.body; };
 const TILT = [-2.5, 2.2, -1.4, 1.8, -1.9, 1.2];
 
 const Decor = () => (
@@ -125,6 +128,7 @@ export const Future = () => {
   const toTrash = (i: Item) => { update(i.id, { board: TRASH, meta: { ...(i.meta ?? {}), trashedFrom: i.board || 'Inbox', trashedAt: new Date().toISOString() } }); setOpen(null); setSure(null); };
   const restore = (i: Item) => { const { trashedFrom, trashedAt: _t, ...rest } = (i.meta ?? {}) as Record<string, unknown>; update(i.id, { board: String(trashedFrom || 'Inbox'), meta: rest }); };
   useEffect(() => { for (const i of trash) if (Date.now() - new Date(String(i.meta?.trashedAt ?? i.at)).getTime() > KEEP_DAYS * 864e5) remove(i.id); }, [trash.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useUnfurl(mine, (id, meta) => update(id, { meta }));
   const bOf = (i: Item) => i.board || 'Inbox';
   const boards = [...custom, ...Array.from(new Set(mine.map(bOf)))].filter((b, k, a) => b !== 'Inbox' && a.indexOf(b) === k);
   const inBoard = (b: string) => mine.filter(i => bOf(i) === b);
@@ -209,12 +213,13 @@ export const Future = () => {
           {!photosOnly && list.length === 0 && <div className="it mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>A clear sky. Pin the first thing.<div style={{ margin: '18px auto 0', width: 120 }}><DrgFit n="future" w={120} h={91} /></div></div>}
           {!photosOnly && <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
             {[0, 1].map(col => <div key={col} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, paddingTop: col ? 14 : 0 }}>{list.map((i, k) => k % 2 !== col ? null : (() => {
-              const d = domain(i.body), isQ = i.body.trim().endsWith('?'), isOpen = open === i.id;
+              const d = domain(i.body), lk = linkOf(i), isQ = i.body.trim().endsWith('?'), isOpen = open === i.id;
               return (
                 <div key={i.id} data-pin={i.id} className="pinned" onClick={() => { setOpen(isOpen ? null : i.id); setSure(null); }} style={{ transform: `rotate(${TILT[k % TILT.length] * .6}deg)`, animation: `enter .4s ${Math.min(k, 8) * 35}ms both` }}>
+                  {lk ? <LinkCard link={lk} note={noteOf(i.body)} open={isOpen} /> : <>
                   <Pics item={i} onOpen={n => openPic(list, i, n)} />
                   {d && <div className="caps" style={{ marginBottom: 4 }}>↗ {d}</div>}
-                  {(i.body || !imgsOf(i).length) && <div className={isQ ? 'it' : ''} style={{ fontSize: isQ ? 15 : 13.5, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text', WebkitUserSelect: 'text' }}>{d ? i.body.replace(URL_RE, '').trim() || d : i.body}</div>}
+                  {(i.body || !imgsOf(i).length) && <div className={isQ ? 'it' : ''} style={{ fontSize: isQ ? 15 : 13.5, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text', WebkitUserSelect: 'text' }}>{d ? i.body.replace(URL_RE, '').trim() || d : i.body}</div>}</>}
                   <div style={{ fontSize: 10, color: INK2, marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><span>{ago(i.day)}</span><Sym n="seal" on={!!i.meta?.kept} s={18} o={i.meta?.kept ? 1 : .6} /></div>
                   {isOpen && (
                     <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, paddingTop: 8, borderTop: '1px dashed rgba(43,50,71,.2)' }}>
@@ -255,7 +260,7 @@ export const Future = () => {
             return (
               <button key={b} className="pinned press" onClick={() => setBoard(b)} style={{ minHeight: k % 3 === 0 ? 136 : 112, transform: `rotate(${TILT[k % TILT.length]}deg) translateY(${k % 2 ? -6 : 0}px)`, display: 'flex', flexDirection: 'column', animation: `enter .45s ${k * 50}ms both` }}>
                 <span className="serif" style={{ fontSize: 19 }}>{b}</span>
-                {list.filter(x => x.body.trim()).slice(0, 2).map(x => <span key={x.id} className={x.body.trim().endsWith('?') ? 'it' : ''} style={{ fontSize: 12.5, lineHeight: 1.4, color: x.body.trim().endsWith('?') ? INK : INK2, marginTop: 5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{domain(x.body) ? '↗ ' + domain(x.body) : x.body}</span>)}
+                {list.filter(x => x.body.trim()).slice(0, 2).map(x => <span key={x.id} className={x.body.trim().endsWith('?') ? 'it' : ''} style={{ fontSize: 12.5, lineHeight: 1.4, color: x.body.trim().endsWith('?') ? INK : INK2, marginTop: 5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{gist(x)}</span>)}
                 {list.some(x => imgsOf(x).length) && <span style={{ display: 'flex', gap: 4, marginTop: 6 }}>{list.flatMap(x => imgsOf(x)).slice(0, 3).map(r => <Mini key={r.id} id={r.id} s={34} />)}</span>}
                 <span style={{ marginTop: 'auto', paddingTop: 8, fontSize: 10, color: INK2 }}>{list.length} saved</span>
               </button>
@@ -275,7 +280,7 @@ export const Future = () => {
           <Drg n="peek" w={84} style={{ position: 'absolute', right: 0, top: -44 }} />
           <div className="caps">still excited about this?</div>
           {imgsOf(resurface).length > 0 && <div style={{ marginTop: 10 }}><Mini id={imgsOf(resurface)[0].id} s={72} /></div>}
-          {resurface.body && <div className="it" style={{ fontSize: 23, lineHeight: 1.3, marginTop: 10, maxWidth: 262, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{resurface.body}</div>}
+          {resurface.body && <div className="it" style={{ fontSize: 23, lineHeight: 1.3, marginTop: 10, maxWidth: 262, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{linkOf(resurface) ? gist(resurface) : resurface.body}</div>}
           <div style={{ fontSize: 11.5, color: INK2, marginTop: 8 }}>{bOf(resurface)} · saved {ago(resurface.day)}</div>
           <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
             <button className="chip on" style={{ height: 38, padding: '0 18px', gap: 8 }} onClick={() => { update(resurface.id, { meta: { ...(resurface.meta ?? {}), kept: todayStr() } }); markSeen(); }}><Sym n="seal" on s={18} /> Yes, keep it</button>
