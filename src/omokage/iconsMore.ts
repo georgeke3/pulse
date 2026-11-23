@@ -52,6 +52,17 @@ import m_boundaries_restored from './assets/ic-boundaries-restored.png';
 import m_overstimulation from './assets/ic-overstimulation.png';
 import m_playfulness from './assets/ic-playfulness.png';
 import m_stillness from './assets/ic-stillness.png';
+import m_brain_fog from './assets/ic-brain-fog.png';
+import m_chronic_pain from './assets/ic-chronic-pain.png';
+import m_nausea from './assets/ic-nausea.png';
+import m_headache from './assets/ic-headache.png';
+import m_fatigue from './assets/ic-fatigue.png';
+import m_depression from './assets/ic-depression.png';
+import m_jealousy from './assets/ic-jealousy.png';
+import m_fomo from './assets/ic-fomo.png';
+import m_anxiety from './assets/ic-anxiety.png';
+import m_resentment from './assets/ic-resentment.png';
+import m_general_ailment from './assets/ic-general-ailment.png';
 import type { IconDef } from './icons';
 export const MORE_ICONS: IconDef[] = [
   { key: 'jumping', label: 'Jumping', src: m_jumping },
@@ -107,4 +118,15 @@ export const MORE_ICONS: IconDef[] = [
   { key: 'overstimulation', label: 'Overstimulation', src: m_overstimulation },
   { key: 'playfulness', label: 'Playfulness', src: m_playfulness },
   { key: 'stillness', label: 'Stillness', src: m_stillness },
+  { key: 'brain-fog', label: 'Brain Fog', src: m_brain_fog },
+  { key: 'chronic-pain', label: 'Chronic Pain', src: m_chronic_pain },
+  { key: 'nausea', label: 'Nausea', src: m_nausea },
+  { key: 'headache', label: 'Headache', src: m_headache },
+  { key: 'fatigue', label: 'Fatigue', src: m_fatigue },
+  { key: 'depression', label: 'Depression', src: m_depression },
+  { key: 'jealousy', label: 'Jealousy', src: m_jealousy },
+  { key: 'fomo', label: 'FOMO', src: m_fomo },
+  { key: 'anxiety', label: 'Anxiety', src: m_anxiety },
+  { key: 'resentment', label: 'Resentment', src: m_resentment },
+  { key: 'general-ailment', label: 'General Ailment', src: m_general_ailment },
 ];

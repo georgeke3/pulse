@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ICONS, iconSrc } from './icons';
+import { useMemo, useState } from 'react';
+import { ICONS, findIcons, iconSrc } from './icons';
 import { haptic } from './haptics';
 import { ActionBar } from './Actions';
 import { Sheet } from './Sheet';
@@ -87,9 +87,12 @@ const Editor = ({ id, type, onClose }: { id?: string; type: StimType; onClose: (
   const [icon, setIcon] = useState(cur?.icon ?? 'mono');
   const [short, setShort] = useState(cur?.short ?? '');
   const [err, setErr] = useState('');
+  const [q, setQ] = useState('');
   const dirty = cur ? name !== cur.name || icon !== cur.icon || short !== (cur.short ?? '') : !!(name.trim() || short.trim() || icon !== 'mono');
   const [sureArch, setSureArch] = useState(false);
   const preview = { icon, name: name || '?', type };
+  const suggested = useMemo(() => findIcons(name, 5), [name]);
+  const shownIcons = useMemo(() => (q.trim() ? findIcons(q, 60) : ICONS), [q]);
   const save = () => {
     if (!name.trim()) { setErr('Give it a name.'); return; }
     const ok = cur ? st.edit(cur.id, { name, icon, short }) : st.add({ name, type, icon, short });
@@ -113,9 +116,22 @@ const Editor = ({ id, type, onClose }: { id?: string; type: StimType; onClose: (
         <span className="caps">Label on the ring</span>
         <input className="cm-input" style={{ margin: '6px 0 16px' }} value={short} onChange={e => setShort(e.target.value)} placeholder={name.trim() ? labelOf({ name }) : 'first word of the name'} maxLength={10} />
         <span className="caps">Icon</span>
+        {!cur && !q.trim() && suggested.length > 0 && (
+          <div style={{ margin: '8px 0 4px' }}>
+            <span className="it" style={{ fontSize: 13, color: '#6B7287' }}>Suggested for “{name.trim()}”</span>
+            <div className="cm-grid" style={{ marginTop: 6 }}>
+              {suggested.map(i => (
+                <button key={i.key} className={`cm-ico ${icon === i.key ? 'on' : ''}`} onClick={() => { haptic(4); setIcon(i.key); }} aria-label={i.label}>
+                  <Face s={{ icon: i.key, name, type }} size={46} /><small>{i.label}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <input className="cm-input" style={{ margin: '8px 0 10px' }} value={q} onChange={e => setQ(e.target.value)} placeholder="Search icons (try “tired” or “gym”)" aria-label="Search icons" autoCapitalize="none" autoCorrect="off" />
         <div className="cm-grid">
-          <button className={`cm-ico ${icon === 'mono' ? 'on' : ''}`} onClick={() => setIcon('mono')} aria-label="Letter"><Face s={{ icon: 'mono', name: name || '?', type }} size={46} /><small>Letter</small></button>
-          {ICONS.map(i => (
+          {!q.trim() && <button className={`cm-ico ${icon === 'mono' ? 'on' : ''}`} onClick={() => setIcon('mono')} aria-label="Letter"><Face s={{ icon: 'mono', name: name || '?', type }} size={46} /><small>Letter</small></button>}
+          {shownIcons.map(i => (
             <button key={i.key} className={`cm-ico ${icon === i.key ? 'on' : ''}`} onClick={() => { haptic(4); setIcon(i.key); }} aria-label={i.label}>
               <Face s={{ icon: i.key, name, type }} size={46} /><small>{i.label}</small>
             </button>

@@ -57,3 +57,34 @@ const BY_KEY = new Map(ICONS.map(i => [i.key, i.src]));
 export const WIN_ICON = i_win;
 /** The painted icon for a key; undefined (the "letter" option, or an unknown key) falls back to the monogram. */
 export const iconSrc = (key: string | undefined): string | undefined => (key ? BY_KEY.get(key) : undefined);
+
+/** Words that should also find an icon (searched along with its key and label). */
+const KEYWORDS: Record<string, string> = {
+  work: 'job career office meetings boss deadline project', nucleus: 'core wife husband partner spouse couple relationship', family: 'kids child children mila parents mom dad household',
+  'family-rest': 'kids child children mila parents mom dad', friends: 'buddies hangout social', chaos: 'mess crisis disorder noise', baseline: 'routine maintenance basics chores',
+  finances: 'money budget bills taxes spending', journaling: 'writing diary notes reflect', fun: 'play game games enjoy', meditation: 'breathe mindfulness calm', creative: 'art paint draw build making design',
+  presence: 'mindful present attention', nap: 'sleep rest doze', walk: 'stroll steps outside hike', reset: 'break pause', weather: 'rain cold heat storm', tech: 'screens phone computer scrolling',
+  waiting: 'queue delay', nourishment: 'food eat meal cooking', boundary: 'limits saying no', overflow: 'too much busy', anchor: 'grounded steady', admin: 'paperwork forms email errands', health: 'doctor body appointment medical',
+  home: 'house chores cleaning renovation', social: 'party event people', commute: 'drive transit travel traffic', deadlines: 'due time pressure', learning: 'study reading course class', solitude: 'alone quiet',
+  sleep: 'bed night rest', movement: 'gym workout exercise lift', friction: 'conflict argument annoyance', care: 'caring caregiving looking after', exercise: 'gym workout lift run fitness training',
+  'brain-fog': 'foggy fog unfocused spacey cloudy mental slow', 'chronic-pain': 'pain ache sore hurts injury back joint', nausea: 'sick queasy stomach vomit nauseous', headache: 'migraine head pain tension',
+  fatigue: 'tired exhausted sleepy burnout wiped drained low energy', depression: 'low heavy sad down hopeless weight', jealousy: 'envy envious comparison', fomo: 'missing out left out excluded',
+  anxiety: 'anxious worry stress nervous panic racing dread overthinking', resentment: 'bitter grudge angry resent anger', 'general-ailment': 'sick ill unwell cold flu under the weather',
+  drained: 'tired exhausted spent', overwhelm: 'too much swamped', recharged: 'refreshed rested energized', grief: 'mourning sadness loss', music: 'songs listening', watching: 'tv movies shows film',
+};
+const words = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+/** Icons that fit what was typed, best first: label and key matches beat keyword matches; used both for search and for suggesting from a circle's name. */
+export const findIcons = (query: string, limit = 5): IconDef[] => {
+  const q = query.trim().toLowerCase(); if (!q) return [];
+  const qw = words(q);
+  return ICONS.map(ic => {
+    const label = ic.label.toLowerCase(), lw = words(label + ' ' + ic.key.replace(/-/g, ' ')), kw = words(KEYWORDS[ic.key] ?? '');
+    let sc = 0;
+    if (label === q || ic.key === q) sc += 100; else if (label.startsWith(q)) sc += 60; else if (label.includes(q)) sc += 35;
+    for (const w of qw) {
+      if (lw.includes(w)) sc += 40; else if (w.length >= 3 && lw.some(x => x.startsWith(w))) sc += 25; else if (w.length >= 3 && lw.some(x => x.includes(w))) sc += 12;
+      if (kw.includes(w)) sc += 22; else if (w.length >= 3 && kw.some(x => x.startsWith(w))) sc += 12;
+    }
+    return { ic, sc };
+  }).filter(x => x.sc > 0).sort((a, b) => b.sc - a.sc || a.ic.label.localeCompare(b.ic.label)).slice(0, limit).map(x => x.ic);
+};
