@@ -1189,7 +1189,7 @@ const AddEventModal = ({ dateStr, existingEvent, onClose, onSubmit, onDelete }: 
   const [type, setType] = useState<EventType>(existingEvent?.type || 'training');
   const [category, setCategory] = useState(existingEvent?.category || (type === 'training' ? state.config.categories.training[0] : type === 'recovery' ? state.config.categories.recovery[0] : state.config.categories.training[0]));
   const [intensity, setIntensity] = useState(existingEvent?.intensity ?? 2); // Subjective (1-4)
-  const [objIntensity, setObjIntensity] = useState(existingEvent?.objectiveIntensity ?? 2); // Objective (1-10)
+  const [objIntensity, setObjIntensity] = useState(existingEvent?.objectiveIntensity ?? 4); // Objective (1-10, log-like scale v2)
   const [duration, setDuration] = useState<Duration>(existingEvent?.duration || '<1h');
   const [notes, setNotes] = useState(existingEvent?.notes || '');
   const [streakCategory, setStreakCategory] = useState(existingEvent?.streakCategory || '');

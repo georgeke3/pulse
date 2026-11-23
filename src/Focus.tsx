@@ -1,3 +1,4 @@
+import { newFromLegacy } from './intensity';
 import { useState, useRef, useEffect } from 'react';
 import { format, subDays, addDays, eachDayOfInterval } from 'date-fns';
 import { Check, X, RotateCcw, Undo2, Zap, Play, Square, Loader2 } from 'lucide-react';
@@ -167,7 +168,7 @@ export const FocusView = ({ onBack }: { onBack: () => void }) => {
       type: 'recovery',
       category: 'Focus Time',
       intensity: subjectiveYield,
-      objectiveIntensity,
+      objectiveIntensity: newFromLegacy('recovery', objectiveIntensity),
       duration: seconds < 3600 ? '<1h' : 'couple hours',
       custom_data: { focus_seconds: seconds },
       notes: notes,

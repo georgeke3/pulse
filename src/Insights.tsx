@@ -1,3 +1,4 @@
+import { legacyEq } from './intensity';
 import { useState, useMemo, useEffect } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend
@@ -492,13 +493,14 @@ export const InsightsView = () => {
       if (!filtered.length) return { date: format(date, 'MMM d'), obj: null, sub: null, gap: null };
 
       const avgObj = filtered.reduce((a, b) => a + b.objectiveIntensity, 0) / filtered.length;
+      const avgEq = filtered.reduce((a, b) => a + legacyEq(b.objectiveIntensity), 0) / filtered.length;
       const avgSub = filtered.reduce((a, b) => a + (b.intensity || 0), 0) / filtered.length;
       
       return {
         date: format(date, 'MMM d'),
         obj: avgObj.toFixed(1),
         sub: avgSub.toFixed(1),
-        gap: (avgObj - (avgSub * 2.5)).toFixed(1) // Normalized gap since scales differ (10 vs 4)
+        gap: (avgEq - (avgSub * 2.5)).toFixed(1) // old-scale equivalent of the objective level vs the 1-4 subjective score, so the gap stays comparable
       };
     });
   }, [dateRange, gapType, objFilter, state.days]);

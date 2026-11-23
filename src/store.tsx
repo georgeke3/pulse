@@ -1,3 +1,4 @@
+import { SCALE_VERSION } from './intensity';
 import { Loading, SyncNotice } from './omokage/Loading';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { AppState, Config, Event, CoachingReport, EventType } from './types';
@@ -22,16 +23,16 @@ export const DEFAULT_CONFIG: Config = {
   scales: {
     training: {
       objective: [
-        { value: 1, label: "Admin/Maintenance", description: "Routine errands, laundry, emails, basic house chores." },
-        { value: 2, label: "Execution", description: "Standard workday, grocery shopping, routine logistics." },
-        { value: 3, label: "Heavy Load", description: "Intense study, complex project, minor house repairs, deep focus." },
-        { value: 4, label: "The Heavyweight", description: "High-stakes meetings, production outages, moving house, hard conversations." },
-        { value: 5, label: "Peak Intensity", description: "Major life pivot, acute crisis, maximum professional/personal risk." },
-        { value: 6, label: "Massive Setback", description: "Project failure, severe financial turbulence, major social fallout." },
-        { value: 7, label: "One-Way Doors", description: "Major family disputes, significant life changes, financial crossroads." },
-        { value: 8, label: "Severe Volatility", description: "Sustained health or personal crisis in your immediate circle." },
-        { value: 9, label: "Profound Trauma", description: "System-shocking events, deep personal loss, life-altering shocks." },
-        { value: 10, label: "Theoretical Max", description: "The absolute limit of sustainable human load." }
+        { value: 1, label: "Trace", description: "Barely registers. Handled without a second thought." },
+        { value: 2, label: "Hum", description: "A faint background buzz. Small loose ends, nothing pulling hard." },
+        { value: 3, label: "Light", description: "Easy and moving along. Some attention, little friction." },
+        { value: 4, label: "Steady", description: "Ordinary weight. You're carrying it comfortably." },
+        { value: 5, label: "Full", description: "Demanding, and you feel it, but you're on top of it." },
+        { value: 6, label: "Heavy", description: "Real strain. Draining, and hard to put down mentally." },
+        { value: 7, label: "Strained", description: "High stakes or pressure. Running hot with little slack." },
+        { value: 8, label: "Acute", description: "A spike you can't ignore. It takes over your head and body." },
+        { value: 9, label: "Crushing", description: "Something big is breaking or at risk. It overrides everything else." },
+        { value: 10, label: "Limit", description: "More than a person should hold. Everything at its edge." }
       ],
       subjective: [
         { value: 1, label: "Flow / Minimal Cost", description: "Zero internal resistance. Activity felt restorative or effortless." },
@@ -42,16 +43,16 @@ export const DEFAULT_CONFIG: Config = {
     },
     recovery: {
       objective: [
-        { value: 1, label: "Micro-Reset", description: "5-min walk, physiological sigh, quick stretch." },
-        { value: 2, label: "Standard Unplug", description: "Reading fiction, light movement, evening offline, social connection." },
-        { value: 3, label: "Deep Down-Regulation", description: "20+ min meditation, perfect sleep, high-quality leisure." },
-        { value: 4, label: "The Payoff", description: "Restorative weekend, celebrating a major milestone, deep relaxation." },
-        { value: 5, label: "Profound Reset", description: "Deep connection with loved ones, breakthrough perspective, long rest." },
-        { value: 6, label: "Sustained Immersion", description: "Multi-day retreat, total removal from stressors." },
-        { value: 7, label: "Life-Altering", description: "Psychological breakthrough, fundamental upgrade in peace." },
-        { value: 8, label: "Era Alignment", description: "Daily habits, goals, and environment in total harmony." },
-        { value: 9, label: "Generational Peace", description: "Security and legacy for family and self feel firmly established." },
-        { value: 10, label: "Absolute Sync", description: "Complete, profound synchronization on all physiological and mental axes." }
+        { value: 1, label: "Sip", description: "The faintest relief. Just takes the edge off." },
+        { value: 2, label: "Breath", description: "A touch of quiet. You exhale and feel a little lighter." },
+        { value: 3, label: "Ease", description: "Things loosen. Pleasant and light, not fully off." },
+        { value: 4, label: "Settle", description: "You've stepped out of stress mode. Comfortable and calm." },
+        { value: 5, label: "Restore", description: "Genuinely enjoyable. You feel yourself refilling." },
+        { value: 6, label: "Deep Rest", description: "Mind fully off. Absorbed or slack, nothing tugging at you." },
+        { value: 7, label: "Payoff", description: "Feels earned and full. You come away noticeably lighter." },
+        { value: 8, label: "Renewal", description: "A real reset. You feel like yourself again, or better." },
+        { value: 9, label: "Immersion", description: "Total removal from everyday pressure. You're fully elsewhere." },
+        { value: 10, label: "Total", description: "Every part of you at ease. Body, mind and life in sync." }
       ],
       subjective: [
         { value: 0, label: "Neutral", description: "Felt neither rested nor more drained." },
@@ -464,7 +465,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addEvent = (date: string, event: Omit<Event, 'id'>) => {
     const id = crypto.randomUUID();
-    const newEvent = { ...event, id };
+    const newEvent = { ...event, id, ...(event.type === 'win' ? {} : { custom_data: { ...event.custom_data, scale: SCALE_VERSION } }) };
     
     setState(prev => {
       const dayData = prev.days[date] || { events: [], answers: {}, note: '' };
@@ -491,7 +492,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ...prev.days,
           [date]: {
             ...dayData,
-            events: dayData.events.map(e => e.id === updatedEvent.id ? updatedEvent : e)
+            events: dayData.events.map(e => e.id === updatedEvent.id ? (updatedEvent.type === 'win' || updatedEvent.objectiveIntensity === e.objectiveIntensity ? updatedEvent : { ...updatedEvent, custom_data: { ...updatedEvent.custom_data, scale: SCALE_VERSION } }) : e)
           }
         }
       };

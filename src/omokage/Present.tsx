@@ -1,3 +1,4 @@
+import { subjectiveFor } from '../intensity';
 import { TabMark, Sym } from './Sym';
 import { useNavState } from './nav';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -65,7 +66,7 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
     for (const d of Object.keys(state.days).sort().reverse())
       for (const e of [...state.days[d].events].reverse())
         if (mine(e, c) && e.objectiveIntensity > 0) return Math.max(1, Math.min(10, Math.round(e.objectiveIntensity)));
-    return 3;
+    return 4;
   };
   const lastPct = (c: Cell) => {
     for (const d of Object.keys(state.days).sort().reverse())
@@ -105,7 +106,7 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
   const commit = () => {
     const d = draft; if (!d) return;
     const isWin = d.cell.type === 'win', notes = d.note.trim() || undefined;
-    const fields = { objectiveIntensity: isWin ? 1 : d.lvl, intensity: isWin ? 1 : Math.max(1, Math.min(4, Math.ceil(d.lvl / 2.5))), notes };
+    const fields = { objectiveIntensity: isWin ? 1 : d.lvl, intensity: isWin ? 1 : subjectiveFor(d.lvl), notes };
     if (d.editId) {
       const old = events.find(e => e.id === d.editId);
       if (old) updateEvent(today, { ...old, ...fields, custom_data: { ...old.custom_data, ...(isWin ? {} : { load: d.pct }) } });

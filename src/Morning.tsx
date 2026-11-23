@@ -1,3 +1,4 @@
+import { newFromLegacy } from './intensity';
 import { useState, useRef } from 'react';
 import { format, subDays, addDays, eachDayOfInterval } from 'date-fns';
 import { Sparkles, Play, Square, Check, Loader2, Zap, X } from 'lucide-react';
@@ -178,7 +179,7 @@ export const MorningView = ({ onBack }: { onBack: () => void }) => {
       type: 'recovery',
       category: 'Meditation',
       intensity: subjectiveYield,
-      objectiveIntensity,
+      objectiveIntensity: newFromLegacy('recovery', objectiveIntensity),
       duration: durationLabel as any,
       custom_data: {
         meditation_seconds: seconds,
