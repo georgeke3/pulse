@@ -1,13 +1,13 @@
 // Where the circles sit on the Present tab. A pure function of (area, how many load circles, how many rest circles).
 //
 // Stability rules (so muscle memory holds):
-//  - Win is pinned at the top. Load circles own the left half, rest circles the right half, so adding one kind never moves the other.
+//  - Gratitude, Win and Sleep sit in a row above the ring. Load circles own the left half, rest circles the right half, so adding one kind never moves the other.
 //  - Within a half, circle i takes slot i (its order among the shown ones). Appending a circle only spreads the half a little:
 //    re-divides, and then nobody moves by more than one slot (the ones nearest the top barely move at all).
 //  - Past the outer ring's capacity circles spill onto an inner ring; the outer ring is then full and stays fixed.
 export interface Pt { x: number; y: number; a: number }   // a = ellipse angle, used to place labels outward
 export interface Layout {
-  win: Pt; load: Pt[]; rest: Pt[];
+  win: Pt; gratitude: Pt; sleep: Pt; load: Pt[]; rest: Pt[];
   sz: number; spacing: number; labels: boolean; crest: number;
   cx: number; cy: number; rx: number; ry: number; inner: { rx: number; ry: number } | null;
 }
@@ -32,7 +32,7 @@ const half = (cx: number, cy: number, rx: number, ry: number, side: 1 | -1): Hal
 export function layout(w: number, h: number, nLoad: number, nRest: number): Layout {
   const cx = w / 2, cy = h / 2;
   const rx = Math.max(90, Math.min(128, w / 2 - 70));
-  const ry = Math.max(100, Math.min(rx * 1.15, h / 2 - 48));      // close to a circle, with room above and below
+  const ry = Math.max(100, Math.min(rx * 1.15, h / 2 - 84));      // close to a circle, with room above and below
   const out = { l: half(cx, cy, rx, ry, -1), r: half(cx, cy, rx, ry, 1) };
   const capMax = Math.max(6, Math.floor(out.r.len / MIN_SPACING - 0.5));
   const n0L = Math.min(nLoad, capMax), n0R = Math.min(nRest, capMax);
@@ -52,7 +52,8 @@ export function layout(w: number, h: number, nLoad: number, nRest: number): Layo
   let crest = Math.min(120, 2 * Math.min(rx, ry) - 96);
   if (used1) crest = Math.max(64, Math.min(crest, 2 * Math.min(rx1, ry1) - sz - 14));
   return {
-    win: { x: cx, y: cy - ry, a: -Math.PI / 2 },
+    // the three special circles crown the ring in a row: gratitude, win, sleep
+    gratitude: { x: cx - 64, y: cy - ry - 58, a: -Math.PI / 2 }, win: { x: cx, y: cy - ry - 62, a: -Math.PI / 2 }, sleep: { x: cx + 64, y: cy - ry - 58, a: -Math.PI / 2 },
     load: slots(nLoad, n0L, H0L, n1L, 'l'), rest: slots(nRest, n0R, H0R, n1R, 'r'),
     sz, spacing, labels: !used1, crest, cx, cy, rx, ry, inner: used1 ? { rx: rx1, ry: ry1 } : null,
   };

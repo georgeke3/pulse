@@ -5,6 +5,7 @@ import { Belt, Fly, Pencil } from './Art';
 import { useItems } from './items';
 import { useAnswers } from './qa';
 import { sideTotal } from './load';
+import { isStim } from './special';
 import { useCircle, useSwipe } from './swipe';
 import { MottoEditor } from './MottoEditor';
 import { DayFull } from './DayFull';
@@ -47,7 +48,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unk
 
   const td = state.days[today], nq = state.config.daily_questions.length, answered = Object.keys(td?.answers ?? {}).length;
   const inbox = items.filter(i => i.kind === 'future' && (i.board || 'Inbox') === 'Inbox').length;
-  const stimN = (td?.events ?? []).filter(e => e.type !== 'win').length;
+  const stimN = (td?.events ?? []).filter(e => isStim(e.type)).length;
   const monday = (() => { const d = dayNow(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dstr(d); })();
   const qWeek = new Set(answers.filter(a => a.day >= monday && a.day <= today).map(a => a.day)).size;
   const told = !!td?.note?.trim();
@@ -64,7 +65,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unk
   ];
 
   const wk = Array.from({ length: 7 }, (_, i) => { const d = dayNow(); d.setDate(d.getDate() - i); return dstr(d); });
-  const logged = wk.filter(d => (state.days[d]?.events ?? []).some(e => e.type !== 'win'));
+  const logged = wk.filter(d => (state.days[d]?.events ?? []).some(e => isStim(e.type)));
   const avg = (t: 'training' | 'recovery') => (logged.length ? Math.round(logged.reduce((a, d) => a + sideTotal(state.days[d].events, t), 0) / logged.length) : 0);
   const wkLoad = avg('training'), wkRest = avg('recovery');
   const wkPast = wk.filter(d => pastDays.has(d)).length;

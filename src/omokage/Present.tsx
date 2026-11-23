@@ -1,4 +1,5 @@
 import { subjectiveFor } from '../intensity';
+import { isStim, isText, sleepReserve } from './special';
 import { TabMark, Sym } from './Sym';
 import { useNavState } from './nav';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -42,9 +43,11 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
   const answered = Object.keys(state.days[today]?.answers ?? {}).length, nq = state.config.daily_questions.length;
 
   const stim = useStimuli();
-  const loadS = stim.ring('training'), restS = stim.ring('recovery');
+  const loadS = stim.ring('training'), restS = stim.ring('recovery').filter(x => x.name.trim().toLowerCase() !== 'sleep');   // Sleep is a special circle now
   const cells: Cell[] = useMemo(() => [
-    { name: 'Win', type: 'win' as const, mono: '★' },
+    { name: 'Gratitude', type: 'gratitude' as const, mono: '✿', art: stim.art('gratitude', 'Gratitude'), label: 'Gratitude' },
+    { name: 'Win', type: 'win' as const, mono: '★', label: 'Win' },
+    { name: 'Sleep', type: 'sleep' as const, mono: 'z', art: stim.art('sleep', 'Sleep'), label: 'Sleep' },
     ...restS.map(x => ({ id: x.id, name: x.name, type: 'recovery' as const, mono: monoOf(x.name), art: stim.art('recovery', x.name), label: labelOf(x) })),
     ...loadS.map(x => ({ id: x.id, name: x.name, type: 'training' as const, mono: monoOf(x.name), art: stim.art('training', x.name), label: labelOf(x) })),
   ], [loadS, restS, stim]);
@@ -67,6 +70,13 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
       for (const e of [...state.days[d].events].reverse())
         if (mine(e, c) && e.objectiveIntensity > 0) return Math.max(1, Math.min(10, Math.round(e.objectiveIntensity)));
     return 4;
+  };
+  const lastSleep = () => {
+    for (const d of Object.keys(state.days).sort().reverse()) {
+      const e = [...state.days[d].events].reverse().find(x => x.type === 'sleep');
+      if (e) return { lvl: Math.max(1, Math.min(10, Math.round(e.objectiveIntensity))), pct: typeof e.custom_data?.amount === 'number' ? e.custom_data.amount : 80 };
+    }
+    return { lvl: 5, pct: 80 };
   };
   const lastPct = (c: Cell) => {
     for (const d of Object.keys(state.days).sort().reverse())
@@ -95,27 +105,32 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
     if (draft) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     const r = e.currentTarget.getBoundingClientRect(), sr = screenRef.current!.getBoundingClientRect();
-    const d: Draft = { cell: c, lvl: c.type === 'win' ? 1 : lastLevel(c), pct: c.type === 'win' ? 0 : lastPct(c), note: '', from: { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 } };
+    const from = { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 };
+    const sleepToday = c.type === 'sleep' ? events.find(x => x.type === 'sleep') : undefined, ls = c.type === 'sleep' ? lastSleep() : null;
+    const d: Draft = sleepToday
+      ? { cell: c, lvl: Math.max(1, Math.min(10, Math.round(sleepToday.objectiveIntensity))), pct: typeof sleepToday.custom_data?.amount === 'number' ? sleepToday.custom_data.amount : 80, note: sleepToday.notes ?? '', editId: sleepToday.id, from }
+      : { cell: c, lvl: isText(c.type) ? 1 : ls ? ls.lvl : lastLevel(c), pct: isText(c.type) ? 0 : ls ? ls.pct : lastPct(c), note: '', from };
     haptic(10); setHeld(c.type + c.name); begin(e.clientX, d); setDraft(d);
   };
   const editEvent = (ev: Event) => {
     const c = cells.find(x => mine(ev, x)) ?? { name: ev.category, type: ev.type, mono: monoOf(ev.category), art: stim.art(ev.type, ev.category) };
     setDetail(null); setListOpen(false);
-    setDraft({ cell: c, lvl: ev.type === 'win' ? 1 : Math.max(1, Math.min(10, Math.round(ev.objectiveIntensity))), pct: loadOf(ev) ?? lastPct(c), note: ev.notes ?? '', editId: ev.id });
+    setDraft({ cell: c, lvl: isText(ev.type) ? 1 : Math.max(1, Math.min(10, Math.round(ev.objectiveIntensity))), pct: ev.type === 'sleep' ? (typeof ev.custom_data?.amount === 'number' ? ev.custom_data.amount : 80) : loadOf(ev) ?? lastPct(c), note: ev.notes ?? '', editId: ev.id });
   };
   const commit = () => {
     const d = draft; if (!d) return;
-    const isWin = d.cell.type === 'win', notes = d.note.trim() || undefined;
+    const isWin = isText(d.cell.type), isSleep = d.cell.type === 'sleep', reserve = isSleep ? sleepReserve(d.pct, d.lvl) : 0, notes = d.note.trim() || undefined;
+    const cdata = isWin ? {} : isSleep ? { load: reserve, amount: d.pct } : { load: d.pct };
     const fields = { objectiveIntensity: isWin ? 1 : d.lvl, intensity: isWin ? 1 : subjectiveFor(d.lvl), notes };
     if (d.editId) {
       const old = events.find(e => e.id === d.editId);
-      if (old) updateEvent(today, { ...old, ...fields, custom_data: { ...old.custom_data, ...(isWin ? {} : { load: d.pct }) } });
+      if (old) updateEvent(today, { ...old, ...fields, custom_data: { ...old.custom_data, ...cdata } });
       setToast({ text: 'Saved' });
     } else {
       const now = new Date(), min = now.getHours() * 60 + now.getMinutes(), time = hhmm(min);
-      addEvent(today, { type: d.cell.type, category: d.cell.name, ...fields, duration: '<1h' as Duration, custom_data: { time, ...(d.cell.id ? { sid: d.cell.id } : {}), ...(isWin ? {} : { load: d.pct }) }, date: today });
+      addEvent(today, { type: d.cell.type, category: d.cell.name, ...fields, duration: '<1h' as Duration, custom_data: { time, ...(d.cell.id ? { sid: d.cell.id } : {}), ...cdata }, date: today });
       if (d.from) { const b = { id: Date.now(), x: d.from.x, y: d.from.y, color: RIM[d.cell.type][0] }; setBursts(v => [...v, b]); setTimeout(() => setBursts(v => v.filter(x => x.id !== b.id)), 1700); }
-      setToast({ text: `${d.cell.name}${isWin ? '' : ` · ${d.pct}%`}`, undo: { cat: d.cell.name, type: d.cell.type, time } });
+      setToast({ text: `${d.cell.name}${isWin ? '' : isSleep ? ` · opens at ${reserve}%` : ` · ${d.pct}%`}`, undo: { cat: d.cell.name, type: d.cell.type, time } });
     }
     haptic(14); setDraft(null);
   };
@@ -130,7 +145,7 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
   // ring geometry: see layout.ts. Positions depend only on how many circles each half has, so they stay put as you add or hide others.
   const L = useMemo(() => layout(ring.w, ring.h, loadS.length, restS.length), [ring.w, ring.h, loadS.length, restS.length]);
   const { cx, cy, rx, ry, sz, crest } = L;
-  const cellPts = useMemo(() => [L.win, ...L.rest, ...L.load], [L]);
+  const cellPts = useMemo(() => [L.gratitude, L.win, L.sleep, ...L.rest, ...L.load], [L]);
 
   const mine = (e: Event, c: Cell) => (c.id && e.custom_data?.sid ? e.custom_data.sid === c.id : e.type === c.type && e.category === c.name);
   const counts = (c: Cell) => events.filter(e => mine(e, c)).length;
@@ -138,7 +153,7 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
 
   // every spoke's geometry, shared by drawing and by tap-picking (a tap where several overlap lists them all)
   const spokes = cells.flatMap((c, k) => {
-    if (c.type === 'win') return [];
+    if (!isStim(c.type)) return [];
     const ev = events.filter(e => mine(e, c)); if (!ev.length) return [];
     const { x, y } = cellPts[k] ?? { x: 0, y: 0 }, d = Math.hypot(cx - x, cy - y) || 1, base = Math.atan2(cy - y, cx - x);
     const room = Math.max(10, d - crest / 2 - sz / 2 - 8), rim = RIM[c.type][0], side = c.type === 'recovery' ? 'recovery' : 'training';
@@ -206,11 +221,11 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
                 style={{ left: x, top: y, ['--r' as string]: r, ['--f' as string]: f, ['--sz' as string]: `${sz}px` }}
                 onPointerDown={openFor(c)} onPointerMove={e => move(e.clientX)} onPointerUp={() => { release(); setHeld(null); }} onPointerCancel={() => { release(); setHeld(null); }} onContextMenu={e => e.preventDefault()}>
                 <i />{c.type === 'win' || c.art
-                  ? <img className="catart" src={c.type === 'win' ? WIN_ICON : c.art} alt="" draggable={false} style={{ marginTop: c.type === 'win' && n ? -5 : 0, width: sz * .8, height: sz * .8 }} />
+                  ? <img className="catart" src={c.type === 'win' ? WIN_ICON : c.art} alt="" draggable={false} style={{ marginTop: !isStim(c.type) && n ? -5 : 0, width: sz * .8, height: sz * .8 }} />
                   : <b style={{ fontSize: c.mono.length > 1 ? 12.5 : 16, marginTop: n ? -4 : 0 }}>{c.mono}</b>}
-                {c.type === 'win' && n > 0 && <span className="pips">{Array.from({ length: Math.min(n, 4) }, (_, i) => <s key={i} />)}</span>}
+                {!isStim(c.type) && n > 0 && <span className="pips">{Array.from({ length: Math.min(n, 4) }, (_, i) => <s key={i} />)}</span>}
               </button>
-              {(L.labels || held === id) && <span className="nl" style={lab}>{c.type === 'win' ? 'Win' : c.label}</span>}
+              {(L.labels || held === id) && <span className="nl" style={lab}>{c.label}</span>}
             </span>
           );
         })}
@@ -256,17 +271,17 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
       </div>
 
       {draft && (
-        <LogSheet d={draft} anchors={state.config.scales[draft.cell.type === 'recovery' ? 'recovery' : 'training'].objective}
+        <LogSheet d={draft} anchors={state.config.scales[draft.cell.type === 'sleep' ? 'sleep' : draft.cell.type === 'recovery' ? 'recovery' : 'training'].objective}
           onDown={e => { begin(e.clientX, draft); e.currentTarget.setPointerCapture(e.pointerId); }}
           onMove={e => move(e.clientX)} onUp={release}
           onNote={t => setDraft(v => (v ? { ...v, note: t } : v))} onConfirm={commit}
-          onPct={p => setDraft(v => (v ? { ...v, pct: p } : v))} before={draft.cell.type === 'win' ? 0 : sideTotal(events, draft.cell.type, draft.editId)} onClose={() => setDraft(null)} />
+          onPct={p => setDraft(v => (v ? { ...v, pct: p } : v))} before={draft.cell.type === 'training' || draft.cell.type === 'recovery' ? sideTotal(events, draft.cell.type, draft.editId) : 0} onClose={() => setDraft(null)} />
       )}
       {managing && <Circles onClose={() => setManaging(false)} />}
       {listOpen && <TodayList events={events} title={isToday ? 'Today' : fromDstr(day).toLocaleDateString('en', { weekday: 'long' })} onOpen={id => { setListOpen(false); setDetail(id); }} onClose={() => setListOpen(false)} />}
       {detailEv && (
         <EventCard e={detailEv}
-          anchorLabel={detailEv.type === 'win' ? undefined : state.config.scales[detailEv.type === 'recovery' ? 'recovery' : 'training'].objective.find(x => x.value === Math.round(detailEv.objectiveIntensity))?.label}
+          anchorLabel={isText(detailEv.type) ? undefined : state.config.scales[detailEv.type === 'sleep' ? 'sleep' : detailEv.type === 'recovery' ? 'recovery' : 'training'].objective.find(x => x.value === Math.round(detailEv.objectiveIntensity))?.label}
           onEdit={() => editEvent(detailEv)} onDelete={() => { deleteEvent(today, detailEv.id); setDetail(null); setToast({ text: 'Removed' }); }} onClose={() => setDetail(null)} />
       )}
 

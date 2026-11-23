@@ -5,6 +5,7 @@ import { useStimuli } from './stimuli';
 import { RIM, durLabel } from './LogSheet';
 import { CRIMSON, INK2, fmtMin, getCutoff, parseHM } from './skins';
 import { loadOf } from './load';
+import { isText } from './special';
 
 export const evStart = (e: Event) => parseHM(e.custom_data?.time);
 /** Sort key: times before the day's cutoff (e.g. 1:30am) belong to the end of the day, not the start. */
@@ -23,8 +24,8 @@ export const Art = ({ e, s }: { e: Event; s: number }) => {
     </span>
   );
 };
-const level = (e: Event) => (e.type === 'win' ? '' : loadOf(e) != null ? `${loadOf(e)}%` : '—');
-const inten = (e: Event) => `intensity ${Math.round(e.objectiveIntensity)}`;
+const level = (e: Event) => (isText(e.type) ? '' : loadOf(e) != null ? `${loadOf(e)}%` : '—');
+const inten = (e: Event) => `${e.type === 'sleep' ? 'quality' : 'intensity'} ${Math.round(e.objectiveIntensity)}`;
 
 /** One logged instance: what, when, how long, how hard, with edit and delete. */
 export const EventCard = ({ e, anchorLabel, onEdit, onDelete, onClose }: { e: Event; anchorLabel?: string; onEdit: () => void; onDelete: () => void; onClose: () => void }) => {
@@ -37,13 +38,13 @@ export const EventCard = ({ e, anchorLabel, onEdit, onDelete, onClose }: { e: Ev
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <Art e={e} s={56} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="caps" style={{ color: rim }}>{e.type === 'training' ? 'load' : e.type === 'recovery' ? 'rest' : 'win'}</div>
+            <div className="caps" style={{ color: rim }}>{e.type === 'training' ? 'load' : e.type === 'recovery' ? 'rest' : e.type}</div>
             <div className="serif" style={{ fontSize: 26, lineHeight: 1.15 }}>{e.category}</div>
           </div>
-          {e.type !== 'win' && <div style={{ textAlign: 'right' }}><div className="serif" style={{ fontSize: 30, color: rim, lineHeight: 1 }}>{level(e)}</div><div className="caps" style={{ fontSize: 8.5, marginTop: 4 }}>of the day</div></div>}
+          {!isText(e.type) && <div style={{ textAlign: 'right' }}><div className="serif" style={{ fontSize: 30, color: rim, lineHeight: 1 }}>{level(e)}</div><div className="caps" style={{ fontSize: 8.5, marginTop: 4 }}>of the day</div></div>}
         </div>
         <div className="it" style={{ fontSize: 17, marginTop: 14 }}>{when(e)}</div>
-        {e.type !== 'win' && <div style={{ fontSize: 12.5, color: INK2, marginTop: 4 }}>{[inten(e), anchorLabel ?? '', d ? durLabel(d) : ''].filter(Boolean).join(' · ')}</div>}
+        {!isText(e.type) && <div style={{ fontSize: 12.5, color: INK2, marginTop: 4 }}>{[inten(e), anchorLabel ?? '', d ? durLabel(d) : ''].filter(Boolean).join(' · ')}</div>}
         {e.notes && <div className="it" style={{ fontSize: 16, marginTop: 12, lineHeight: 1.45, color: '#3A4156' }}>{e.notes}</div>}
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <button className="chip press" style={{ height: 48, flex: '0 0 26%' }} onClick={onClose}>Close</button>
@@ -74,9 +75,9 @@ export const TodayList = ({ events, title = 'Today', onOpen, onClose }: { events
               <Art e={e} s={40} />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span className="serif" style={{ fontSize: 18, display: 'block' }}>{e.category}</span>
-                <span style={{ fontSize: 12, color: INK2 }}>{when(e)}{e.type !== 'win' ? ` · ${inten(e)}` : ''}</span>
+                <span style={{ fontSize: 12, color: INK2 }}>{when(e)}{!isText(e.type) ? ` · ${inten(e)}` : ''}</span>
               </span>
-              {e.type !== 'win' && <span className="serif" style={{ fontSize: 20, color: RIM[e.type][0] }}>{level(e)}</span>}
+              {!isText(e.type) && <span className="serif" style={{ fontSize: 20, color: RIM[e.type][0] }}>{level(e)}</span>}
               <span style={{ color: INK2, fontSize: 16 }}>›</span>
             </button>
           ))}

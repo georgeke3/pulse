@@ -61,6 +61,20 @@ export const DEFAULT_CONFIG: Config = {
         { value: 3, label: "Deeply Restored", description: "Noticeably lighter and more optimistic. Anxiety cleared." },
         { value: 4, label: "Overflowing", description: "Radiating energy. Profoundly energized and ready for anything." }
       ]
+    },
+    sleep: {
+      objective: [
+        { value: 1, label: "Hollow", description: "No rest felt. As if it never happened." },
+        { value: 2, label: "Shallow", description: "Stayed near the surface. Very little recovered." },
+        { value: 3, label: "Thin", description: "Light and restless. Only a little taken off." },
+        { value: 4, label: "Uneven", description: "Some real rest mixed with some that didn't land." },
+        { value: 5, label: "Okay", description: "Functional, but not refreshed." },
+        { value: 6, label: "Decent", description: "Rested enough to get going." },
+        { value: 7, label: "Solid", description: "Deep. You wake up ready." },
+        { value: 8, label: "Deep", description: "Heavy and clear. You surface rested." },
+        { value: 9, label: "Rich", description: "You wake up energized without effort." },
+        { value: 10, label: "Perfect", description: "A complete reset. Body and mind fully restored." }
+      ]
     }
   },
   daily_questions: [
@@ -465,7 +479,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addEvent = (date: string, event: Omit<Event, 'id'>) => {
     const id = crypto.randomUUID();
-    const newEvent = { ...event, id, ...(event.type === 'win' ? {} : { custom_data: { ...event.custom_data, scale: SCALE_VERSION } }) };
+    const newEvent = { ...event, id, ...(event.type === 'training' || event.type === 'recovery' ? { custom_data: { ...event.custom_data, scale: SCALE_VERSION } } : {}) };
     
     setState(prev => {
       const dayData = prev.days[date] || { events: [], answers: {}, note: '' };
@@ -492,7 +506,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ...prev.days,
           [date]: {
             ...dayData,
-            events: dayData.events.map(e => e.id === updatedEvent.id ? (updatedEvent.type === 'win' || updatedEvent.objectiveIntensity === e.objectiveIntensity ? updatedEvent : { ...updatedEvent, custom_data: { ...updatedEvent.custom_data, scale: SCALE_VERSION } }) : e)
+            events: dayData.events.map(e => e.id === updatedEvent.id ? ((updatedEvent.type !== 'training' && updatedEvent.type !== 'recovery') || updatedEvent.objectiveIntensity === e.objectiveIntensity ? updatedEvent : { ...updatedEvent, custom_data: { ...updatedEvent.custom_data, scale: SCALE_VERSION } }) : e)
           }
         }
       };
@@ -508,7 +522,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       for (const [d, day] of Object.entries(prev.days) as [string, AppState['days'][string]][]) {
         let dc = false;
         const events = day.events.map(e => {
-          if (e.type === 'win') return e;
+          if (e.type !== 'training' && e.type !== 'recovery') return e;
           const c = lookup(e);
           if (!c || (e.custom_data?.sid === c.id && e.category === c.name)) return e;
           dc = true;
@@ -726,7 +740,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (dayData) {
         dayData.events.forEach(e => {
-          if (e.type === 'win') return; // Wins don't count towards readiness scores
+          if (e.type !== 'training' && e.type !== 'recovery') return; // Wins, gratitude and sleep don't count towards readiness scores (yet)
           
           const baseVal = Number(e.intensity ?? e.objectiveIntensity ?? 0);
           const weightedVal = baseVal * weight;

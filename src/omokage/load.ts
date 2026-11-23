@@ -1,5 +1,6 @@
 // Load and recovery as a share of one day's capacity.
 // 100% load = the most stress you can take in a day and still fully recover by tomorrow, with no carryover.
+// Last night's sleep is the first entry of the rest side: it opens the day at its reserve (amount x quality) and everything after adds to it.
 // 100% recovery = the inverse: enough rest to fully undo a 100% load day. Each instance adds its share; totals can pass 100%.
 import type { Event, EventType } from '../types';
 
@@ -27,7 +28,7 @@ export const bandOf = (t: EventType, pct: number) => {
 };
 export const loadOf = (e: Event): number | null => (typeof e.custom_data?.load === 'number' ? e.custom_data.load : null);
 export const sideTotal = (events: Event[], t: 'training' | 'recovery', skip?: string) =>
-  events.reduce((a, e) => a + (e.type === t && e.id !== skip ? loadOf(e) ?? 0 : 0), 0);
+  events.reduce((a, e) => a + ((e.type === t || (t === 'recovery' && e.type === 'sleep')) && e.id !== skip ? loadOf(e) ?? 0 : 0), 0);
 export const snap = (p: number) => Math.max(STEP, Math.min(100, Math.round(p / STEP) * STEP));
 
 const hex = (c: string) => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));

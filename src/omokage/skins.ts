@@ -1,6 +1,6 @@
 export type Mode = 'past' | 'present' | 'future' | 'home';
 
-export const INK = '#2B3247', INK2 = '#646B7E', SKY = '#6F8FB5', EMBER = '#D07A55', GOLD = '#C8A15A', SEPIA = '#B08A64', CRIMSON = '#A8323E', DUSK = '#9AABC0';
+export const INK = '#2B3247', INK2 = '#646B7E', SKY = '#6F8FB5', EMBER = '#D07A55', GOLD = '#C8A15A', SEPIA = '#B08A64', CRIMSON = '#A8323E', DUSK = '#9AABC0', DREAM = '#8E82BF', ROSE = '#D4849A';
 export const DOT = { past: SEPIA, present: GOLD, future: CRIMSON } as const;
 export const LOAD = EMBER, REST = SKY, BRASS = GOLD;
 export const GROUND: Record<Mode, string> = { past: '#F7F1E5', present: '#FDFDFB', future: '#E9EEF5', home: '#FAF8F3' };

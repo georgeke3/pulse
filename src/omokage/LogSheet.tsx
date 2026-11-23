@@ -4,13 +4,14 @@ import { ActionBar } from './Actions';
 import { useStimuli } from './stimuli';
 import { Mic } from './Mic';
 import { Sheet } from './Sheet';
-import { EMBER, GOLD, INK, INK2, SKY } from './skins';
+import { DREAM, EMBER, GOLD, INK, INK2, ROSE, SKY } from './skins';
+import { isText, sleepBand, SLEEP_BANDS, sleepReserve } from './special';
 import { haptic } from './haptics';
 import { BANDS, bandOf, snap } from './load';
 
 export const STEP_Y = 16;
 export const MAX_STEP_X = 34;  // px per intensity level (shrinks near the edges)
-export const RIM: Record<EventType, [string, string]> = { training: [EMBER, '#F3C9B4'], recovery: [SKY, '#C9D7E9'], win: [GOLD, '#F1DDAE'] };
+export const RIM: Record<EventType, [string, string]> = { training: [EMBER, '#F3C9B4'], recovery: [SKY, '#C9D7E9'], win: [GOLD, '#F1DDAE'], sleep: [DREAM, '#DDD7EE'], gratitude: [ROSE, '#F3D3DB'] };
 
 export interface Cell { name: string; type: EventType; mono: string; id?: string; art?: string; label?: string }
 export interface Draft { cell: Cell; lvl: number; pct: number; note: string; editId?: string; from?: { x: number; y: number }; kx?: number | null }
@@ -31,7 +32,7 @@ interface Props {
 const ZH = 160;  // height of the intensity scrubbing zone
 
 /** Load (or recovery) as a share of the day: 5% steps, with the day's running total rising as you scrub. */
-const LoadScrub = ({ type, pct, before, rim, onPct }: { type: 'training' | 'recovery'; pct: number; before: number; rim: string; onPct: (p: number) => void }) => {
+const LoadScrub = ({ type, pct, before, rim, onPct, q }: { type: 'training' | 'recovery' | 'sleep'; pct: number; before: number; rim: string; onPct: (p: number) => void; q?: number }) => {
   const box = useRef<HTMLDivElement>(null), last = useRef(pct);
   last.current = pct;
   const at = (x: number) => {
@@ -40,22 +41,32 @@ const LoadScrub = ({ type, pct, before, rim, onPct }: { type: 'training' | 'reco
     const p = snap(((x - r.left - lo) / (hi - lo)) * 100);
     if (p !== last.current) { last.current = p; haptic(5); onPct(p); }
   };
-  const total = before + pct, scale = Math.max(100, total), word = type === 'recovery' ? 'recovery' : 'load';
-  const bands = BANDS[type];
+  const isSleep = type === 'sleep', reserve = isSleep ? sleepReserve(pct, q ?? 5) : 0;
+  const total = before + pct, scale = Math.max(100, total), word = isSleep ? 'sleep' : type === 'recovery' ? 'recovery' : 'load';
+  const bands = isSleep ? SLEEP_BANDS : BANDS[type];
   return (
     <div ref={box} onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); at(e.clientX); }} onPointerMove={e => { if (e.buttons || e.pointerType === 'touch') at(e.clientX); }}
-      style={{ position: 'relative', flex: 'none', padding: '6px 34px 10px', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }} aria-label={`${word} ${pct} percent of the day`}>
+      style={{ position: 'relative', flex: 'none', padding: '6px 34px 10px', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }} aria-label={isSleep ? `${pct} percent of the sleep you needed` : `${word} ${pct} percent of the day`}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <span className="caps">{word} · share of the day</span>
+        <span className="caps">{isSleep ? 'sleep · how much you needed' : `${word} · share of the day`}</span>
         <span><span className="serif" style={{ fontSize: 22, color: rim }}>{pct}%</span></span>
       </div>
-      <div className="it" style={{ fontSize: 13.5, color: INK2, marginTop: 1, textAlign: 'right' }}>{bandOf(type, pct).label}</div>
+      <div className="it" style={{ fontSize: 13.5, color: INK2, marginTop: 1, textAlign: 'right' }}>{isSleep ? sleepBand(pct).label : bandOf(type, pct).label}</div>
       <div style={{ position: 'relative', height: 34, marginTop: 2 }}>
         <div style={{ position: 'absolute', left: 0, right: 0, top: 15, height: 4, borderRadius: 2, background: 'rgba(43,50,71,.12)' }} />
         <div style={{ position: 'absolute', left: 0, width: `${pct}%`, top: 15, height: 4, borderRadius: 2, background: rim }} />
         {bands.slice(0, -1).map(b => <i key={b.to} style={{ position: 'absolute', left: `${b.to}%`, top: 10, width: 1.2, height: 14, background: 'rgba(43,50,71,.28)' }} />)}
         <span style={{ position: 'absolute', left: `${pct}%`, top: 17, width: 26, height: 26, marginLeft: -13, marginTop: -13, borderRadius: '50%', background: '#fff', boxShadow: `0 0 0 2px ${rim}, 0 4px 10px rgba(43,50,71,.18)` }} />
       </div>
+      {isSleep ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+          <span style={{ fontSize: 11.5, color: INK2, flex: 'none' }}>opens your day</span>
+          <div style={{ position: 'relative', flex: 1, height: 8, borderRadius: 4, background: 'rgba(43,50,71,.08)', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${reserve}%`, background: rim, transition: 'width .12s' }} />
+          </div>
+          <span style={{ flex: 'none', fontSize: 13 }}><b className="serif" style={{ color: rim, fontWeight: 600 }}>{reserve}%</b> <span style={{ color: INK2 }}>rest</span></span>
+        </div>
+      ) : (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
         <span style={{ fontSize: 11.5, color: INK2, flex: 'none' }}>day total</span>
         <div style={{ position: 'relative', flex: 1, height: 8, borderRadius: 4, background: 'rgba(43,50,71,.08)', overflow: 'hidden' }}>
@@ -65,6 +76,7 @@ const LoadScrub = ({ type, pct, before, rim, onPct }: { type: 'training' | 'reco
         </div>
         <span style={{ flex: 'none', fontSize: 13, color: total > 100 ? INK : INK2, fontWeight: total > 100 ? 600 : 400 }}>{before ? `${before}% → ` : ''}<b className="serif" style={{ color: rim, fontWeight: 600 }}>{total}%</b></span>
       </div>
+      )}
     </div>
   );
 };
@@ -73,8 +85,8 @@ const LoadScrub = ({ type, pct, before, rim, onPct }: { type: 'training' | 'reco
 export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, onClose, onPct, before }: Props) => {
   const stim = useStimuli();
   const first = useRef({ lvl: d.lvl, pct: d.pct, note: d.note });
-  const dirty = d.note.trim() !== first.current.note.trim() || (d.cell.type !== 'win' && (d.lvl !== first.current.lvl || d.pct !== first.current.pct));
-  const isWin = d.cell.type === 'win', [rim, fill] = RIM[d.cell.type];
+  const dirty = d.note.trim() !== first.current.note.trim() || (!isText(d.cell.type) && (d.lvl !== first.current.lvl || d.pct !== first.current.pct));
+  const isWin = isText(d.cell.type), [rim, fill] = RIM[d.cell.type];
   const a = anchors.find(x => x.value === d.lvl);
   const zone = useRef<HTMLDivElement>(null);
   const [zw, setZw] = useState(345);
@@ -104,7 +116,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
       <div style={{ position: 'relative', flex: 'none', textAlign: 'center', padding: '0 64px' }}>
         <div className="caps" style={{ paddingTop: 4 }}>{d.editId ? 'editing' : 'logging'}</div>
         <div className="serif" style={{ fontSize: 30, marginTop: 4 }}>{d.cell.name}</div>
-        <div className="it" style={{ fontSize: 13, color: INK2, marginTop: 3, lineHeight: 1.35, height: 36, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{isWin ? 'A small victory, kept.' : a ? `${a.label}: ${a.description}` : ''}</div>
+        <div className="it" style={{ fontSize: 13, color: INK2, marginTop: 3, lineHeight: 1.35, height: 36, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{isWin ? (d.cell.type === 'gratitude' ? 'Something to be thankful for.' : 'A small victory, kept.') : a ? `${a.label}: ${a.description}` : ''}</div>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 18 }}>
@@ -131,13 +143,13 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
             </svg>
             <div className="node held" style={{ left: kx, top: ky - 50, ['--r' as string]: rim, ['--f' as string]: fill, ['--sz' as string]: '56px', transition: dragging ? 'none' : 'left .22s cubic-bezier(.2,.9,.3,1), top .22s cubic-bezier(.2,.9,.3,1)', pointerEvents: 'none', boxShadow: `0 0 0 1.5px ${rim},0 0 0 6px #FBFAF7,0 0 0 7px rgba(200,161,90,.6),0 16px 28px rgba(43,50,71,.2)` }}><i />{face}</div>
             <div style={{ position: 'absolute', left: 0, right: 0, top: bY + 34, textAlign: 'center', pointerEvents: 'none' }}>
-              <span className="caps" style={{ marginRight: 6 }}>intensity · how deep</span><span className="serif" style={{ fontSize: 21, color: rim }}>{d.lvl}</span><span className="it" style={{ fontSize: 15 }}> · {a?.label ?? ''}</span>
+              <span className="caps" style={{ marginRight: 6 }}>{d.cell.type === 'sleep' ? 'quality · how restorative' : 'intensity · how deep'}</span><span className="serif" style={{ fontSize: 21, color: rim }}>{d.lvl}</span><span className="it" style={{ fontSize: 15 }}> · {a?.label ?? ''}</span>
             </div>
           </>
         )}
       </div>
       </div>
-      {!isWin && <LoadScrub type={d.cell.type === 'recovery' ? 'recovery' : 'training'} pct={d.pct} before={before} rim={rim} onPct={onPct} />}
+      {!isWin && <LoadScrub type={d.cell.type === 'sleep' ? 'sleep' : d.cell.type === 'recovery' ? 'recovery' : 'training'} pct={d.pct} before={before} rim={rim} onPct={onPct} q={d.lvl} />}
       </div>
 
       <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px 12px' }}>
@@ -153,7 +165,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
       <div style={{ position: 'absolute', left: 12, right: 12, top: 'calc(var(--top) + 8px)', zIndex: 5, padding: '14px 14px 10px', borderRadius: 24, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.1), 0 14px 34px rgba(43,50,71,.14)',
         opacity: open ? 1 : 0, transform: open ? 'none' : 'translateY(-10px)', pointerEvents: open ? 'auto' : 'none', transition: 'opacity .18s, transform .22s cubic-bezier(.2,.8,.2,1)' }}>
         <div className="caps" style={{ marginBottom: 6 }}>{d.cell.name} · details</div>
-        <textarea ref={ta} rows={1} value={d.note} onChange={e => onNote(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} placeholder="What happened?" aria-label="Details of what happened"
+        <textarea ref={ta} rows={1} value={d.note} onChange={e => onNote(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} placeholder={d.cell.type === 'gratitude' ? 'What are you thankful for?' : d.cell.type === 'sleep' ? 'How was the night?' : 'What happened?'} aria-label="Details of what happened"
           style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: 48, maxHeight: 150, resize: 'none', border: 0, outline: 'none', padding: '4px 2px', background: 'transparent', fontSize: 17, lineHeight: 1.45, fontFamily: 'Lora, serif', color: INK }} />
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 6 }}>
           <Mic onText={add} size={44} />

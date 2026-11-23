@@ -3,10 +3,11 @@ import { TabMark } from "./Sym";
 import { Art, evOrder, evStart } from './Instances';
 import { useItems } from './items';
 import { loadOf, sideTotal, heat } from './load';
+import { isStim } from './special';
 import { pulseWord } from './Pulse';
 import { useAnswers } from './qa';
 const clip = (n: number): React.CSSProperties => ({ display: '-webkit-box', WebkitLineClamp: n, WebkitBoxOrient: 'vertical', overflow: 'hidden' });
-import { fmtMin, fromDstr, EMBER, GOLD, INK2, SKY, type Mode, todayStr } from './skins';
+import { fmtMin, fromDstr, DREAM, EMBER, GOLD, INK2, ROSE, SKY, type Mode, todayStr } from './skins';
 
 const Meter = ({ label, pct, color }: { label: string; pct: number; color: string }) => (
   <div style={{ flex: 1, minWidth: 0 }}>
@@ -27,11 +28,11 @@ export const DayFull = ({ day, go, onPulse }: { day: string; go: (m: Mode, patch
   const answers = useAnswers();
   const sd = state.days[day], d = fromDstr(day);
   const events = [...(sd?.events ?? [])].sort((a, b) => (evOrder(a) ?? 1e4) - (evOrder(b) ?? 1e4));
-  const stim = events.filter(e => e.type !== 'win'), wins = events.filter(e => e.type === 'win');
+  const stim = events.filter(e => isStim(e.type)), wins = events.filter(e => e.type === 'win'), thanks = events.filter(e => e.type === 'gratitude'), slept = events.find(e => e.type === 'sleep');
   const vals = Object.values(sd?.answers ?? {}), avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   const note = sd?.note?.trim() ?? '', ans = answers.filter(a => a.day === day);
   const fut = items.filter(i => i.kind === 'future' && i.board !== '__trash' && i.day === day);
-  const empty = !stim.length && !wins.length && !note && !ans.length && !fut.length && avg === null;
+  const empty = !stim.length && !wins.length && !thanks.length && !slept && !note && !ans.length && !fut.length && avg === null;
   return (
     <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 4 }}>
@@ -47,6 +48,8 @@ export const DayFull = ({ day, go, onPulse }: { day: string; go: (m: Mode, patch
         </div>
         <div style={{ display: 'flex', gap: 22, marginTop: 16, alignItems: 'baseline' }}>
           <span><b className="serif" style={{ fontSize: 22, color: GOLD }}>{wins.length}</b> <span style={{ fontSize: 12, color: INK2 }}>win{wins.length === 1 ? '' : 's'}</span></span>
+          {slept && <span><b className="serif" style={{ fontSize: 22, color: DREAM }}>{loadOf(slept) ?? 0}%</b> <span style={{ fontSize: 12, color: INK2 }}>slept in · quality {Math.round(slept.objectiveIntensity)}</span></span>}
+          {thanks.length > 0 && <span><b className="serif" style={{ fontSize: 22, color: ROSE }}>{thanks.length}</b> <span style={{ fontSize: 12, color: INK2 }}>grateful</span></span>}
           {avg !== null && <button className="press" onClick={() => onPulse(day)} style={{ textAlign: 'left' }}><b className="serif" style={{ fontSize: 22 }}>{avg.toFixed(1)}</b> <span style={{ fontSize: 12, color: INK2 }}>pulse · {pulseWord(avg)} ›</span></button>}
         </div>
 
@@ -62,6 +65,11 @@ export const DayFull = ({ day, go, onPulse }: { day: string; go: (m: Mode, patch
                 <i style={{ width: 9, height: 9, borderRadius: 5, flex: 'none', background: heat(e.type === 'recovery' ? 'recovery' : 'training', e.objectiveIntensity || 1) }} />
               </button>
             ))}
+          </Sec>
+        )}
+        {thanks.some(t => t.notes?.trim()) && (
+          <Sec t="grateful for">
+            {thanks.filter(t => t.notes?.trim()).map(t => <div key={t.id} className="it" style={{ fontSize: 15.5, lineHeight: 1.5, color: '#3A4156', marginBottom: 6 }}>{t.notes}</div>)}
           </Sec>
         )}
         {note && <Sec t="the day, told"><div className="it" style={{ fontSize: 16, lineHeight: 1.55, color: '#3A4156', whiteSpace: 'pre-wrap' }}>{note}</div></Sec>}

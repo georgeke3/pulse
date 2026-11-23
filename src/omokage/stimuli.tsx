@@ -6,7 +6,7 @@ import { catArt } from './catArt';
 import { WIN_ICON, iconSrc } from './icons';
 
 /** A circle on the Present tab. Never deleted, only archived (past logs keep pointing at its name). */
-export type StimType = Exclude<EventType, 'win'>;
+export type StimType = 'training' | 'recovery';
 export interface Stimulus { id: string; name: string; type: StimType; icon: string; short?: string; shown: boolean; archived: boolean; ord: number; u: number }
 
 const KEY = 'omokage_stimuli_v1', TABLE = 'omokage_stimuli';
@@ -111,10 +111,10 @@ export const StimuliProvider = ({ children }: { children: ReactNode }) => {
   const v = useMemo<Ctx>(() => {
     const sorted = [...all].sort(byOrd), active = sorted.filter(s => !s.archived);
     const idx = new Map(sorted.map(s => [`${s.type}|${s.name.toLowerCase()}`, s]));
-    const find: Ctx['find'] = (type, name) => (type === 'win' ? undefined : idx.get(`${type}|${name.toLowerCase()}`));
+    const find: Ctx['find'] = (type, name) => (type === 'training' || type === 'recovery' ? idx.get(`${type}|${name.toLowerCase()}`) : undefined);
     return {
       all: sorted, active, ring: type => active.filter(s => s.type === type && s.shown), find,
-      art: (type, name) => { if (type === 'win') return WIN_ICON; const s = find(type, name); return s ? iconSrc(s.icon) : catArt(type, name); },
+      art: (type, name) => { if (type === 'win') return WIN_ICON; if (type === 'sleep') return iconSrc('sleep'); if (type === 'gratitude') return iconSrc('care'); const s = find(type, name); return s ? iconSrc(s.icon) : catArt(type, name); },
       add, edit, setShown, setArchived,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

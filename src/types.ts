@@ -1,4 +1,4 @@
-export type EventType = 'training' | 'recovery' | 'win';
+export type EventType = 'training' | 'recovery' | 'win' | 'sleep' | 'gratitude';
 export type Duration = '<1h' | 'couple hours' | 'half day' | 'whole day';
 
 export interface ScaleAnchor {
@@ -53,6 +53,10 @@ export interface Config {
     recovery: {
       objective: ScaleAnchor[];
       subjective: ScaleAnchor[];
+    };
+    /** Sleep quality (how restorative), 1-10. The amount of sleep is the load control, not a scale. */
+    sleep: {
+      objective: ScaleAnchor[];
     };
   };
   daily_questions: DailyQuestion[];
