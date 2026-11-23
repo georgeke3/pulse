@@ -32,16 +32,51 @@ export const Typing = ({ mode, label, prompt, chips, topics, initialTags, initia
     catch { setNote('Could not read that image.'); }
     setBusy(false);
   };
-  const pasteBtn = async () => {
-    setNote('');
-    try {
-      const items = await navigator.clipboard.read(), files: Blob[] = [];
-      for (const it of items) { const ty = it.types.find(x => x.startsWith('image/')); if (ty) files.push(await it.getType(ty)); }
-      if (files.length) await attach(files); else setNote('No image on the clipboard.');
-    } catch { setNote('Paste isn’t allowed here. Long-press the text box and choose Paste.'); }
+  /** Images on the clipboard: a real image, or an <img>/URL pointing at one (copied from a web page). */
+  const clipImages = async (): Promise<Blob[]> => {
+    const out: Blob[] = [];
+    for (const it of await navigator.clipboard.read()) {
+      const ty = it.types.find(x => x.startsWith('image/'));
+      if (ty) { out.push(await it.getType(ty)); continue; }
+      const html = it.types.includes('text/html') ? await (await it.getType('text/html')).text() : '';
+      const txt = it.types.includes('text/plain') ? (await (await it.getType('text/plain')).text()).trim() : '';
+      const src = html.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] || (/^https?:\/\/\S+\.(png|jpe?g|gif|webp|heic)(\?\S*)?$/i.test(txt) ? txt : '');
+      if (src) { try { const r = await fetch(src); const bl = await r.blob(); if (bl.type.startsWith('image/')) out.push(bl); } catch { /* blocked by the site: skip */ } }
+    }
+    return out;
   };
+  const pasteBtn = async () => {
+    setNote(''); setClip(null);
+    try {
+      const files = await clipImages();
+      if (files.length) await attach(files); else setNote('No image on the clipboard. (Copied text? Long-press the text box and Paste.)');
+    } catch (e) {
+      const n = (e as Error)?.name;
+      setNote(n === 'NotAllowedError' ? 'Tap “Paste” when your phone asks. Or long-press the text box and choose Paste.' : `Couldn’t read the clipboard${n ? ` (${n})` : ''}. Long-press the text box and choose Paste.`);
+    }
+  };
+  // Offer a clipboard image as soon as there is one. Only possible where the browser lets pages look without a tap (not iPhone Safari, which asks first).
+  const [clip, setClip] = useState<Blob | null>(null);
+  const sig = (x: Blob) => `${x.type}:${x.size}`;
+  useEffect(() => {
+    if (!photos || typeof navigator === 'undefined' || !navigator.clipboard?.read) return;
+    let off = false;
+    const check = async () => {
+      try {
+        const p = await navigator.permissions?.query({ name: 'clipboard-read' as PermissionName });
+        if (p?.state !== 'granted' || document.visibilityState !== 'visible') return;
+        const f = await clipImages();
+        if (off || !f.length || sessionStorage.getItem('omk_clip') === sig(f[0])) return;
+        setClip(f[0]);
+      } catch { /* not allowed to look: stay quiet */ }
+    };
+    void check();
+    window.addEventListener('focus', check); document.addEventListener('visibilitychange', check);
+    return () => { off = true; window.removeEventListener('focus', check); document.removeEventListener('visibilitychange', check); };
+  }, [photos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const takeClip = (add: boolean) => { if (!clip) return; try { sessionStorage.setItem('omk_clip', sig(clip)); } catch { /* ignore */ } const c = clip; setClip(null); if (add) void attach([c]); };
   const onPaste = (e: React.ClipboardEvent) => {
-    const files = [...e.clipboardData.files].filter(f => f.type.startsWith('image/'));
+    const files = [...e.clipboardData.files, ...[...e.clipboardData.items].filter(i => i.kind === 'file').map(i => i.getAsFile()).filter((f): f is File => !!f)].filter((f, k, all) => f.type.startsWith('image/') && all.indexOf(f) === k);
     if (photos && files.length) { e.preventDefault(); void attach(files); }
   };
   const removeImg = (id: string) => { setImgs(v => v.filter(x => x.id !== id)); void dropImages([id]); };
@@ -108,6 +143,13 @@ export const Typing = ({ mode, label, prompt, chips, topics, initialTags, initia
       {(restored || saveErr) && <div role={saveErr ? 'alert' : undefined} style={{ position: 'relative', padding: '0 24px 6px', fontSize: 12.5, color: saveErr ? '#A8323E' : INK2 }}>{saveErr || 'Picked up your unsaved draft.'}</div>}
       {photos && (
         <>
+          {clip && (
+            <div role="status" style={{ position: 'relative', margin: '0 16px 6px', padding: '8px 8px 8px 14px', display: 'flex', alignItems: 'center', gap: 8, borderRadius: 14, background: '#fff', boxShadow: '0 0 0 1px rgba(43,50,71,.12), 0 6px 16px rgba(43,50,71,.1)', fontSize: 13.5 }}>
+              <span style={{ flex: 1 }}>Image on your clipboard</span>
+              <button className="ink-btn press" onMouseDown={e => e.preventDefault()} onClick={() => takeClip(true)} style={{ height: 32, padding: '0 14px', fontSize: 13, fontWeight: 600 }}>Add</button>
+              <button className="chip press" aria-label="Dismiss" onMouseDown={e => e.preventDefault()} onClick={() => takeClip(false)} style={{ height: 32, width: 32, padding: 0 }}>✕</button>
+            </div>
+          )}
           {note && <div style={{ position: 'relative', padding: '0 24px 6px', fontSize: 12.5, color: INK2 }}>{note}</div>}
           <div className="att" style={{ position: 'relative' }}>
             <input ref={pick} type="file" accept="image/*" multiple hidden onChange={e => { void attach([...(e.target.files ?? [])]); e.target.value = ''; }} />
