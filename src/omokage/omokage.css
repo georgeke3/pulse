@@ -43,6 +43,7 @@ html, body { margin: 0; background: #FAF8F3; overscroll-behavior: none; }
 .omk .top .t { font-family: var(--serif); font-size: 34px; line-height: 1; letter-spacing: -.015em; }
 .omk .top .s { font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--ink2); padding-bottom: 4px; }
 .omk .body { position: relative; z-index: 1; flex: 1; min-height: 0; margin-bottom: calc(64px + var(--bot)); }
+.omk .screen > .grow::-webkit-scrollbar { display: none; }
 .omk .screen { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 8px 24px 12px; animation: enter .45s var(--ease); }
 @keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .omk .grow { flex: 1; min-height: 0; }
@@ -108,9 +109,6 @@ html, body { margin: 0; background: #FAF8F3; overscroll-behavior: none; }
 .omk .cal { display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: auto; grid-auto-rows: 1fr; height: calc(18px + clamp(132px, 21.2svh, 180px)); }
 .omk .motto { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
 @media (max-height: 760px) { .omk .motto { -webkit-line-clamp: 2; } }
-/* a due question adds one row to the list, so the hero gives that room back */
-.omk .has-due .motto { -webkit-line-clamp: 2; }
-.omk .has-due .cal { height: calc(18px + clamp(124px, 18.6svh, 160px)); }
 @media (max-height: 720px) {
   .omk .home-stats { display: none !important; }
   .omk .home-cal { margin-top: 10px !important; }

@@ -36,3 +36,18 @@ npm run build
 
 Backups: Settings -> Export (share sheet / download / copy). Import accepts the same file.
 See `GEMINI.md` for project invariants (do not change the daily question IDs).
+
+## Layout rule: tabs never scroll
+
+Home, Past and Present are fixed-height screens (sheets and lists may scroll; tabs may not). Content that varies with your data goes in a
+`Budget` (`src/omokage/Budget.tsx`): give it slots in priority order, mark the ones that must always show as `essential`, and it shows as many
+as fit the phone (dropping the lowest first). Anything dropped must be reachable another way. Don't add fixed-height rows to a tab without
+putting them in a Budget.
+
+`scripts/overflow-audit.mjs` is the check: it opens each tab with worst-case data (long motto, 6-week month, many answers, a due anchor,
+a long curated question) at four phone sizes and fails if anything overflows. Run it after any layout change:
+
+```
+npm run build && npx vite preview &
+AUDIT_URL=http://localhost:4173 node scripts/overflow-audit.mjs     # needs Playwright and Chrome (PLAYWRIGHT=, CHROME=)
+```

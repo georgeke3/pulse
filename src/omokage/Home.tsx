@@ -5,6 +5,7 @@ import { Belt, Fly, Pencil } from './Art';
 import { useItems } from './items';
 import { useAnswers } from './qa';
 import { useTodos } from './todos';
+import { Budget } from './Budget';
 import { sideTotal } from './load';
 import { isStim } from './special';
 import { useCircle, useSwipe } from './swipe';
@@ -85,7 +86,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unk
   }
 
   return (
-    <div className={`screen${due.length ? ' has-due' : ''}`}>
+    <div className="screen">
       <svg style={{ position: 'absolute', left: 0, top: -110, width: '100%', height: 360, pointerEvents: 'none', zIndex: 0 }} viewBox="0 0 393 360" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
         <Pencil d="M-30 280 C 70 202, 150 292, 240 208 S 360 122, 430 132" />
         <Belt d="M-30 296 C 80 236, 170 306, 260 232 S 370 156, 430 166" c={GOLD} w={9} o={.32} />
@@ -130,10 +131,8 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unk
         </div>
       </div>
 
-      <div className="grow" />
-
       {sel ? (
-        <div key={sel} {...cardSwipe} className="slip" style={{ position: 'relative', padding: '12px 14px', animation: 'enter .3s both', maxHeight: 'clamp(170px, 25svh, 215px)', overflow: 'hidden', ...cardSwipe.style }}>
+        <><div className="grow" /><div key={sel} {...cardSwipe} className="slip" style={{ position: 'relative', padding: '12px 14px', animation: 'enter .3s both', maxHeight: 'clamp(170px, 25svh, 215px)', overflow: 'hidden', ...cardSwipe.style }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <span className="it" style={{ fontSize: 17, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fromDstr(sel).toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
             <button className="press" onClick={() => setSel(null)} style={{ fontSize: 12, color: INK2, padding: 4 }}>✕</button>
@@ -157,33 +156,43 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unk
             ))}
             <button className="chip press" onClick={() => setFull(sel)} style={{ height: 34, flex: 'none', fontSize: 12.5, padding: '0 14px' }}>Full day ›</button>
           </div>
-        </div>
+        </div></>
       ) : (
-        <div style={{ position: 'relative' }}>
-          <div className="caps" style={{ marginBottom: 2, color: INK }}>every day</div>
-          {critical.map(r => (
-            <button key={r.label} className="todo" onClick={r.act}>
-              <Sym n="dragon" on={r.done} s={26} o={r.done ? 1 : .8} />
-              <span className={r.done ? '' : 'it'} style={{ fontSize: 16, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: r.done ? .4 : 1, textDecoration: r.done ? 'line-through' : 'none' }}>{r.label}</span>
-              <span style={{ color: INK2, fontSize: 16 }}>›</span>
-            </button>
-          ))}
-          {due.map(r => (
-            <button key={r.label} className="todo" onClick={r.act} aria-label={`Due: ${r.label}`}>
-              <Sym n="dragon" on={false} s={26} o={.8} />
-              <span className="it" style={{ fontSize: 15, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</span>
-              {r.hint && <span className="caps" style={{ fontSize: 8.5, flex: 'none' }}>{r.hint}</span>}
-              <span style={{ color: INK2, fontSize: 16 }}>›</span>
-            </button>
-          ))}
-          <div className="caps" style={{ marginTop: 12, marginBottom: 0, opacity: .75 }}>if you feel like it</div>
-          <button className="todo" onClick={() => setMore(true)} aria-label={`If you feel like it, ${optional.length} things`} style={{ height: 40, borderBottom: 0 }}>
-            <span style={{ width: 26, display: 'grid', placeItems: 'center' }}><Sym n="wisp" on={optional.every(r => r.done)} s={16} o={.7} /></span>
-            <span className="it" style={{ fontSize: 14, flex: 1, minWidth: 0, color: INK2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{optional.filter(r => !r.done).map(r => r.label).join(' · ') || 'All done'}</span>
-            <span className="caps" style={{ fontSize: 9 }}>{optional.filter(r => !r.done).length} of {optional.length}</span>
-            <span style={{ color: INK2, fontSize: 14, opacity: .6 }}>›</span>
-          </button>
-        </div>
+        <Budget end slots={[
+          { key: 'daily', essential: true, node: (
+            <div>
+              <div className="caps" style={{ marginBottom: 2, color: INK }}>every day</div>
+              {critical.map(r => (
+                <button key={r.label} className="todo" onClick={r.act}>
+                  <Sym n="dragon" on={r.done} s={26} o={r.done ? 1 : .8} />
+                  <span className={r.done ? '' : 'it'} style={{ fontSize: 16, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: r.done ? .4 : 1, textDecoration: r.done ? 'line-through' : 'none' }}>{r.label}</span>
+                  <span style={{ color: INK2, fontSize: 16 }}>›</span>
+                </button>
+              ))}
+            </div>) },
+          // the rest show as room allows (Budget.tsx): a due question first, then the "if you feel like it" line
+          { key: 'due', node: due.length ? (
+            <div>
+              {due.map(r => (
+                <button key={r.label} className="todo" onClick={r.act} aria-label={`Due: ${r.label}`}>
+                  <Sym n="dragon" on={false} s={26} o={.8} />
+                  <span className="it" style={{ fontSize: 15, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</span>
+                  {r.hint && <span className="caps" style={{ fontSize: 8.5, flex: 'none' }}>{r.hint}</span>}
+                  <span style={{ color: INK2, fontSize: 16 }}>›</span>
+                </button>
+              ))}
+            </div>) : null },
+          { key: 'optional', node: (
+            <div>
+              <div className="caps" style={{ marginTop: 12, marginBottom: 0, opacity: .75 }}>if you feel like it</div>
+              <button className="todo" onClick={() => setMore(true)} aria-label={`If you feel like it, ${optional.length} things`} style={{ height: 40, borderBottom: 0 }}>
+                <span style={{ width: 26, display: 'grid', placeItems: 'center' }}><Sym n="wisp" on={optional.every(r => r.done)} s={16} o={.7} /></span>
+                <span className="it" style={{ fontSize: 14, flex: 1, minWidth: 0, color: INK2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{optional.filter(r => !r.done).map(r => r.label).join(' · ') || 'All done'}</span>
+                <span className="caps" style={{ fontSize: 9 }}>{optional.filter(r => !r.done).length} of {optional.length}</span>
+                <span style={{ color: INK2, fontSize: 14, opacity: .6 }}>›</span>
+              </button>
+            </div>) },
+        ]} />
       )}
       {mottos && <MottoEditor onClose={() => setMottos(false)} />}
     </div>

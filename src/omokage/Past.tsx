@@ -7,6 +7,7 @@ import { ALLQ, THEMES, TOPICS, qid, randomQ, useAnchorStatus, useAnswers, useTon
 import { TIER_LABEL, useRhythm, type Status } from './rhythm';
 import { findQuestions, pickWithGemini } from './qfind';
 import { useCurated } from './curated';
+import { Budget } from './Budget';
 import { useApp } from '../store';
 import type { Tier } from './anchors';
 import { INK, INK2, SEPIA, ago, fromDstr, todayStr } from './skins';
@@ -211,47 +212,96 @@ export const Past = () => {
   if (screen === 'questions') return <><Questions answeredToday={answeredToday} seen={seen} onPick={q => writeQ(q)} />{sheet}</>;
   if (screen === 'history') return <><History answers={answers} onOpen={a => write(a.question || 'Free writing', a)} />{sheet}</>;
 
+  // The screen is a fixed budget (see Budget.tsx): tonight's question and its schedule line are essential, the rest show as room allows.
+  // Anything dropped stays reachable: answers live under Past answers, the week's question under ↻.
+  const tonightSlot = (
+    <div style={{ position: 'relative', paddingTop: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="caps">tonight’s question</span>
+        <span className="caps" style={{ marginLeft: 'auto', opacity: .7 }}>{tonight.theme}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginTop: 10 }}>
+        <div className="it" style={{ flex: 1, fontSize: tonight.text.length > 85 ? 21 : tonight.text.length > 55 ? 24 : 27, lineHeight: 1.28 }}>{tonight.text}</div>
+        <Drg n="swirl" w={56} style={{ marginTop: -4 }} />
+      </div>
+      {mainAns ? (
+        <button className="slip press" onClick={() => writeQ(tonight)} style={{ display: 'block', width: '100%', textAlign: 'left', marginTop: 14, padding: '10px 14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span className="caps">your answer</span><span className="caps" style={{ color: INK }}>edit ›</span>
+          </div>
+          <div className="serif" style={{ fontSize: 15, lineHeight: 1.5, marginTop: 6, whiteSpace: 'pre-wrap', color: '#3A4156', ...clip(3) }}>{mainAns.body}</div>
+        </button>
+      ) : (
+        <button className="press" onClick={() => writeQ(tonight)} style={{ width: '100%', marginTop: 14, height: 50, display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1.2px dashed rgba(43,50,71,.3)', textAlign: 'left' }}>
+          <Mark s={34} src={icBrush} />
+          <span className="it" style={{ fontSize: 16, color: INK2, flex: 1 }}>Write a few lines…</span>
+        </button>
+      )}
+    </div>
+  );
+  const rhythmSlot = anchorSt ? (
+    <div style={{ position: 'relative', marginTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '2px 12px' }}>
+        <button className="caps press" onClick={() => setCad(v => !v)} style={{ textDecoration: 'underline', textUnderlineOffset: 2 }}>{cadence(anchorSt)}</button>
+        {!mainAns && (
+          <span style={{ display: 'flex', gap: 14, marginLeft: 'auto' }}>
+            <button className="press" style={{ padding: '6px 2px', fontSize: 13, color: INK2 }} onClick={() => { const a = anchorSt; rh.tooSoon(a.a.id); if (a.soon >= 1 && a.tier !== 'Y') setOffer({ id: a.a.id, text: a.a.text }); }}>Too soon</button>
+            <button className="press" style={{ padding: '6px 2px', fontSize: 13, color: INK2 }} onClick={() => rh.notRelevant(anchorSt.a.id)}>Not relevant</button>
+          </span>
+        )}
+      </div>
+      {cad && <div style={{ marginTop: 4 }}><div className="caps" style={{ fontSize: 8.5, opacity: .7 }}>{anchorSt.last ? `last answered ${ago(anchorSt.last)}` : 'first time'}</div><CadencePick s={anchorSt} onPick={t => { rh.setTier(anchorSt.a.id, t); setCad(false); }} /></div>}
+    </div>
+  ) : null;
+  const bankSkip = !mainAns && !anchorSt ? (
+    <button className="press" onClick={skip} style={{ display: 'block', marginLeft: 'auto', marginTop: 6, padding: '6px 2px', fontSize: 13, color: INK2 }}>Not applicable · another question ↻</button>
+  ) : null;
+  const curatedSlot = ((cur.busy && !cur.text) || cur.err) ? (
+    <div className="caps" style={{ position: 'relative', marginTop: 18, opacity: .7 }}>
+      {cur.busy ? 'writing a question from your week…' : <>{cur.err} <button className="caps" style={{ textDecoration: 'underline' }} onClick={cur.retry}>try again</button></>}
+    </div>
+  ) : cur.text && !answeredToday.has(qid(cur.text)) ? (
+    <div style={{ position: 'relative', marginTop: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span className="caps">for tonight · from your week</span>
+        <button className="press" aria-label="A different one" onClick={cur.retry} disabled={cur.busy} style={{ fontSize: 15, color: INK2, padding: '0 2px', opacity: cur.busy ? .4 : 1 }}>↻</button>
+      </div>
+      <button className="irow press" onClick={() => write(cur.text!)}>
+        <Mark s={32} src={icFeather} />
+        <span className="it" style={{ flex: 1, fontSize: 16, lineHeight: 1.35, ...clip(3) }}>{cur.text}</span>
+        <span style={{ color: INK2 }}>›</span>
+      </button>
+    </div>
+  ) : null;
+  const answeredSlot = others.length > 0 ? (
+    <button className="irow press" onClick={() => setScreen('history')} style={{ marginTop: 14 }}>
+      <Mark s={28} on />
+      <span className="it" style={{ flex: 1, fontSize: 14.5, color: INK2 }}>{others.length} more answered tonight</span>
+      <span style={{ color: INK2 }}>›</span>
+    </button>
+  ) : null;
+  const lastSlot = !others.length && recent ? (
+    <div style={{ position: 'relative', marginTop: 18, textAlign: 'left', opacity: .9 }}>
+      <div className="caps">last time · {ago(recent.day)}</div>
+      <div className="it" style={{ fontSize: 13.5, color: SEPIA, marginTop: 6, ...clip(1) }}>{recent.question}</div>
+      <div className="serif" style={{ fontSize: 14.5, lineHeight: 1.5, marginTop: 4, color: '#3A4156', ...clip(2) }}>{recent.body}</div>
+    </div>
+  ) : null;
+
   return (
     <div className="screen">
       <Decor />
-      <div style={{ position: 'relative', paddingTop: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="caps">tonight’s question</span>
-          <span className="caps" style={{ marginLeft: 'auto', opacity: .7 }}>{tonight.theme}</span>
-        </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginTop: 10 }}>
-          <div className="it" style={{ flex: 1, fontSize: tonight.text.length > 85 ? 21 : tonight.text.length > 55 ? 24 : 27, lineHeight: 1.28 }}>{tonight.text}</div>
-          <Drg n="swirl" w={62} style={{ marginTop: -4 }} />
-        </div>
-        {mainAns ? (
-          <button className="slip press" onClick={() => writeQ(tonight)} style={{ display: 'block', width: '100%', textAlign: 'left', marginTop: 16, padding: '12px 14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span className="caps">your answer</span><span className="caps" style={{ color: INK }}>edit ›</span>
-            </div>
-            <div className="serif" style={{ fontSize: 15, lineHeight: 1.5, marginTop: 6, whiteSpace: 'pre-wrap', color: '#3A4156', ...clip(5) }}>{mainAns.body}</div>
-            {mainAns.tags.length > 0 && <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>{mainAns.tags.map(t => <span key={t} className="caps" style={{ fontSize: 8.5 }}>{t}</span>)}</div>}
-          </button>
-        ) : (
-          <button className="press" onClick={() => writeQ(tonight)} style={{ width: '100%', marginTop: 16, height: 52, display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1.2px dashed rgba(43,50,71,.3)', textAlign: 'left' }}>
-            <Mark s={34} src={icBrush} />
-            <span className="it" style={{ fontSize: 16, color: INK2, flex: 1 }}>Write a few lines…</span>
-          </button>
-        )}
-        {anchorSt && (
-          <div style={{ marginTop: 10 }}>
-            <button className="caps press" onClick={() => setCad(v => !v)} style={{ textDecoration: 'underline', textUnderlineOffset: 2 }}>{cadence(anchorSt)}{anchorSt.last ? ` · last ${ago(anchorSt.last)}` : ' · first time'}</button>
-            {cad && <div style={{ marginTop: 8 }}><CadencePick s={anchorSt} onPick={t => { rh.setTier(anchorSt.a.id, t); setCad(false); }} /></div>}
-          </div>
-        )}
-        {!mainAns && !anchorSt && <button className="press" onClick={skip} style={{ display: 'block', marginLeft: 'auto', marginTop: 8, padding: '6px 2px', fontSize: 13, color: INK2 }}>Not applicable · another question ↻</button>}
-        {!mainAns && anchorSt && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, marginTop: 8 }}>
-            <button className="press" style={{ padding: '6px 2px', fontSize: 13, color: INK2 }} onClick={() => { const a = anchorSt; rh.tooSoon(a.a.id); if (a.soon >= 1 && a.tier !== 'Y') setOffer({ id: a.a.id, text: a.a.text }); }}>Too soon</button>
-            <button className="press" style={{ padding: '6px 2px', fontSize: 13, color: INK2 }} onClick={() => rh.notRelevant(anchorSt.a.id)}>Not relevant</button>
-          </div>
-        )}
+      <Budget slots={[
+        { key: 'tonight', node: tonightSlot, essential: true },
+        { key: 'rhythm', node: rhythmSlot || bankSkip, essential: true },
+        { key: 'curated', node: curatedSlot },
+        { key: 'answered', node: answeredSlot },
+        { key: 'last', node: lastSlot },
+      ]} />
+
+      <div style={{ position: 'relative', flex: 'none', display: 'flex', gap: 10, paddingTop: 8 }}>
         {offer && (
-          <div className="slip" style={{ marginTop: 14, padding: '12px 14px' }}>
+          <div className="slip" role="dialog" aria-label="Ask less often?" style={{ position: 'absolute', left: 0, right: 0, bottom: '100%', marginBottom: 8, padding: '12px 14px', zIndex: 5, boxShadow: '0 14px 34px rgba(43,50,71,.2)', background: '#FFFDF8' }}>
             <div className="it" style={{ fontSize: 14.5, lineHeight: 1.4 }}>That’s “too soon” twice for “{offer.text}”. Ask it less often?</div>
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button className="chip on press" style={{ height: 32 }} onClick={() => { rh.lessOften(offer.id); setOffer(null); }}>Yes, less often</button>
@@ -259,62 +309,13 @@ export const Past = () => {
             </div>
           </div>
         )}
-      </div>
-
-      {(cur.busy && !cur.text || cur.err) && (
-        <div className="caps" style={{ position: 'relative', marginTop: 20, opacity: .7 }}>
-          {cur.busy ? 'writing a question from your week…' : <>{cur.err} <button className="caps" style={{ textDecoration: 'underline' }} onClick={cur.retry}>try again</button></>}
-        </div>
-      )}
-      {cur.text && !answeredToday.has(qid(cur.text)) && (
-        <div style={{ position: 'relative', marginTop: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span className="caps">for tonight · from your week</span>
-            <button className="press" aria-label="A different one" onClick={cur.retry} disabled={cur.busy} style={{ fontSize: 15, color: INK2, padding: '0 2px', opacity: cur.busy ? .4 : 1 }}>↻</button>
-          </div>
-          <button className="irow press" onClick={() => write(cur.text!)}>
-            <Mark s={32} src={icFeather} />
-            <span className="it" style={{ flex: 1, fontSize: 16, lineHeight: 1.35 }}>{cur.text}</span>
-            <span style={{ color: INK2 }}>›</span>
-          </button>
-        </div>
-      )}
-
-      {others.length > 0 && (
-        <div style={{ position: 'relative', marginTop: 20 }}>
-          <div className="caps">also answered tonight</div>
-          {others.map(a => (
-            <button key={a.id} className="irow press" onClick={() => write(a.question, a)}>
-              <Mark s={32} on />
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span className="it" style={{ display: 'block', fontSize: 14.5, ...clip(1) }}>{a.question}</span>
-                <span style={{ display: 'block', fontSize: 12.5, color: INK2, ...clip(1) }}>{a.body}</span>
-              </span>
-              <span style={{ color: INK2 }}>›</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="grow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 20 }}>
-        {!others.length && recent && (
-          <button className="press" onClick={() => write(recent.question || 'Free writing', recent)} style={{ textAlign: 'left', width: '100%', opacity: .9 }}>
-            <div className="caps">last time · {ago(recent.day)}</div>
-            <div className="it" style={{ fontSize: 13.5, color: SEPIA, marginTop: 6, ...clip(1) }}>{recent.question}</div>
-            <div className="serif" style={{ fontSize: 14.5, lineHeight: 1.5, marginTop: 4, color: '#3A4156', ...clip(2) }}>{recent.body}</div>
-          </button>
-        )}
-      </div>
-
-      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <button className="chip press" onClick={() => setScreen('questions')} style={{ height: 52, gap: 10, background: '#fff', justifyContent: 'flex-start', padding: '0 16px', boxShadow: '0 0 0 1px rgba(43,50,71,.12),0 6px 16px rgba(43,50,71,.06)' }}>
-          <Mark />
-          <span className="it" style={{ fontSize: 16, flex: 1, textAlign: 'left' }}>Answer another question</span>
-          <span style={{ color: INK2 }}>›</span>
+        <button className="chip press" onClick={() => setScreen('questions')} style={{ flex: 1, minWidth: 0, height: 50, gap: 8, background: '#fff', justifyContent: 'flex-start', padding: '0 12px', boxShadow: '0 0 0 1px rgba(43,50,71,.12),0 6px 16px rgba(43,50,71,.06)' }}>
+          <Mark s={28} />
+          <span className="it" style={{ fontSize: 15, flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Questions</span>
         </button>
-        <button className="chip press" onClick={() => setScreen('history')} style={{ height: 52, gap: 10, background: '#fff', justifyContent: 'flex-start', padding: '0 16px', boxShadow: '0 0 0 1px rgba(43,50,71,.12),0 6px 16px rgba(43,50,71,.06)' }}>
-          <Mark src={icFeather} />
-          <span className="it" style={{ fontSize: 16, flex: 1, textAlign: 'left' }}>Past answers</span>
+        <button className="chip press" onClick={() => setScreen('history')} style={{ flex: 1, minWidth: 0, height: 50, gap: 8, background: '#fff', justifyContent: 'flex-start', padding: '0 12px', boxShadow: '0 0 0 1px rgba(43,50,71,.12),0 6px 16px rgba(43,50,71,.06)' }}>
+          <Mark s={28} src={icFeather} />
+          <span className="it" style={{ fontSize: 15, flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Past answers</span>
           <span className="caps">{answers.length}</span>
         </button>
       </div>
