@@ -4,6 +4,7 @@ import { useApp } from '../store';
 import { Belt, Fly, Pencil } from './Art';
 import { useItems } from './items';
 import { useAnswers } from './qa';
+import { useTodos } from './todos';
 import { sideTotal } from './load';
 import { isStim } from './special';
 import { useCircle, useSwipe } from './swipe';
@@ -11,8 +12,6 @@ import { MottoEditor } from './MottoEditor';
 import { DayFull } from './DayFull';
 import { haptic } from './haptics';
 import { CRIMSON, DOT, EMBER, GOLD, INK, INK2, SEPIA, SKY, dayNow, dstr, fromDstr, todayStr, type Mode } from './skins';
-
-interface Todo { label: string; done: boolean; act: () => void }
 
 export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unknown>) => void; onPulse: (day?: string) => void }) => {
   const { state } = useApp();
@@ -46,23 +45,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unk
   const calSwipe = useSwipe(() => shift(1), () => shift(-1));
   const cardSwipe = useSwipe(() => step(1), () => step(-1));
 
-  const td = state.days[today], nq = state.config.daily_questions.length, answered = Object.keys(td?.answers ?? {}).length;
-  const inbox = items.filter(i => i.kind === 'future' && (i.board || 'Inbox') === 'Inbox').length;
-  const stimN = (td?.events ?? []).filter(e => isStim(e.type)).length;
-  const monday = (() => { const d = dayNow(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dstr(d); })();
-  const qWeek = new Set(answers.filter(a => a.day >= monday && a.day <= today).map(a => a.day)).size;
-  const told = !!td?.note?.trim();
-  // must-do: the three habits the app exists for. Optional: everything else worth a nudge.
-  const critical: Todo[] = [
-    { label: answered >= nq ? 'Evening pulse, done' : answered ? `Evening pulse · ${nq - answered} left` : 'Evening pulse', done: answered >= nq, act: () => onPulse() },
-    { label: stimN ? `Logged today · ${stimN}` : 'Log at least one stimulus', done: stimN > 0, act: () => go('present') },
-    { label: qWeek >= 2 ? `Questions this week · ${qWeek} of 2` : `Answer a question · ${qWeek} of 2 this week`, done: qWeek >= 2, act: () => go('past') },
-  ];
-  const optional: Todo[] = [
-    { label: told ? 'The day, told' : 'Tell the day', done: told, act: () => go('present') },
-    ...(inbox ? [{ label: `Sort ${inbox} inbox idea${inbox > 1 ? 's' : ''}`, done: false, act: () => go('future') }] : []),
-    ...(!ansDays.has(today) && qWeek >= 2 ? [{ label: 'Tonight’s question', done: false, act: () => go('past') }] : []),
-  ];
+  const { critical, optional, due, inbox } = useTodos(go, onPulse);
 
   const wk = Array.from({ length: 7 }, (_, i) => { const d = dayNow(); d.setDate(d.getDate() - i); return dstr(d); });
   const logged = wk.filter(d => (state.days[d]?.events ?? []).some(e => isStim(e.type)));
@@ -102,7 +85,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unk
   }
 
   return (
-    <div className="screen">
+    <div className={`screen${due.length ? ' has-due' : ''}`}>
       <svg style={{ position: 'absolute', left: 0, top: -110, width: '100%', height: 360, pointerEvents: 'none', zIndex: 0 }} viewBox="0 0 393 360" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
         <Pencil d="M-30 280 C 70 202, 150 292, 240 208 S 360 122, 430 132" />
         <Belt d="M-30 296 C 80 236, 170 306, 260 232 S 370 156, 430 166" c={GOLD} w={9} o={.32} />
@@ -182,6 +165,14 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unk
             <button key={r.label} className="todo" onClick={r.act}>
               <Sym n="dragon" on={r.done} s={26} o={r.done ? 1 : .8} />
               <span className={r.done ? '' : 'it'} style={{ fontSize: 16, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: r.done ? .4 : 1, textDecoration: r.done ? 'line-through' : 'none' }}>{r.label}</span>
+              <span style={{ color: INK2, fontSize: 16 }}>›</span>
+            </button>
+          ))}
+          {due.map(r => (
+            <button key={r.label} className="todo" onClick={r.act} aria-label={`Due: ${r.label}`}>
+              <Sym n="dragon" on={false} s={26} o={.8} />
+              <span className="it" style={{ fontSize: 15, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</span>
+              {r.hint && <span className="caps" style={{ fontSize: 8.5, flex: 'none' }}>{r.hint}</span>}
               <span style={{ color: INK2, fontSize: 16 }}>›</span>
             </button>
           ))}

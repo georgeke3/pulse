@@ -4,6 +4,7 @@ import { Future } from './Future';
 import { haptic } from './haptics';
 import { Home } from './Home';
 import { ItemsProvider, useItems } from './items';
+import { RhythmProvider } from './rhythm';
 import { Past } from './Past';
 import { Present } from './Present';
 import { StimuliProvider } from './stimuli';
@@ -128,4 +129,4 @@ const Inner = () => {
   );
 };
 
-export const Omokage = () => <ItemsProvider><StimuliProvider><Inner /></StimuliProvider></ItemsProvider>;
+export const Omokage = () => <ItemsProvider><RhythmProvider><StimuliProvider><Inner /></StimuliProvider></RhythmProvider></ItemsProvider>;

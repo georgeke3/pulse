@@ -1,9 +1,11 @@
 import { Drg } from './Sym';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Fly, Pencil } from './Art';
 import { useItems } from './items';
 import { useNavState } from './nav';
-import { BANK, THEMES, TOPICS, qid, randomQ, useAnswers, useTonight, type Answer, type Q } from './qa';
+import { ALLQ, THEMES, TOPICS, qid, randomQ, useAnchorStatus, useAnswers, useTonight, type Answer, type Q } from './qa';
+import { TIER_LABEL, useRhythm, type Status } from './rhythm';
+import type { Tier } from './anchors';
 import { INK, INK2, SEPIA, ago, fromDstr, todayStr } from './skins';
 import { Typing } from './Typing';
 import icEase from './assets/ic-ease.png';
@@ -25,13 +27,27 @@ const Mark = ({ s = 34, on, src = icEase }: { s?: number; on?: boolean; src?: st
 const clip = (n: number): React.CSSProperties => ({ display: '-webkit-box', WebkitLineClamp: n, WebkitBoxOrient: 'vertical', overflow: 'hidden' });
 const dayLabel = (d: string) => (d === todayStr() ? 'tonight' : fromDstr(d).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }));
 
+const shortDay = (d: string) => fromDstr(d).toLocaleDateString('en', { month: 'short', day: 'numeric', year: d.slice(0, 4) === todayStr().slice(0, 4) ? undefined : 'numeric' });
+/** "twice a year · next Jan 12" / "· due" : the schedule of an anchor question, in words */
+const cadence = (s: Status) => `${TIER_LABEL[s.tier]} · ${s.phase === 'later' ? `next ${shortDay(s.due)}` : s.phase === 'late' ? 'overdue' : 'due'}`;
+const TIERS: [Tier, string][] = [['Q', '3 months'], ['H', '6 months'], ['Y', 'Yearly']];
+const CadencePick = ({ s, onPick }: { s: Status; onPick: (t: Tier) => void }) => (
+  <div style={{ display: 'flex', gap: 6, padding: '2px 0 8px 42px' }}>
+    {TIERS.map(([t, l]) => <button key={t} className={`chip ${s.tier === t ? 'on' : ''}`} style={{ height: 30, fontSize: 12.5 }} onClick={() => onPick(t)}>{l}</button>)}
+  </div>
+);
+
 /** What you're writing: a question, and (when editing) the answer that already exists for it. */
 interface Writing { q: string; existing?: Answer }
 
 /** Every question in the bank, by theme. Today's answers are marked; tap one to answer it (or edit what you wrote). */
 const Questions = ({ answeredToday, seen, onPick }: { answeredToday: Set<string>; seen: Set<string>; onPick: (q: Q) => void }) => {
   const [theme, setTheme] = useNavState<string>('past.theme', 'All', 'replace');
-  const list = theme === 'All' ? BANK : BANK.filter(q => q.theme === theme);
+  const { all: anchors, due, byId } = useAnchorStatus(), rh = useRhythm();
+  const [editing, setEditing] = useState<string | null>(null);
+  const asQ = (s: Status): Q => ({ id: s.a.id, theme: s.a.theme, text: s.a.text });
+  const themes = ['All', ...(due.length ? ['Due'] : []), 'Anchors', ...THEMES];
+  const list = theme === 'All' ? ALLQ : theme === 'Due' ? due.map(asQ) : theme === 'Anchors' ? [...anchors].sort((a, b) => a.due.localeCompare(b.due)).map(asQ) : ALLQ.filter(q => q.theme === theme);
   const dice = () => { const q = randomQ(list.filter(x => !answeredToday.has(x.id)), seen); if (q) onPick(q); };
   return (
     <div className="screen" style={{ paddingBottom: 12, touchAction: 'pan-y' }}>
@@ -42,16 +58,26 @@ const Questions = ({ answeredToday, seen, onPick }: { answeredToday: Set<string>
       </div>
       <button className="chip on press" onClick={dice} style={{ position: 'relative', flex: 'none', height: 46, margin: '2px 0 10px', fontSize: 15 }}>Pick a random question</button>
       <div className="scroll" style={{ position: 'relative', display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -24px', padding: '2px 24px 10px', flex: 'none' }}>
-        {['All', ...THEMES].map(t => <button key={t} className={`chip ${theme === t ? 'on' : ''}`} style={{ flex: 'none' }} onClick={() => setTheme(t)}>{t}</button>)}
+        {themes.map(t => <button key={t} className={`chip ${theme === t ? 'on' : ''}`} style={{ flex: 'none' }} onClick={() => setTheme(t)}>{t}</button>)}
       </div>
       <div className="scroll grow" style={{ position: 'relative', margin: '0 -24px', padding: '0 24px 12px' }}>
-        {list.map(q => (
-          <button key={q.id} className="irow press" onClick={() => onPick(q)}>
-            <Mark s={30} on={answeredToday.has(q.id)} />
-            <span className="it" style={{ flex: 1, fontSize: 16, lineHeight: 1.35 }}>{q.text}</span>
-            {answeredToday.has(q.id) && <span className="caps" style={{ fontSize: 8.5 }}>edit</span>}
-          </button>
-        ))}
+        {list.map(q => {
+          const st = byId.get(q.id);
+          return (
+            <div key={q.id}>
+              <button className="irow press" onClick={() => onPick(q)}>
+                <Mark s={30} on={answeredToday.has(q.id)} />
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="it" style={{ display: 'block', fontSize: 16, lineHeight: 1.35 }}>{q.text}</span>
+                  {st && <span role="button" tabIndex={0} className="caps" style={{ fontSize: 8.5, display: 'inline-block', marginTop: 3, textDecoration: 'underline', textUnderlineOffset: 2, color: st.phase === 'later' ? INK2 : INK }}
+                    onClick={e => { e.stopPropagation(); setEditing(editing === q.id ? null : q.id); }}>{cadence(st)}{st.last ? ` · answered ${shortDay(st.last)}` : ''}</span>}
+                </span>
+                {answeredToday.has(q.id) && <span className="caps" style={{ fontSize: 8.5 }}>edit</span>}
+              </button>
+              {st && editing === q.id && <CadencePick s={st} onPick={t => { rh.setTier(q.id, t); setEditing(null); }} />}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -121,7 +147,21 @@ export const Past = () => {
   const todays = answers.filter(a => a.day === today);
   const answeredToday = new Set<string>(todays.map(a => a.qid));
   const seen = new Set<string>(answers.map(a => a.qid));
-  const { q: tonight, skip } = useTonight(today, seen);
+  const { q: bankTonight, skip } = useTonight(today, seen);
+  // tonight's anchor: the most overdue anchor question, fixed for the day once chosen (so answering it doesn't swap in the next)
+  const { due, byId } = useAnchorStatus(), rh = useRhythm();
+  const AK = `omk_anchor_${today}`;
+  const anchorId = useMemo(() => {
+    let st: string | null = null; try { st = localStorage.getItem(AK); } catch { /* private mode */ }
+    const s = st ? byId.get(st) : undefined;
+    if (s && (s.phase !== 'later' || s.last === today)) return s.a.id;
+    return due[0]?.a.id ?? null;
+  }, [AK, byId, due, today]);
+  useEffect(() => { try { if (anchorId) localStorage.setItem(AK, anchorId); else localStorage.removeItem(AK); } catch { /* private mode */ } }, [AK, anchorId]);
+  const anchorSt = anchorId ? byId.get(anchorId) : undefined;
+  const tonight: Q = (anchorSt && ALLQ.find(x => x.id === anchorSt.a.id)) || bankTonight;
+  const [offer, setOffer] = useState<{ id: string; text: string } | null>(null);
+  const [cad, setCad] = useState(false);
   const mainAns = todays.find(a => a.qid === tonight.id);
   const others = todays.filter(a => a.qid !== tonight.id);
   const [w, setW] = useNavState<Writing | null>('past.w', null);
@@ -172,7 +212,28 @@ export const Past = () => {
             <span className="it" style={{ fontSize: 16, color: INK2, flex: 1 }}>Write a few lines…</span>
           </button>
         )}
-        {!mainAns && <button className="press" onClick={skip} style={{ display: 'block', marginLeft: 'auto', marginTop: 8, padding: '6px 2px', fontSize: 13, color: INK2 }}>Not applicable · another question ↻</button>}
+        {anchorSt && (
+          <div style={{ marginTop: 10 }}>
+            <button className="caps press" onClick={() => setCad(v => !v)} style={{ textDecoration: 'underline', textUnderlineOffset: 2 }}>{cadence(anchorSt)}{anchorSt.last ? ` · last ${ago(anchorSt.last)}` : ' · first time'}</button>
+            {cad && <div style={{ marginTop: 8 }}><CadencePick s={anchorSt} onPick={t => { rh.setTier(anchorSt.a.id, t); setCad(false); }} /></div>}
+          </div>
+        )}
+        {!mainAns && !anchorSt && <button className="press" onClick={skip} style={{ display: 'block', marginLeft: 'auto', marginTop: 8, padding: '6px 2px', fontSize: 13, color: INK2 }}>Not applicable · another question ↻</button>}
+        {!mainAns && anchorSt && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, marginTop: 8 }}>
+            <button className="press" style={{ padding: '6px 2px', fontSize: 13, color: INK2 }} onClick={() => { const a = anchorSt; rh.tooSoon(a.a.id); if (a.soon >= 1 && a.tier !== 'Y') setOffer({ id: a.a.id, text: a.a.text }); }}>Too soon</button>
+            <button className="press" style={{ padding: '6px 2px', fontSize: 13, color: INK2 }} onClick={() => rh.notRelevant(anchorSt.a.id)}>Not relevant</button>
+          </div>
+        )}
+        {offer && (
+          <div className="slip" style={{ marginTop: 14, padding: '12px 14px' }}>
+            <div className="it" style={{ fontSize: 14.5, lineHeight: 1.4 }}>That’s “too soon” twice for “{offer.text}”. Ask it less often?</div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button className="chip on press" style={{ height: 32 }} onClick={() => { rh.lessOften(offer.id); setOffer(null); }}>Yes, less often</button>
+              <button className="chip press" style={{ height: 32 }} onClick={() => setOffer(null)}>Keep it</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {others.length > 0 && (

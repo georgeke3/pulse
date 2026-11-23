@@ -2,6 +2,8 @@
 // each has a stable id so answers can be filtered by question even if the wording is polished later.
 import { useMemo, useState } from 'react';
 import { useItems, type Item } from './items';
+import { ANCHORS } from './anchors';
+import { useRhythm, type Status } from './rhythm';
 
 export interface Q { id: string; theme: string; text: string }
 const B: [string, string[]][] = [
@@ -144,6 +146,8 @@ const B: [string, string[]][] = [
 const slug = (s: string) => s.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
 export const BANK: Q[] = B.flatMap(([theme, list]) => list.map(text => ({ id: slug(text), theme, text })));
 export const THEMES = B.map(([t]) => t);
+/** the regular bank plus the anchor panel (an anchor that is also in the bank counts once) */
+export const ALLQ: Q[] = [...BANK, ...ANCHORS.filter(a => !BANK.some(b => b.id === a.id)).map(a => ({ id: a.id, theme: a.theme, text: a.text }))];
 const dayNo = (d: string) => Math.round(Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8)) / 864e5);
 const OLD_N = B.slice(0, 8).reduce((n, [, l]) => n + l.length, 0);   // the bank before the log-based themes; days up to the cutover keep their original question
 /** Tonight's question: walks the bank in a fixed shuffled order, one a day, so nothing repeats for months. */
@@ -156,7 +160,7 @@ export const randomQ = (pool: Q[], seen: Set<string>): Q | undefined => { const 
 /** Tonight's question, with "not applicable": swaps in another one (never a repeat of what you skipped or have answered). */
 export const useTonight = (day: string, seen: Set<string>) => {
   const [over, setOver] = useState<Over | null>(() => readOver(day));
-  const q = (over && BANK.find(x => x.id === over.id)) || questionFor(day);
+  const q = (over && ALLQ.find(x => x.id === over.id)) || questionFor(day);
   const skip = () => {
     const skipped = [...(over?.skipped ?? []), q.id];
     const n = randomQ(BANK.filter(x => !skipped.includes(x.id)), seen) ?? questionFor(day);
@@ -188,4 +192,16 @@ const asAnswer = (i: Item): Answer => {
 export const useAnswers = () => {
   const { items } = useItems();
   return useMemo(() => items.filter(i => i.kind === 'past' && !i.meta?.dump).map(asAnswer).sort((a, b) => b.day.localeCompare(a.day) || b.at.localeCompare(a.at)), [items]);
+};
+
+/** Every anchor's schedule against your answers: `due` are the ones that want an answer now (most overdue first). */
+export const useAnchorStatus = () => {
+  const answers = useAnswers(), r = useRhythm();
+  return useMemo(() => {
+    const lastBy = new Map<string, string>();
+    for (const a of answers) if (!lastBy.has(a.qid) || a.day > lastBy.get(a.qid)!) lastBy.set(a.qid, a.day);
+    const all = r.statuses(lastBy), byId = new Map<string, Status>(all.map(x => [x.a.id, x]));
+    const due = all.filter(x => x.phase !== 'later').sort((a, b) => b.late - a.late || a.a.id.localeCompare(b.a.id));
+    return { all, byId, due };
+  }, [answers, r]);
 };

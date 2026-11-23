@@ -108,6 +108,9 @@ html, body { margin: 0; background: #FAF8F3; overscroll-behavior: none; }
 .omk .cal { display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: auto; grid-auto-rows: 1fr; height: calc(18px + clamp(132px, 21.2svh, 180px)); }
 .omk .motto { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
 @media (max-height: 760px) { .omk .motto { -webkit-line-clamp: 2; } }
+/* a due question adds one row to the list, so the hero gives that room back */
+.omk .has-due .motto { -webkit-line-clamp: 2; }
+.omk .has-due .cal { height: calc(18px + clamp(124px, 18.6svh, 160px)); }
 @media (max-height: 720px) {
   .omk .home-stats { display: none !important; }
   .omk .home-cal { margin-top: 10px !important; }
