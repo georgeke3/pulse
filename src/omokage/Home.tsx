@@ -1,6 +1,7 @@
 import { Sym, TabMark } from './Sym';
 import { useNavState } from './nav';
 import { useApp } from '../store';
+import { BalanceChip } from './Balance';
 import { Belt, Fly, Pencil } from './Art';
 import { useItems } from './items';
 import { useAnswers } from './qa';
@@ -14,7 +15,7 @@ import { DayFull } from './DayFull';
 import { haptic } from './haptics';
 import { CRIMSON, DOT, EMBER, GOLD, INK, INK2, SEPIA, SKY, dayNow, dstr, fromDstr, todayStr, type Mode } from './skins';
 
-export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unknown>) => void; onPulse: (day?: string) => void }) => {
+export const Home = ({ go, onPulse, onBalance }: { go: (m: Mode, patch?: Record<string, unknown>) => void; onPulse: (day?: string) => void; onBalance: () => void }) => {
   const { state } = useApp();
   const { items } = useItems();
   const answers = useAnswers();
@@ -100,7 +101,7 @@ export const Home = ({ go, onPulse }: { go: (m: Mode, patch?: Record<string, unk
         <div className="caps">{now.toLocaleDateString('en', { weekday: 'long' })} · {greet}</div>
         <div className="it motto" {...circle} style={{ fontSize: motto.length > 120 ? 17 : motto.length > 70 ? 19 : 21, lineHeight: 1.35, marginTop: 14, maxWidth: 290, ...circle.style }}>“{motto.replace(/[.”"]+$/, '')}.”</div>
         <div className="home-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', fontSize: 11.5, color: INK2, marginTop: 14, maxHeight: 36, overflow: 'hidden' }}>
-          <span>avg <b style={{ color: EMBER }}>{wkLoad}%</b> load</span><span><b style={{ color: SKY }}>{wkRest}%</b> rest</span>
+          <BalanceChip onOpen={onBalance} fallback={<><span>avg <b style={{ color: EMBER }}>{wkLoad}%</b> load</span><span><b style={{ color: SKY }}>{wkRest}%</b> rest</span></>} />
           <span><b style={{ color: SEPIA }}>{wkPast}</b>/7 written</span><span><b style={{ color: CRIMSON }}>{inbox}</b> to sort</span>
         </div>
       </div>

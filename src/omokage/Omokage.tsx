@@ -12,6 +12,7 @@ import { PulseFlow } from './Pulse';
 import { Typing } from './Typing';
 import { GROUND, INK2, dayNow, fromDstr, todayStr, type Mode } from './skins';
 import { Settings } from './Settings';
+import { BalanceSheet } from './Balance';
 import { NavBar } from './NavBar';
 import { nav, useNavInfo, useNavState } from './nav';
 import { useApp } from '../store';
@@ -43,6 +44,7 @@ const Inner = () => {
   useEffect(() => { warmArt(); }, []);
   const [pulse, setPulse] = useNavState<{ day?: string } | null>('app.pulse', null);
   const [settings, setSettings] = useNavState('app.settings', false);
+  const [balance, setBalance] = useNavState('app.balance', false);
   const [tick, setTick] = useState(0);
   const [dump, setDump] = useNavState('app.dump', false);
   // jump to a place with its state preset (a day's full page, an answer, a pin…); ‹ returns here exactly
@@ -108,9 +110,9 @@ const Inner = () => {
         <span className="s">{sub[mode]}</span>
       </header>
       <main className="body" key={mode + tick}>
-        {mode === 'home' && <Home go={go} onPulse={d => setPulse({ day: d })} />}
+        {mode === 'home' && <Home go={go} onPulse={d => setPulse({ day: d })} onBalance={() => setBalance(true)} />}
         {mode === 'past' && <Past />}
-        {mode === 'present' && <Present day={day} onExitDay={() => setPday(null)} onDump={() => setDump(true)} onPulse={() => setPulse({})} />}
+        {mode === 'present' && <Present day={day} onExitDay={() => setPday(null)} onDump={() => setDump(true)} onPulse={() => setPulse({})} onBalance={() => setBalance(true)} />}
         {mode === 'future' && <Future />}
       </main>
       <nav className="tabs">
@@ -120,6 +122,7 @@ const Inner = () => {
           </button>
         ))}
       </nav>
+      {balance && <BalanceSheet onClose={() => setBalance(false)} />}
       {settings && <Settings onClose={() => setSettings(false)} onChanged={() => setTick(t => t + 1)} />}
       {pulse && <PulseFlow day={pulse.day ?? (mode === 'present' ? day : undefined)} onClose={() => setPulse(null)} />}
       {dump && <Typing mode="present" label={`present · ${state.days[day]?.note?.trim() ? 'the day, told' : 'dump the day'}`} initialText={state.days[day]?.note ?? ''}

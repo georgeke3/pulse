@@ -5,6 +5,7 @@ import { TabMark, Sym } from './Sym';
 import { useNavState } from './nav';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../store';
+import { BalanceChip } from './Balance';
 import type { Duration, Event } from '../types';
 import { Fly } from './Art';
 import { Circles } from './Circles';
@@ -35,7 +36,7 @@ const useSize = <T extends HTMLElement>() => {
 };
 
 /** The day's ring. `day` is today unless Home opened an earlier day; then a bar at the top leads back to today. */
-export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onExitDay: () => void; onDump: () => void; onPulse: () => void }) => {
+export const Present = ({ day, onExitDay, onDump, onPulse, onBalance }: { day: string; onExitDay: () => void; onDump: () => void; onPulse: () => void; onBalance: () => void }) => {
   const { state, addEvent, updateEvent, deleteEvent } = useApp();
   const today = day, isToday = day === todayStr();
   const told = !!state.days[day]?.note?.trim();
@@ -208,7 +209,7 @@ export const Present = ({ day, onExitDay, onDump, onPulse }: { day: string; onEx
         <button className="it press" onClick={() => setListOpen(true)} aria-label="List today's instances" style={{ fontSize: 15, textAlign: 'left' }}>
           <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: EMBER }}>{loadN}%</b> load · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: SKY }}>{restN}%</b> rest · <b className="serif" style={{ fontStyle: 'normal', fontWeight: 600, color: GOLD }}>{winN}</b> <span style={{ display: 'inline-block', verticalAlign: '-4px' }}><Sym n="sparkle" on={winN > 0} s={16} o={winN > 0 ? 1 : .6} /></span> win{winN === 1 ? '' : 's'} <span style={{ color: INK2 }}>›</span>
         </button>
-        <span style={{ fontSize: 11, color: INK2 }}>{last ? `last · ${last.category} · ${fmtMin(evMin(last)!, true)}` : 'nothing logged yet'}</span>
+        {day === today ? <BalanceChip onOpen={onBalance} fallback={<span style={{ fontSize: 11, color: INK2 }}>nothing logged yet</span>} /> : <span style={{ fontSize: 11, color: INK2 }}>{last ? `last · ${last.category} · ${fmtMin(evMin(last)!, true)}` : 'nothing logged yet'}</span>}
       </div>
 
       <div ref={ringRef} className="grow" style={{ position: 'relative' }}>
