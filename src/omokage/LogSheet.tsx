@@ -103,7 +103,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
   // visual viewport does not report) can never cover it, and the sheet itself never moves.
   const [open, setOpen] = useState(false);
   const ta = useRef<HTMLTextAreaElement>(null);
-  useLayoutEffect(() => { const t = ta.current; if (!t) return; t.style.height = 'auto'; t.style.height = `${Math.min(t.scrollHeight, 150)}px`; }, [d.note, open]);
+  useLayoutEffect(() => { const t = ta.current; if (!t) return; t.style.height = 'auto'; t.style.height = `${Math.min(t.scrollHeight, Math.round(window.innerHeight * .34))}px`; }, [d.note, open]);
   const openComposer = () => { ta.current?.focus({ preventScroll: true }); setOpen(true); };
   const bY = 100;
   const bx = (v: number) => beadX(v, zw);
@@ -164,8 +164,8 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
       )}
       <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px 12px' }}>
         <button type="button" className="press" onClick={openComposer} aria-label="Add details"
-          style={{ flex: 1, minWidth: 0, height: 64, display: 'flex', alignItems: 'center', textAlign: 'left', padding: '0 20px', borderRadius: 32, background: 'rgba(255,255,255,.75)', boxShadow: 'inset 0 0 0 1px rgba(43,50,71,.14)' }}>
-          <span style={{ fontFamily: 'Lora, serif', fontSize: 15.5, lineHeight: 1.35, color: d.note ? INK : INK2, fontStyle: d.note ? 'normal' : 'italic', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{d.note || 'Add details…'}</span>
+          style={{ flex: 1, minWidth: 0, minHeight: 64, display: 'flex', alignItems: 'center', textAlign: 'left', padding: d.note.length > 70 ? '10px 20px' : '0 20px', borderRadius: 32, background: 'rgba(255,255,255,.75)', boxShadow: 'inset 0 0 0 1px rgba(43,50,71,.14)' }}>
+          <span style={{ fontFamily: 'Lora, serif', fontSize: 15.5, lineHeight: 1.35, color: d.note ? INK : INK2, fontStyle: d.note ? 'normal' : 'italic', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere' }}>{d.note || 'Add details…'}</span>
         </button>
         <Mic onText={add} size={56} />
       </div>
@@ -176,7 +176,7 @@ export const LogSheet = ({ d, anchors, onDown, onMove, onUp, onNote, onConfirm, 
         opacity: open ? 1 : 0, transform: open ? 'none' : 'translateY(-10px)', pointerEvents: open ? 'auto' : 'none', transition: 'opacity .18s, transform .22s cubic-bezier(.2,.8,.2,1)' }}>
         <div className="caps" style={{ marginBottom: 6 }}>{d.cell.name} · details</div>
         <textarea ref={ta} rows={1} value={d.note} onChange={e => onNote(e.target.value)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} placeholder={d.cell.type === 'gratitude' ? 'What are you thankful for?' : d.cell.type === 'sleep' ? 'How was the night?' : 'What happened?'} aria-label="Details of what happened"
-          style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: 48, maxHeight: 150, resize: 'none', border: 0, outline: 'none', padding: '4px 2px', background: 'transparent', fontSize: 17, lineHeight: 1.45, fontFamily: 'Lora, serif', color: INK }} />
+          style={{ display: 'block', width: '100%', boxSizing: 'border-box', minHeight: 48, maxHeight: '34vh', resize: 'none', border: 0, outline: 'none', padding: '4px 2px', background: 'transparent', fontSize: 17, lineHeight: 1.45, fontFamily: 'Lora, serif', color: INK }} />
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 6 }}>
           <Mic onText={add} size={44} />
           <button type="button" className="press" onMouseDown={e => e.preventDefault()} onClick={() => ta.current?.blur()}

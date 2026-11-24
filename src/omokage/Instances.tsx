@@ -6,6 +6,7 @@ import { RIM, durLabel } from './LogSheet';
 import { CRIMSON, INK2, fmtMin, getCutoff, parseHM } from './skins';
 import { loadOf } from './load';
 import { isText } from './special';
+import { Prose } from './Prose';
 
 export const evStart = (e: Event) => parseHM(e.custom_data?.time);
 /** Sort key: times before the day's cutoff (e.g. 1:30am) belong to the end of the day, not the start. */
@@ -34,8 +35,8 @@ export const EventCard = ({ e, anchorLabel, onEdit, onDelete, onClose }: { e: Ev
   return (
     <>
       <div className="backdrop" onClick={onClose} />
-      <div className="card-sheet" role="dialog" aria-label={`${e.category} instance`}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div className="card-sheet" role="dialog" aria-label={`${e.category} instance`} style={{ maxHeight: 'calc(100% - 96px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 'none' }}>
           <Art e={e} s={56} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="caps" style={{ color: rim }}>{e.type === 'training' ? 'load' : e.type === 'recovery' ? 'rest' : e.type}</div>
@@ -43,10 +44,10 @@ export const EventCard = ({ e, anchorLabel, onEdit, onDelete, onClose }: { e: Ev
           </div>
           {!isText(e.type) && <div style={{ textAlign: 'right' }}><div className="serif" style={{ fontSize: 30, color: rim, lineHeight: 1 }}>{level(e)}</div><div className="caps" style={{ fontSize: 8.5, marginTop: 4 }}>of the day</div></div>}
         </div>
-        <div className="it" style={{ fontSize: 17, marginTop: 14 }}>{when(e)}</div>
-        {!isText(e.type) && <div style={{ fontSize: 12.5, color: INK2, marginTop: 4 }}>{[inten(e), anchorLabel ?? '', d ? durLabel(d) : ''].filter(Boolean).join(' · ')}</div>}
-        {e.notes && <div className="it" style={{ fontSize: 16, marginTop: 12, lineHeight: 1.45, color: '#3A4156' }}>{e.notes}</div>}
-        <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        <div className="it" style={{ fontSize: 17, marginTop: 14, flex: 'none' }}>{when(e)}</div>
+        {!isText(e.type) && <div style={{ fontSize: 12.5, color: INK2, marginTop: 4, flex: 'none' }}>{[inten(e), anchorLabel ?? '', d ? durLabel(d) : ''].filter(Boolean).join(' · ')}</div>}
+        {e.notes?.trim() && <Prose text={e.notes} copy style={{ marginTop: 12 }} />}
+        <div style={{ display: 'flex', gap: 10, marginTop: 16, flex: 'none' }}>
           <button className="chip press" style={{ height: 48, flex: '0 0 26%' }} onClick={onClose}>Close</button>
           <button className="chip press" style={{ height: 48, flex: 1, color: sure ? '#fff' : CRIMSON, background: sure ? CRIMSON : 'rgba(255,255,255,.35)', boxShadow: sure ? 'none' : `inset 0 0 0 1px ${CRIMSON}66` }}
             onClick={() => (sure ? onDelete() : setSure(true))}>{sure ? 'Tap again to delete' : 'Delete'}</button>
@@ -76,6 +77,7 @@ export const TodayList = ({ events, title = 'Today', onOpen, onClose }: { events
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span className="serif" style={{ fontSize: 18, display: 'block' }}>{e.category}</span>
                 <span style={{ fontSize: 12, color: INK2 }}>{when(e)}{!isText(e.type) ? ` · ${inten(e)}` : ''}</span>
+                {e.notes?.trim() && <span className="it" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere', fontSize: 13.5, lineHeight: 1.35, color: '#3A4156', marginTop: 2 }}>{e.notes.trim()}</span>}
               </span>
               {!isText(e.type) && <span className="serif" style={{ fontSize: 20, color: RIM[e.type][0] }}>{level(e)}</span>}
               <span style={{ color: INK2, fontSize: 16 }}>›</span>

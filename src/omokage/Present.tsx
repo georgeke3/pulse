@@ -1,6 +1,7 @@
 import { subjectiveFor } from '../intensity';
 import { isStim, isText, sleepReserve } from './special';
-import { wisp } from './wisp';
+import { seedOf, wisp } from './wisp';
+import { Aura, AuraDefs } from './Aura';
 import { TabMark, Sym } from './Sym';
 import { useNavState } from './nav';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -181,8 +182,8 @@ export const Present = ({ day, onExitDay, onDump, onPulse, onBalance }: { day: s
       const p = loadOf(e), frac = p == null ? .2 : Math.max(.12, Math.min(1, p / 100)), len = cs / 2 + 4 + frac * room, W = p == null ? 4 : 6 + 9 * frac;
       const col = p == null ? 'rgb(150,156,172)' : heat(side, e.objectiveIntensity || 1);
       const dx = Math.cos(th), dy = Math.sin(th), h = [...e.id].reduce((a, ch) => a + ch.charCodeAt(0), 0);
-      const w = wisp(x, y, dx, dy, len, W, 1 + (h % 5) * .08);
-      return { id: e.id, e, c, p, rim, col, x, y, dx, dy, px: -dy, py: dx, w: W, tx: x + dx * len, ty: y + dy * len, d: w.d, vein: w.vein, delay: -(h % 70) / 10 };
+      const w = wisp(x, y, dx, dy, len, W, seedOf(e.id));
+      return { id: e.id, e, c, p, rim, col, x, y, dx, dy, px: -dy, py: dx, w: W, tx: x + dx * len, ty: y + dy * len, d: w.d, vein: w.vein, strands: w.strands, motes: w.motes, tail: w.tail, delay: -(h % 70) / 10 };
     });
   });
   type Spoke = (typeof spokes)[number];
@@ -220,7 +221,10 @@ export const Present = ({ day, onExitDay, onDump, onPulse, onBalance }: { day: s
           <ellipse cx={cx} cy={cy} rx={rx + 34} ry={ry + 30} fill="none" stroke={GOLD} strokeWidth=".8" opacity=".35" strokeDasharray="1 5" />
         </svg>
         <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} aria-hidden="true">
-          <defs><filter id="wglow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.2" /></filter></defs>
+          <defs><filter id="wglow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.2" /></filter><AuraDefs /></defs>
+          {cellPts[0] && <Aura kind="gratitude" x={cellPts[0].x} y={cellPts[0].y} r={sz / 2} n={events.filter(e => e.type === 'gratitude').length} />}
+          {cellPts[1] && <Aura kind="win" x={cellPts[1].x} y={cellPts[1].y} r={sz / 2} n={winN} />}
+          {cellPts[2] && (() => { const sl = events.find(e => e.type === 'sleep'); return <Aura kind="sleep" x={cellPts[2].x} y={cellPts[2].y} r={sz / 2} q={sl ? Math.round(sl.objectiveIntensity || 0) : 0} pct={sl ? (loadOf(sl) ?? (typeof sl.custom_data?.amount === 'number' ? sl.custom_data.amount : 0)) : 0} />; })()}
           {spokes.map(sp => (
             <g key={sp.id} onClick={ev => openSpoke(ev, sp)} style={{ pointerEvents: 'auto', cursor: 'pointer' }} role="button" aria-label={`${sp.c.name} ${sp.p ?? '?'} percent, intensity ${Math.round(sp.e.objectiveIntensity)}, open`}>
               <linearGradient id={`wg-${sp.id}`} gradientUnits="userSpaceOnUse" x1={sp.x} y1={sp.y} x2={sp.tx} y2={sp.ty}>
@@ -229,8 +233,11 @@ export const Present = ({ day, onExitDay, onDump, onPulse, onBalance }: { day: s
               <g className="wsway" style={{ transformOrigin: `${sp.x}px ${sp.y}px`, animationDelay: `${sp.delay}s` }}>
                 <g className="win" style={{ transformOrigin: `${sp.x}px ${sp.y}px` }}>
                   <path d={sp.d} fill={sp.col} opacity=".45" filter="url(#wglow)" />
-                  <path d={sp.d} fill={`url(#wg-${sp.id})`} stroke={sp.rim} strokeWidth=".6" strokeOpacity=".5" strokeLinejoin="round" />
-                  <path d={sp.vein} fill="none" stroke="#fff" strokeWidth="1.1" strokeOpacity=".5" strokeLinecap="round" />
+                  {sp.strands.map((st, i) => <path key={i} className="wflick" d={st.d} fill={`url(#wg-${sp.id})`} opacity={st.o} style={{ transformOrigin: `${sp.x}px ${sp.y}px`, ['--wr' as string]: `${st.rot}deg`, animationDuration: `${st.dur}s`, animationDelay: `${st.delay}s` }} />)}
+                  <path d={sp.d} fill={`url(#wg-${sp.id})`} stroke={sp.rim} strokeWidth=".5" strokeOpacity=".35" strokeLinejoin="round" />
+                  <path d={sp.vein} fill="none" stroke="#fff" strokeWidth="1" strokeOpacity=".4" strokeLinecap="round" />
+                  <path d={sp.tail} fill="none" stroke={sp.col} strokeWidth="1.1" strokeOpacity=".4" strokeLinecap="round" />
+                  {sp.motes.map((m, i) => <circle key={i} className="wmote" cx={m.x} cy={m.y} r={m.r} fill={sp.col} opacity={m.o} style={{ animationDelay: `${m.delay}s` }} />)}
                 </g>
               </g>
               <line x1={sp.x + sp.dx * (sz / 2)} y1={sp.y + sp.dy * (sz / 2)} x2={sp.tx} y2={sp.ty} stroke="transparent" strokeWidth={Math.max(22, sp.w * 2)} strokeLinecap="round" />

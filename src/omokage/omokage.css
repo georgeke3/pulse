@@ -187,5 +187,15 @@ html, body { margin: 0; background: #FAF8F3; overscroll-behavior: none; }
 @keyframes wisp-in { from { opacity: 0; transform: scale(.35); } to { opacity: 1; transform: scale(1); } }
 .omk .wsway { animation: wsway 7s ease-in-out infinite; }
 .omk .win { animation: wisp-in .7s var(--ease) both; }
-@media (prefers-reduced-motion: reduce) { .omk .wsway, .omk .win { animation: none; } }
+@keyframes arise { 0% { opacity: 0; transform: translate(0, 0) scale(.35); } 16% { opacity: 1; } 62% { opacity: .95; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(var(--s, 1)); } }
+@keyframes aring { 0% { opacity: .5; transform: scale(1); } 100% { opacity: 0; transform: scale(1.9); } }
+@keyframes atw { 0%, 100% { opacity: .25; transform: scale(.7) rotate(0); } 50% { opacity: 1; transform: scale(1.15) rotate(18deg); } }
+.omk .arise { animation: arise 5s ease-out infinite; }
+.omk .aring { animation: aring 5.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+.omk .atw { animation: atw 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes wflick { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(var(--wr, 2deg)); } }
+@keyframes wmote { 0%, 100% { opacity: .15; transform: translate(0, 0); } 50% { opacity: .7; transform: translate(1.5px, -2px); } }
+.omk .wflick { animation: wflick 5s ease-in-out infinite; }
+.omk .wmote { animation: wmote 4.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .omk .wsway, .omk .win, .omk .wflick, .omk .wmote, .omk .arise, .omk .aring, .omk .atw { animation: none; } .omk .arise { opacity: .7; } }
 .omk .nl.tag { font-size: 8.5px; letter-spacing: 0; padding: 1px 5px; border-radius: 7px; background: rgba(251,250,247,.94); box-shadow: 0 0 0 .5px rgba(43,50,71,.2); z-index: 3; }

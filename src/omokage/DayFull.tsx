@@ -69,10 +69,10 @@ export const DayFull = ({ day, go, onPulse }: { day: string; go: (m: Mode, patch
         )}
         {thanks.some(t => t.notes?.trim()) && (
           <Sec t="grateful for">
-            {thanks.filter(t => t.notes?.trim()).map(t => <div key={t.id} className="it" style={{ fontSize: 15.5, lineHeight: 1.5, color: '#3A4156', marginBottom: 6 }}>{t.notes}</div>)}
+            {thanks.filter(t => t.notes?.trim()).map(t => <div key={t.id} className="it" style={{ fontSize: 15.5, lineHeight: 1.5, color: '#3A4156', marginBottom: 6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{t.notes}</div>)}
           </Sec>
         )}
-        {note && <Sec t="the day, told"><div className="it" style={{ fontSize: 16, lineHeight: 1.55, color: '#3A4156', whiteSpace: 'pre-wrap' }}>{note}</div></Sec>}
+        {note && <Sec t="the day, told"><div className="it" style={{ fontSize: 16, lineHeight: 1.55, color: '#3A4156', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{note}</div></Sec>}
         {ans.length > 0 && (
           <Sec t="asked & answered">
             {ans.map(a => (

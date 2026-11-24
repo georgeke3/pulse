@@ -229,7 +229,7 @@ export const Past = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <span className="caps">your answer</span><span className="caps" style={{ color: INK }}>edit ›</span>
           </div>
-          <div className="serif" style={{ fontSize: 15, lineHeight: 1.5, marginTop: 6, whiteSpace: 'pre-wrap', color: '#3A4156', ...clip(3) }}>{mainAns.body}</div>
+          <div className="serif" style={{ fontSize: 15, lineHeight: 1.5, marginTop: 6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', color: '#3A4156', ...clip(3) }}>{mainAns.body}</div>
         </button>
       ) : (
         <button className="press" onClick={() => writeQ(tonight)} style={{ width: '100%', marginTop: 14, height: 50, display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1.2px dashed rgba(43,50,71,.3)', textAlign: 'left' }}>
