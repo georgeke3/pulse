@@ -35,7 +35,7 @@ export default async function handler(req: any, res: any) {
         });
         if (!r.ok) {
           notes.push(`${model}: ${r.status}`);
-          if ([400, 401, 403].includes(r.status)) return res.status(502).json({ error: `Gemini rejected the request (${r.status}).`, notes });
+          if ([400, 401, 403].includes(r.status)) { console.error('gemini rejected', JSON.stringify(notes), (await r.text().catch(() => '')).slice(0, 300)); return res.status(502).json({ error: `Gemini rejected the request (${r.status}).`, notes }); }
           continue; // 404 / 429 / 5xx: try the next model
         }
         const j: any = await r.json();
@@ -49,5 +49,6 @@ export default async function handler(req: any, res: any) {
     }
     if (round === 0) await sleep(1500);
   }
+  console.error('gemini failed', JSON.stringify(notes));
   return res.status(503).json({ error: 'Gemini is overloaded right now. Try again in a minute.', notes });
 }

@@ -76,7 +76,7 @@ export const useCurated = (day: string, avoid: string[]) => {
     if (!digest) return;
     running.current = true; setBusy(true); setErr('');
     try { const q = await writeQuestion(digest, again ? [again, ...av] : av, key); writeCurated(day, q); setText(q); }
-    catch (e) { const m = e instanceof Error ? e.message : ''; if (!/No Gemini key|Sign in/i.test(m)) setErr('Could not write one just now.'); }
+    catch (e) { const m = e instanceof Error ? e.message : ''; console.error('curated question', e); if (!/No Gemini key|Sign in/i.test(m)) setErr(m ? `Could not write one: ${m.slice(0, 90)}` : 'Could not write one just now.'); }
     finally { running.current = false; setBusy(false); }
   }, [day]);
 
