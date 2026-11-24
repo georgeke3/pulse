@@ -22,7 +22,7 @@ const cur = () => H[I];
 export const view = () => cur().view;
 
 /** keys that are an overlay (sheet / modal / viewer) rather than a page */
-export const SHEETS = ['app.pulse', 'app.balance', 'app.settings', 'app.dump', 'home.mottos', 'app.mottos', 'past.w', 'future.compose', 'future.view', 'future.editing', 'present.draft', 'present.managing', 'present.more', 'present.list', 'present.detail'];
+export const SHEETS = ['app.pulse', 'app.balance', 'app.settings', 'app.dump', 'home.mottos', 'app.mottos', 'past.w', 'future.compose', 'future.view', 'future.editing', 'future.sheet', 'future.move', 'present.draft', 'present.managing', 'present.more', 'present.list', 'present.detail'];
 const same = (a: unknown, b: unknown) => { if (a === b || ((a == null || a === false) && (b == null || b === false))) return true; try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; } };
 
 const push = (view: View, pushed?: string[], via: Entry['via'] = 'nav') => { H = [...H.slice(0, I + 1), { view, via, pushed }]; I = H.length - 1; emit(); };
@@ -68,6 +68,8 @@ export const nav = {
 
 export const sheetOpen = (v: View) => SHEETS.some(k => !!v[k]);
 
+/** Display names for ids held in view state (capsules), filled in by the screens that know them. */
+export const navLabels = new Map<string, string>();
 const dayName = (d: string) => { const [y, m, dd] = d.split('-').map(Number); const dt = new Date(y, m - 1, dd); return `${dt.toLocaleDateString('en', { weekday: 'long' })} ${dd}`; };
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 /** a short name for a place, used as the label on ‹ */
@@ -78,7 +80,9 @@ export const describe = (v: View): string => {
   if (v['home.mottos'] || v['app.mottos']) return 'Mottos';
   if (v['past.w']) return 'Answer';
   if (v['future.view']) return 'Photos';
-  if (v['future.editing']) return 'Edit pin';
+  if (v['future.editing']) return 'Edit';
+  if (v['future.sheet']) return 'Artifact';
+  if (v['future.move']) return 'Move';
   if (v['future.compose']) return 'New pin';
   if (v['present.draft']) return 'Log';
   if (v['present.detail']) return 'Moment';
@@ -90,7 +94,7 @@ export const describe = (v: View): string => {
   if (m === 'past' && v['past.screen'] === 'questions') return 'Questions';
   if (m === 'past' && v['past.screen'] === 'history') return 'Past answers';
   if (m === 'future' && v['future.allPhotos']) return 'Photos';
-  if (m === 'future' && v['future.board']) return String(v['future.board']);
+  if (m === 'future' && v['future.board']) return navLabels.get(String(v['future.board'])) ?? String(v['future.board']);
   if (m === 'present' && v['present.pday']) return dayName(String(v['present.pday']));
   return cap(m);
 };

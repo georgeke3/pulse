@@ -103,6 +103,9 @@ async function page(u: URL, url: string) {
   return {
     kind: 'page', url, site: clip(m.get('og:site_name'), 40) || site,
     title: clip(title ? unent(title) : undefined, 160), desc: clip(desc, 240), image, icon,
+    price: m.get('product:price:amount') || m.get('og:price:amount') || undefined,
+    currency: m.get('product:price:currency') || m.get('og:price:currency') || undefined,
+    product: /product/i.test(m.get('og:type') || '') || undefined,
     author: clip(m.get('author') || m.get('article:author') || m.get('twitter:creator'), 60) || undefined,
   };
 }

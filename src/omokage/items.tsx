@@ -8,7 +8,7 @@ export interface Item {
   id: string; kind: 'past' | 'future'; day: string; at: string;
   board?: string | null; title?: string | null; body: string; meta?: Record<string, unknown>;
 }
-interface Ctx { items: Item[]; add: (i: Omit<Item, 'id' | 'at' | 'day'> & { day?: string }) => void; remove: (id: string) => void; update: (id: string, patch: Partial<Pick<Item, 'board' | 'body' | 'meta'>>) => void }
+interface Ctx { items: Item[]; add: (i: Omit<Item, 'id' | 'at' | 'day'> & { day?: string; id?: string }) => string; put: (i: Item) => void; remove: (id: string) => void; update: (id: string, patch: Partial<Pick<Item, 'board' | 'body' | 'meta' | 'title'>>) => void }
 const C = createContext<Ctx | null>(null);
 const KEY = 'omokage_items_v1';
 const load = (): Item[] => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } };
@@ -47,12 +47,19 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   }, [uid]);
 
   const add: Ctx['add'] = useCallback(i => {
-    const item: Item = { ...i, id: crypto.randomUUID(), at: new Date().toISOString(), day: i.day ?? todayStr() };
-    setItems(p => [item, ...p]);
+    const item: Item = { ...i, id: i.id ?? crypto.randomUUID(), at: new Date().toISOString(), day: i.day ?? todayStr() };
+    setItems(p => [item, ...p.filter(x => x.id !== item.id)]);
     if (cloud && uid) {
       cloud.request('POST', 'omokage_items', { query: { on_conflict: 'user_id,id' }, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: [{ ...item, user_id: uid }] })
         .catch(e => { pending.current.push(item); console.error(e); });
     }
+    return item.id;
+  }, [uid]);
+  /** Insert a fully formed item (fixed id), e.g. a migrated capsule. */
+  const put: Ctx['put'] = useCallback(item => {
+    if (itemsRef.current.some(x => x.id === item.id)) return;
+    setItems(p => (p.some(x => x.id === item.id) ? p : [item, ...p]));
+    if (cloud && uid) cloud.request('POST', 'omokage_items', { query: { on_conflict: 'user_id,id' }, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: [{ ...item, user_id: uid }] }).catch(console.error);
   }, [uid]);
 
   const remove: Ctx['remove'] = useCallback(id => {
@@ -65,11 +72,12 @@ export const ItemsProvider = ({ children }: { children: React.ReactNode }) => {
   const update: Ctx['update'] = useCallback((id, patch) => {
     const cur = itemsRef.current.find(x => x.id === id); if (!cur) return;
     const next = { ...cur, ...patch };
-    setItems(p => p.map(x => (x.id === id ? next : x)));
+    itemsRef.current = itemsRef.current.map(x => (x.id === id ? next : x));   // so several updates in one tick each see the last
+    setItems(p => p.map(x => (x.id === id ? { ...x, ...patch } : x)));
     if (cloud && uid) cloud.request('POST', 'omokage_items', { query: { on_conflict: 'user_id,id' }, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: [{ ...next, user_id: uid }] }).catch(console.error);
   }, [uid]);
 
-  const v = useMemo(() => ({ items, add, remove, update }), [items, add, remove, update]);
+  const v = useMemo(() => ({ items, add, put, remove, update }), [items, add, put, remove, update]);
   return <C.Provider value={v}>{children}</C.Provider>;
 };
 export const useItems = () => { const c = useContext(C); if (!c) throw new Error('ItemsProvider missing'); return c; };

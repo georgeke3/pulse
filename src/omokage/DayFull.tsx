@@ -90,7 +90,7 @@ export const DayFull = ({ day, go, onPulse }: { day: string; go: (m: Mode, patch
         {fut.length > 0 && (
           <Sec t="set aside for later">
             {fut.map(i => (
-              <button key={i.id} className="irow press" onClick={() => go('future', { 'future.board': i.board || 'Inbox', 'future.open': i.id, 'future.focus': i.id })}>
+              <button key={i.id} className="irow press" onClick={() => go('future', { 'future.board': i.board || 'Inbox', 'future.focus': i.id })}>
                 <TabMark m="future" />
                 <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 13.5, ...clip(2) }}>{i.body || 'Photo'}</span>
                 <span style={{ color: INK2 }}>›</span>

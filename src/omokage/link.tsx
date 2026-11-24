@@ -9,7 +9,7 @@ export interface LinkMeta {
   kind: 'tweet' | 'page' | 'image'; url: string; site?: string;
   title?: string; desc?: string; image?: string; icon?: string; author?: string | { name?: string; handle?: string; avatar?: string };
   text?: string; at?: string; photos?: { url: string; w?: number; h?: number; video?: boolean }[];
-  quote?: { name?: string; handle?: string; text?: string }; article?: { title?: string; preview?: string; image?: string };
+  quote?: { name?: string; handle?: string; text?: string }; price?: string; currency?: string; product?: boolean; article?: { title?: string; preview?: string; image?: string };
 }
 
 export const URL_RE = /(https?:\/\/[^\s]+)/i;
