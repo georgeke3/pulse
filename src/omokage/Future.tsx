@@ -96,35 +96,160 @@ const Grid = ({ shots, onOpen }: { shots: Shot[]; onOpen: (k: number) => void })
 
 
 const GAP = 8;
-/** Long-press (still finger, ~0.4s) vs tap, on tiles that also scroll with the page. */
-const usePress = (onTap: (id: string) => void, onLong: (id: string) => void) => {
-  const p = useRef<{ t: number; x: number; y: number; fired: boolean } | null>(null);
-  return (id: string) => ({
-    onPointerDown: (e: React.PointerEvent) => { const t = window.setTimeout(() => { if (p.current) { p.current.fired = true; haptic(12); onLong(id); } }, 420); p.current = { t, x: e.clientX, y: e.clientY, fired: false }; },
-    onPointerMove: (e: React.PointerEvent) => { const c = p.current; if (c && Math.hypot(e.clientX - c.x, e.clientY - c.y) > 9) { clearTimeout(c.t); p.current = null; } },
-    onPointerUp: () => { const c = p.current; if (!c) return; clearTimeout(c.t); p.current = null; if (!c.fired) onTap(id); },
-    onPointerCancel: () => { if (p.current) clearTimeout(p.current.t); p.current = null; },
-    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
-  });
-};
+/** Pinch steps: growing or shrinking a tile one snap size at a time; the stronger axis of the pinch picks wide vs tall. */
+const GROW: Record<Size, (x: boolean) => Size> = { s: x => (x ? 'w' : 'sq'), w: () => 'l', sq: x => (x ? 'l' : 't'), t: () => 'l', l: () => 'h', h: () => 'h' };
+const SHRINK: Record<Size, (x: boolean) => Size> = { h: () => 'l', l: x => (x ? 'sq' : 'w'), t: () => 'sq', sq: () => 's', w: () => 's', s: () => 's' };
+let blockScroll = false;
+if (typeof document !== 'undefined') document.addEventListener('touchmove', e => { if (blockScroll) e.preventDefault(); }, { passive: false });
 
-/** The capsule grid: four square columns; each tile spans its snap size and the grid packs densely, so there are never holes. */
-const CapsuleGrid = ({ list, env, sel, onTap, onLong, lead, tail }: { list: Item[]; env: Env; sel: Set<string> | null; onTap: (id: string) => void; onLong: (id: string) => void; lead?: React.ReactNode; tail?: React.ReactNode }) => {
+/**
+ * The capsule grid: four square columns; each tile spans its snap size and the grid packs densely, so there are never holes.
+ * Tap opens (a real click, so a scroll never opens anything). Hold picks a tile up: let go to select it, or drag to move it;
+ * the others slide out of the way. While holding (or in select mode), pinch a tile with two fingers to step its size.
+ */
+const CapsuleGrid = ({ list, env, sel, onTap, onLong, onReorder, onResize, lead, tail }: {
+  list: Item[]; env: Env; sel: Set<string> | null; onTap: (id: string) => void; onLong: (id: string) => void;
+  onReorder: (ids: string[]) => void; onResize: (id: string, s: Size) => void; lead?: React.ReactNode; tail?: React.ReactNode;
+}) => {
   const ref = useRef<HTMLDivElement>(null), [cell, setCell] = useState(80);
   useLayoutEffect(() => {
     const el = ref.current; if (!el) return;
     const fit = () => setCell(Math.max(40, (el.clientWidth - 3 * GAP) / 4));
     fit(); const ro = new ResizeObserver(fit); ro.observe(el); return () => ro.disconnect();
   }, []);
-  const press = usePress(onTap, onLong);
+  const [preview, setPreview] = useState<string[] | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const els = useRef(new Map<string, HTMLDivElement>());
+  const g = useRef<{ id: string; pid: number; x0: number; y0: number; x: number; y: number; ox: number; oy: number; sc: number; timer: number; live: boolean; moved: boolean; last: number } | null>(null);
+  const pinch = useRef<{ id: string; dx: number; dy: number; d: number } | null>(null);
+  const suppressClick = useRef(0);
+  const scroller = () => ref.current?.closest('.scroll') as HTMLElement | null;
+
+  const byId = new Map(list.map(i => [i.id, i]));
+  const shown = (preview ?? list.map(i => i.id)).map(id => byId.get(id)).filter((i): i is Item => !!i);
+  const layoutKey = shown.map(i => `${i.id}:${String(i.meta?.size ?? '')}`).join('|');
+
+  // FLIP: whenever tiles change place or size, they glide from where they were
+  const prev = useRef(new Map<string, { x: number; y: number }>());
+  useLayoutEffect(() => {
+    const next = new Map<string, { x: number; y: number }>();
+    for (const [id, el] of els.current) {
+      if (!el.isConnected) { els.current.delete(id); continue; }
+      const p = { x: el.offsetLeft, y: el.offsetTop }; next.set(id, p);
+      const o = prev.current.get(id);
+      if (o && id !== dragId && (o.x !== p.x || o.y !== p.y)) {
+        el.style.transition = 'none'; el.style.transform = `translate(${o.x - p.x}px, ${o.y - p.y}px)`;
+        void el.offsetWidth;
+        el.style.transition = 'transform .32s cubic-bezier(.2,.8,.2,1)'; el.style.transform = '';
+      }
+    }
+    prev.current = next;
+    place();
+  }, [layoutKey, cell]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Keep the held tile under the finger, wherever its slot has moved to. */
+  const place = () => {
+    const d = g.current, el = d && els.current.get(d.id); if (!d || !d.live || !el) return;
+    const sc = scroller()?.scrollTop ?? 0;
+    el.style.transition = 'none';
+    el.style.transform = `translate(${d.x - d.x0 - (el.offsetLeft - d.ox)}px, ${d.y - d.y0 - (el.offsetTop - d.oy) + (sc - d.sc)}px) scale(1.04)`;
+  };
+  const autoScroll = useRef(0);
+  const tickScroll = () => {
+    const d = g.current, sc = scroller(); if (!d || !d.live || !sc) { autoScroll.current = 0; return; }
+    const r = sc.getBoundingClientRect(), edge = 70, v = d.y < r.top + edge ? -(r.top + edge - d.y) / 6 : d.y > r.bottom - edge - 60 ? (d.y - (r.bottom - edge - 60)) / 6 : 0;
+    if (v) { sc.scrollTop += v; place(); hover(); }
+    autoScroll.current = requestAnimationFrame(tickScroll);
+  };
+  /** Which tile is under the finger: the held one takes its place. */
+  const hover = () => {
+    const d = g.current; if (!d || Date.now() - d.last < 160) return;
+    const hit = document.elementsFromPoint(d.x, d.y).map(e => (e as HTMLElement).closest?.('[data-pin]') as HTMLElement | null).find(e => e && e.dataset.pin !== d.id);
+    const over = hit?.dataset.pin; if (!over) return;
+    const order = preview ?? list.map(i => i.id), from = order.indexOf(d.id), to = order.indexOf(over);
+    if (from < 0 || to < 0 || from === to) return;
+    const n = [...order]; n.splice(from, 1); n.splice(to, 0, d.id);
+    d.last = Date.now(); setPreview(n); haptic(4);
+  };
+
+  const end = () => {
+    const d = g.current; g.current = null; blockScroll = false; cancelAnimationFrame(autoScroll.current);
+    if (!d) return;
+    clearTimeout(d.timer);
+    const el = els.current.get(d.id);
+    if (d.live) {
+      suppressClick.current = Date.now();
+      if (el) { el.style.transition = 'transform .28s cubic-bezier(.2,.8,.2,1)'; el.style.transform = ''; }
+      if (preview && preview.join() !== list.map(i => i.id).join()) onReorder(preview);
+      setPreview(null); setDragId(null);
+    }
+  };
+
+  const handlers = (id: string) => ({
+    ref: (el: HTMLDivElement | null) => { if (el) els.current.set(id, el); },
+    onClick: () => { if (Date.now() - suppressClick.current < 450 || pinch.current) return; onTap(id); },
+    onPointerDown: (e: React.PointerEvent) => {
+      if (g.current || pinch.current || e.button > 0) { if (g.current) { clearTimeout(g.current.timer); if (!g.current.live) g.current = null; } return; }
+      const el = e.currentTarget as HTMLDivElement, pid = e.pointerId;
+      const timer = window.setTimeout(() => {
+        const d = g.current; if (!d || d.id !== id) return;
+        d.live = true; blockScroll = true; suppressClick.current = Date.now();
+        haptic(12); onLong(id); setDragId(id);
+        try { el.setPointerCapture(pid); } catch { /* already released */ }
+        place(); autoScroll.current = requestAnimationFrame(tickScroll);
+      }, 380);
+      g.current = { id, pid, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, ox: el.offsetLeft, oy: el.offsetTop, sc: scroller()?.scrollTop ?? 0, timer, live: false, moved: false, last: 0 };
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const d = g.current; if (!d || d.pid !== e.pointerId) return;
+      d.x = e.clientX; d.y = e.clientY;
+      if (!d.live) { if (Math.hypot(d.x - d.x0, d.y - d.y0) > 8) { clearTimeout(d.timer); g.current = null; } return; }
+      d.moved = true; place(); hover();
+    },
+    onPointerUp: end,
+    onPointerCancel: () => { if (g.current && !g.current.live) { clearTimeout(g.current.timer); g.current = null; } else end(); },
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  });
+
+  // two-finger pinch on a tile steps its size (touch events, so the page itself never zooms or scrolls meanwhile)
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const tileAt = (t: Touch) => (document.elementFromPoint(t.clientX, t.clientY) as HTMLElement | null)?.closest?.('[data-pin]') as HTMLElement | null;
+    const start = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      const [a, b] = [e.touches[0], e.touches[1]], tile = tileAt(a) || tileAt(b), id = tile?.dataset.pin;
+      if (!id || !(sel || g.current?.live)) return;
+      e.preventDefault();
+      if (g.current) { clearTimeout(g.current.timer); const live = g.current.live; if (live) end(); else g.current = null; }
+      if (!sel) onLong(id);
+      pinch.current = { id, dx: Math.abs(a.clientX - b.clientX), dy: Math.abs(a.clientY - b.clientY), d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) };
+      blockScroll = true;
+    };
+    const move = (e: TouchEvent) => {
+      const p = pinch.current; if (!p || e.touches.length < 2) return;
+      e.preventDefault();
+      const [a, b] = [e.touches[0], e.touches[1]], dx = Math.abs(a.clientX - b.clientX), dy = Math.abs(a.clientY - b.clientY), d = Math.hypot(dx, dy), r = d / Math.max(1, p.d);
+      if (r < 1.35 && r > .74) return;
+      const it = list.find(i => i.id === p.id); if (!it) return;
+      const cur = sizeOf(classify(it), env), horiz = Math.abs(dx - p.dx) > Math.abs(dy - p.dy);
+      const nx = (r > 1 ? GROW : SHRINK)[cur](horiz);
+      pinch.current = { ...p, dx, dy, d };
+      if (nx !== cur) { onResize(p.id, nx); haptic(10); }
+    };
+    const stop = (e: TouchEvent) => { if (pinch.current && e.touches.length < 2) { pinch.current = null; blockScroll = false; suppressClick.current = Date.now(); } };
+    el.addEventListener('touchstart', start, { passive: false }); el.addEventListener('touchmove', move, { passive: false });
+    el.addEventListener('touchend', stop); el.addEventListener('touchcancel', stop);
+    return () => { el.removeEventListener('touchstart', start); el.removeEventListener('touchmove', move); el.removeEventListener('touchend', stop); el.removeEventListener('touchcancel', stop); };
+  }); // re-bound each render so it sees the current list and sizes
+
   return (
     <div ref={ref} className={sel ? 'cgrid selecting' : 'cgrid'} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gridAutoRows: cell, gap: GAP, gridAutoFlow: 'row dense' }}>
       {lead}
-      {list.map((i, k) => {
-        const a = classify(i), s: Size = sizeOf(a, env), [c, r] = SIZES[s], on = !!sel?.has(i.id);
+      {shown.map((i, k) => {
+        const a = classify(i), s: Size = sizeOf(a, env), [c, r] = SIZES[s], on = !!sel?.has(i.id), held = dragId === i.id;
         return (
-          <div key={i.id} data-pin={i.id} data-kind={a.kind} data-size={s} className={`ctile${on ? ' sel' : ''}`} role="button" aria-label={`${gistOf(i)}`} aria-pressed={sel ? on : undefined}
-            style={{ gridColumn: `span ${c}`, gridRow: `span ${r}`, animation: `enter .4s ${Math.min(k, 10) * 30}ms both` }} {...press(i.id)}>
+          <div key={i.id} data-pin={i.id} data-kind={a.kind} data-size={s} className={`ctile${on ? ' sel' : ''}${held ? ' held' : ''}`} role="button" aria-label={gistOf(i)} aria-pressed={sel ? on : undefined}
+            style={{ gridColumn: `span ${c}`, gridRow: `span ${r}`, animation: preview || dragId ? undefined : `enter .4s ${Math.min(k, 10) * 30}ms both` }} {...handlers(i.id)}>
             <TileBody a={a} size={s} />
             {sel && <span className="ccheck" aria-hidden="true">{on ? '✓' : ''}</span>}
           </div>
@@ -267,7 +392,7 @@ export const Future = () => {
   }
 
   /* ---------- a capsule (the root, the inbox, or one you made) ---------- */
-  const list = here === INBOX ? ordered(kids(INBOX), true) : ordered(kids(here));
+  const list = ordered(kids(here));
   const crumbs = pathTo(here, byId).slice(0, -1), deep = crumbs.length > 1;
   const inbox = kids(INBOX);
   const stale = mine.filter(i => !isCapsule(i) && Date.now() - new Date(i.at).getTime() > 14 * 864e5);
@@ -277,6 +402,10 @@ export const Future = () => {
     if (sel) { setSel(v => { const n = new Set(v); if (n.has(id)) n.delete(id); else n.add(id); return n; }); return; }
     const i = byId.get(id); if (!i) return;
     if (isCapsule(i)) setBoard(id); else setSheetId(id);
+  };
+  const reorder = (ids: string[]) => {
+    const keys = list.map(sortKey).sort((x, y) => x - y);
+    ids.forEach((id, k) => { const i = byId.get(id); const v = keys[k] + k * 1e-6; if (i && sortKey(i) !== v) update(id, { meta: { ...(i.meta ?? {}), ord: v } }); });
   };
   const long = (id: string) => setSel(v => { const n = new Set(v ?? []); n.add(id); return n; });
   const selIds = sel ? [...sel] : [];
@@ -320,7 +449,7 @@ export const Future = () => {
       </div>
 
       <div className="scroll grow" style={{ position: 'relative', margin: '0 -24px -12px', padding: '14px 24px 104px', WebkitMaskImage: FADE, maskImage: FADE }}>
-        <CapsuleGrid list={list} env={{ kids }} sel={sel} onTap={tap} onLong={long} lead={inboxTile} tail={newTile} />
+        <CapsuleGrid list={list} env={{ kids }} sel={sel} onTap={tap} onLong={long} onReorder={reorder} onResize={(id, sz) => { const i = byId.get(id); if (i) setSize(i, sz); }} lead={inboxTile} tail={newTile} />
         {list.length === 0 && here !== ROOT && <div className="it mute" style={{ textAlign: 'center', marginTop: 40, fontSize: 15 }}>{here === INBOX ? 'The inbox is clear.' : 'An empty capsule. Add the first thing below, or move things in.'}<div style={{ margin: '18px auto 0', width: 120 }}><DrgFit n="future" w={120} h={91} /></div></div>}
         {here === ROOT && trash.length > 0 && <button className="press" onClick={() => setBoard(TRASH)} style={{ display: 'block', margin: '18px auto 0', fontSize: 12.5, color: INK2 }}>Trash · {trash.length}</button>}
         {here !== ROOT && here !== INBOX && !sel && <button className="press" onClick={() => { if (sure !== 'cap') { setSure('cap'); return; } const c = byId.get(here); if (c) { toTrash(c); setBoard(null); } }} style={{ display: 'block', margin: '28px auto 0', fontSize: 12, color: sure === 'cap' ? CRIMSON : INK2 }}>{sure === 'cap' ? `Tap again: move “${nameOf(here, byId)}” and everything in it to the trash` : 'Delete this capsule'}</button>}
