@@ -11,7 +11,7 @@ import { PinEdit } from './PinEdit';
 import { useUnfurl } from './link';
 import { INBOX, ROOT, TRASH as TRASH_ID, descendants, isCapsule, nameOf, ordered, parentOf, pathTo, sortKey, useCapsuleMigration } from './capsules';
 import { SIZES, TileBody, classify, gistOf, sizeOf, type Env, type Size } from './tiles';
-import { ArtifactSheet, MoveSheet } from './CapsuleSheets';
+import { ArtifactPage, ArtifactSheet, MoveSheet, copyArtifacts } from './CapsuleSheets';
 import { haptic } from './haptics';
 
 export const TRASH = TRASH_ID;
@@ -271,6 +271,7 @@ export const Future = () => {
   const [view, setView] = useNavState<{ shots: Shot[]; start: number } | null>('future.view', null);
   const [allPhotos, setAllPhotos] = useNavState('future.allPhotos', false);
   const [editing, setEditing] = useNavState<Item | null>('future.editing', null);
+  const [pageId, setPageId] = useNavState<string | null>('future.page', null);
   const [sheetId, setSheetId] = useNavState<string | null>('future.sheet', null);
   const [moving, setMoving] = useNavState<string[] | null>('future.move', null);
   const [pre, setPre] = useState<ImgRef[]>([]);
@@ -331,13 +332,14 @@ export const Future = () => {
       onCancel={() => { void dropImages(pre.map(x => x.id)); setPre([]); setTyping(false); }}
       onSave={(t, _tags, imgs) => { add({ kind: 'future', body: t, board: target, meta: imgs.length ? { images: imgs } : undefined }); setPre([]); setTyping(false); }} />
   );
-  const open = sheetId ? byId.get(sheetId) : undefined;
+  const open = sheetId ? byId.get(sheetId) : undefined, page = pageId ? byId.get(pageId) : undefined;
   const overlays = <>
     {view && <Viewer shots={view.shots} start={view.start} onClose={() => setView(null)} />}
+    {page && <ArtifactPage item={page} onClose={() => setPageId(null)} onOpenPhoto={k => openPic([page], page, k)} onOptions={() => setSheetId(page.id)} />}
     {open && !editing && !moving && <ArtifactSheet item={open} onClose={() => setSheetId(null)}
       onOpenPhoto={k => openPic([open], open, k)} onEdit={() => setEditing(open)} onMove={() => setMoving([open.id])}
-      onTrash={() => { toTrash(open); setSheetId(null); }} env={{ kids }} onSize={s => setSize(open, s)} onFlag={() => flag(open)} />}
-    {moving && <MoveSheet ids={moving} items={mine} onClose={() => setMoving(null)} onPick={to => { moveTo(moving, to); setToast(`Moved to ${nameOf(to, byId)}`); setMoving(null); setSel(null); if (sheetId) setSheetId(null); }} />}
+      onTrash={() => { toTrash(open); setSheetId(null); setPageId(null); }} env={{ kids }} onSize={s => setSize(open, s)} onFlag={() => flag(open)} />}
+    {moving && <MoveSheet ids={moving} items={mine} onClose={() => setMoving(null)} onPick={to => { moveTo(moving, to); setToast(`Moved to ${nameOf(to, byId)}`); setMoving(null); setSel(null); if (sheetId) setSheetId(null); setPageId(null); }} />}
     {editing && <PinEdit item={editing} onClose={() => setEditing(null)} onSave={(body, imgs) => { const { images: _i, ...meta } = (editing.meta ?? {}) as Record<string, unknown>; update(editing.id, { body, meta: imgs.length ? { ...meta, images: imgs } : meta }); setEditing(null); }} />}
   </>;
   const photoItems = mine.filter(i => imgsOf(i).length);
@@ -368,7 +370,7 @@ export const Future = () => {
           <span className="it" style={{ fontSize: 20 }}>Trash</span>
           <span className="caps">{trash.length}</span>
         </div>
-        <div className="it" style={{ position: 'relative', fontSize: 12.5, color: INK2, paddingBottom: 6 }}>Deleted things wait here for {KEEP_DAYS} days.</div>
+        <div className="it" style={{ position: 'relative', fontSize: 12.5, color: INK2, paddingBottom: 6 }}>Deleted artifacts wait here for {KEEP_DAYS} days.</div>
         <div className="scroll grow" style={{ position: 'relative', margin: '-6px -24px 0', padding: '18px 24px 16px', display: 'flex', flexDirection: 'column', gap: 12, WebkitMaskImage: FADE, maskImage: FADE }}>
           {trash.length === 0 && <div className="it mute" style={{ textAlign: 'center', marginTop: 60, fontSize: 15 }}>Nothing thrown away.<Drg n="tiny" w={90} style={{ margin: '16px auto 0' }} /></div>}
           {trash.map(i => (
@@ -401,7 +403,7 @@ export const Future = () => {
   const tap = (id: string) => {
     if (sel) { setSel(v => { const n = new Set(v); if (n.has(id)) n.delete(id); else n.add(id); return n; }); return; }
     const i = byId.get(id); if (!i) return;
-    if (isCapsule(i)) setBoard(id); else setSheetId(id);
+    if (isCapsule(i)) setBoard(id); else setPageId(id);
   };
   const reorder = (ids: string[]) => {
     const keys = list.map(sortKey).sort((x, y) => x - y);
@@ -487,6 +489,7 @@ export const Future = () => {
               </form>
             : <div className="selbar">
                 <span style={{ flex: 1, opacity: .8 }}>{selIds.length ? `${selIds.length} selected` : 'Tap to select'}</span>
+                <button className="press" disabled={!selIds.length} onClick={() => { setToast('Copying…'); copyArtifacts(selIds.map(id => byId.get(id)).filter((x): x is Item => !!x)).then(m => { setToast(m); if (/^Copied|^Shared/.test(m)) setSel(null); }, () => setToast('Couldn’t copy')); }}>Copy</button>
                 <button className="press" disabled={!selIds.length} onClick={() => setMoving(selIds)}>Move</button>
                 <button className="press" disabled={!selIds.length} onClick={() => setNaming('from-sel')}>New capsule</button>
                 <button className="press" disabled={!selIds.length} style={{ color: sure === 'sel' ? '#FFB4A8' : undefined }} onClick={() => { if (sure !== 'sel') { setSure('sel'); return; } selIds.forEach(id => { const i = byId.get(id); if (i) toTrash(i); }); setSel(null); setSure(null); }}>{sure === 'sel' ? 'Sure?' : 'Delete'}</button>

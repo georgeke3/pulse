@@ -22,7 +22,7 @@ const cur = () => H[I];
 export const view = () => cur().view;
 
 /** keys that are an overlay (sheet / modal / viewer) rather than a page */
-export const SHEETS = ['app.pulse', 'app.balance', 'app.settings', 'app.dump', 'home.mottos', 'app.mottos', 'past.w', 'future.compose', 'future.view', 'future.editing', 'future.sheet', 'future.move', 'present.draft', 'present.managing', 'present.more', 'present.list', 'present.detail'];
+export const SHEETS = ['app.pulse', 'app.balance', 'app.settings', 'app.dump', 'home.mottos', 'app.mottos', 'past.w', 'future.compose', 'future.view', 'future.editing', 'future.page', 'future.sheet', 'future.move', 'present.draft', 'present.managing', 'present.more', 'present.list', 'present.detail'];
 const same = (a: unknown, b: unknown) => { if (a === b || ((a == null || a === false) && (b == null || b === false))) return true; try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; } };
 
 const push = (view: View, pushed?: string[], via: Entry['via'] = 'nav') => { H = [...H.slice(0, I + 1), { view, via, pushed }]; I = H.length - 1; emit(); };
@@ -81,7 +81,8 @@ export const describe = (v: View): string => {
   if (v['past.w']) return 'Answer';
   if (v['future.view']) return 'Photos';
   if (v['future.editing']) return 'Edit';
-  if (v['future.sheet']) return 'Artifact';
+  if (v['future.sheet']) return 'Options';
+  if (v['future.page']) return 'Artifact';
   if (v['future.move']) return 'Move';
   if (v['future.compose']) return 'New pin';
   if (v['present.draft']) return 'Log';

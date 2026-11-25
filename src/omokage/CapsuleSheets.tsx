@@ -3,6 +3,7 @@ import { ActionBar } from './Actions';
 import { INBOX, ROOT, descendants, isCapsule, nameOf, ordered, parentOf } from './capsules';
 import { imgsOf, type Item } from './items';
 import { LinkCard } from './link';
+import { copyClip } from './images';
 import { Prose } from './Prose';
 import { Sheet } from './Sheet';
 import { CRIMSON, INK, INK2, ago } from './skins';
@@ -17,7 +18,7 @@ const Shape = ({ s, on }: { s: Size; on: boolean }) => {
   </svg>;
 };
 
-/** An artifact, opened: shown in full, with what you can do to it. */
+/** Options for an artifact: its size, where it lives, edit, delete. */
 export const ArtifactSheet = ({ item, env, onClose, onOpenPhoto, onEdit, onMove, onTrash, onSize, onFlag }: {
   item: Item; env: Env; onClose: () => void; onOpenPhoto: (k: number) => void; onEdit: () => void; onMove: () => void; onTrash: () => void;
   onSize: (s: Size | null) => void; onFlag: () => void;
@@ -28,7 +29,7 @@ export const ArtifactSheet = ({ item, env, onClose, onOpenPhoto, onEdit, onMove,
   const [c, r] = SIZES[size];
   return (
     <Sheet mode="future">
-      <div className="caps" style={{ textAlign: 'center', padding: '12px 0 0' }}>{KINDS[a.kind].label} · {ago(item.day)}</div>
+      <div className="caps" style={{ textAlign: 'center', padding: '12px 0 0' }}>Artifact options · {KINDS[a.kind].label}</div>
       <div className="scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 22px 12px' }}>
         {/* the tile as it sits in the capsule, at its real size */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gridAutoRows: 'calc((min(100vw, 430px) - 44px - 24px) / 4)', gap: 8 }}>
@@ -85,15 +86,64 @@ export const MoveSheet = ({ ids, items, onPick, onClose }: { ids: string[]; item
   };
   return (
     <Sheet mode="future">
-      <div className="caps" style={{ textAlign: 'center', padding: '12px 0 0' }}>Move {ids.length === 1 ? 'this' : `${ids.length} things`} to</div>
+      <div className="caps" style={{ textAlign: 'center', padding: '12px 0 0' }}>Move {ids.length === 1 ? 'this artifact' : `${ids.length} artifacts`} to</div>
       <div className="scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 22px' }}>
         <Row id={ROOT} depth={0} />
         <Row id={INBOX} depth={1} />
         {rows.map(r => <Row key={r.id} id={r.id} depth={r.depth} />)}
-        {!rows.length && <div className="it" style={{ fontSize: 14, color: INK2, padding: '16px 4px' }}>No capsules yet. Select things and choose “New capsule” to make one.</div>}
+        {!rows.length && <div className="it" style={{ fontSize: 14, color: INK2, padding: '16px 4px' }}>No capsules yet. Select artifacts and choose “New capsule” to make one.</div>}
       </div>
       <ActionBar cancel="Cancel" onCancel={onClose} />
     </Sheet>
   );
 };
 export { imgsOf };
+
+
+/** What copying an artifact puts on the clipboard: its photos, and its words and link as text. Capsules are skipped. */
+export const clipOf = (items: Item[]): { ids: string[]; text: string; n: number } => {
+  const ids: string[] = [], texts: string[] = []; let n = 0;
+  for (const it of items) {
+    if (isCapsule(it)) continue;
+    const a = classify(it); n++;
+    a.imgs.forEach(im => ids.push(im.id));
+    const t = [a.link?.kind === 'tweet' ? a.link.text : '', a.text, a.url].filter((x, k, all) => x && all.indexOf(x) === k).join('\n').trim();
+    if (t) texts.push(t);
+  }
+  return { ids, text: texts.join('\n\n'), n };
+};
+export const copyArtifacts = async (items: Item[]): Promise<string> => {
+  const c = clipOf(items);
+  if (!c.n || (!c.ids.length && !c.text)) return 'Nothing to copy';
+  const r = await copyClip(c.ids, c.text);
+  return r === 'shared' ? 'Shared' : `Copied ${c.n === 1 ? 'artifact' : `${c.n} artifacts`}`;
+};
+
+/** An artifact, opened as a full page: everything in it at full size, photos zoom, text selects, and Copy puts it on the clipboard. */
+export const ArtifactPage = ({ item, onClose, onOpenPhoto, onOptions }: { item: Item; onClose: () => void; onOpenPhoto: (k: number) => void; onOptions: () => void }) => {
+  const a = classify(item), [note, setNote] = useState('');
+  const tweetPics = a.link?.kind === 'tweet' ? (a.link.photos ?? []) : [];
+  const copy = () => { setNote('Copying…'); copyArtifacts([item]).then(setNote, () => setNote('Couldn’t copy')).finally(() => setTimeout(() => setNote(''), 1800)); };
+  const ratio = (w: number, h: number) => String(Math.max(.5, Math.min(2, w / h || 1)));
+  return (
+    <Sheet mode="future" still>
+      <div className="caps" style={{ textAlign: 'center', padding: '12px 0 0' }}>{KINDS[a.kind].label} · {ago(item.day)}</div>
+      <div className="scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 18px 16px', userSelect: 'text', WebkitUserSelect: 'text' }}>
+        {a.link && <div className="pinned" style={{ padding: 14 }}><LinkCard link={a.link} note={a.text} open /></div>}
+        {tweetPics.length > 0 && <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>{tweetPics.map((p, k) => <img key={k} src={p.url} alt="" style={{ width: '100%', borderRadius: 10, display: 'block' }} />)}</div>}
+        {a.imgs.length > 0 && (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {a.imgs.map((im, k) => <button key={im.id} className="press" aria-label="Zoom photo" onClick={() => onOpenPhoto(k)} style={{ aspectRatio: ratio(im.w, im.h), width: '100%', borderRadius: 10, overflow: 'hidden', position: 'relative', display: 'block', background: 'rgba(43,50,71,.06)' }}><Pic r={im} fit="contain" style={{ position: 'absolute', inset: 0 }} /></button>)}
+            <div className="caps" style={{ textAlign: 'center', fontSize: 9.5, opacity: .6 }}>Tap a photo to zoom</div>
+          </div>
+        )}
+        {!a.link && a.text && <div style={{ marginTop: a.imgs.length ? 14 : 0, display: 'flex', flexDirection: 'column' }}><Prose text={a.text} /></div>}
+        {!a.link && !a.text && !a.imgs.length && <div className="it" style={{ color: INK2, fontSize: 14, textAlign: 'center', padding: 24 }}>Empty artifact.</div>}
+      </div>
+      <ActionBar cancel="Close" onCancel={onClose}>
+        <button className="chip press" onClick={copy} style={{ height: 54, flex: '0 0 30%', fontSize: 15 }}>{note || 'Copy'}</button>
+        <button className="chip on press" onClick={onOptions} style={{ height: 54, flex: 1, fontSize: 16 }}>Options</button>
+      </ActionBar>
+    </Sheet>
+  );
+};

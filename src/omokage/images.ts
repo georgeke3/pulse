@@ -144,3 +144,19 @@ export const copyImages = async (ids: string[]): Promise<'copied' | 'shared'> =>
   if (navigator.canShare?.({ files })) { await navigator.share({ files }); return 'shared'; }
   throw err ?? new Error('copy not supported');
 };
+
+/** Copies any mix of photos and text. Photos go on as separate clipboard items, the text as one more. Falls back to the share sheet. */
+export const copyClip = async (ids: string[], text: string): Promise<'copied' | 'shared'> => {
+  if (!ids.length) { await navigator.clipboard.writeText(text); return 'copied'; }
+  if (!text) return copyImages(ids);
+  const blob = (id: string) => getOriginal(id).then(b => { if (!b) throw new Error('photo not available'); return b; });
+  const png = (id: string) => blob(id).then(b => (b.type === 'image/png' ? b : toPng(b)));
+  const CI = (window as unknown as { ClipboardItem?: typeof ClipboardItem }).ClipboardItem;
+  let err: unknown;
+  if (CI && navigator.clipboard?.write) {
+    try { await navigator.clipboard.write([...ids.map(id => new CI({ 'image/png': png(id) })), new CI({ 'text/plain': new Blob([text], { type: 'text/plain' }) })]); return 'copied'; } catch (e) { err = e; }
+  }
+  const files = await Promise.all(ids.map(async (id, k) => { const b = await blob(id); return new File([b], `photo-${k + 1}.${ext(b.type)}`, { type: b.type || 'image/jpeg' }); }));
+  if (navigator.canShare?.({ files })) { await navigator.share({ files, text }); return 'shared'; }
+  throw err ?? new Error('copy not supported');
+};
