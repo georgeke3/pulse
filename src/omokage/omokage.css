@@ -170,7 +170,7 @@ html, body { margin: 0; background: #FAF8F3; overscroll-behavior: none; }
 .omk .cm-ico.on { background: rgba(255, 255, 255, .85); box-shadow: inset 0 0 0 1.5px var(--ink); }
 
 /* ---------- photos ---------- */
-.omk-viewer { position: fixed; inset: 0; z-index: 60; user-select: none; -webkit-user-select: none; }
+.omk-viewer { position: fixed; inset: 0; z-index: 150; user-select: none; -webkit-user-select: none; }
 .omk .pg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin: 0 -24px; }
 .omk .pg button { display: block; width: 100%; aspect-ratio: 1; overflow: hidden; background: rgba(43, 50, 71, .06); }
 .omk .pg img, .omk .pic img { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; }

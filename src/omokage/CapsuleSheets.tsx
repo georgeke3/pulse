@@ -3,7 +3,7 @@ import { ActionBar } from './Actions';
 import { INBOX, ROOT, descendants, isCapsule, nameOf, ordered, parentOf } from './capsules';
 import { imgsOf, type Item } from './items';
 import { LinkCard } from './link';
-import { copyClip } from './images';
+import { copyClip, copyWebImage } from './images';
 import { Prose } from './Prose';
 import { Sheet } from './Sheet';
 import { CRIMSON, INK, INK2, ago } from './skins';
@@ -121,14 +121,15 @@ export const copyArtifacts = async (items: Item[]): Promise<string> => {
 
 /** An artifact, opened as a full page: everything in it at full size, washed in its own colour. Photos zoom, text selects,
  *  Copy puts it on the clipboard, and a sideways swipe goes to the next or previous artifact in the capsule. */
-export const ArtifactPage = ({ item, onClose, onOpenPhoto, onOptions, pos, onGo, extra, toast }: {
-  item: Item; onClose: () => void; onOpenPhoto: (k: number) => void; onOptions: () => void;
+export const ArtifactPage = ({ item, onClose, onOpenPhoto, onOpenWeb, onOptions, pos, onGo, extra, toast }: {
+  item: Item; onClose: () => void; onOpenPhoto: (k: number) => void; onOpenWeb: (urls: string[], k: number) => void; onOptions: () => void;
   pos?: { n: number; of: number }; onGo?: (step: 1 | -1) => void; extra?: ReactNode; toast?: string;
 }) => {
   const a = classify(item), [note, setNote] = useState('');
   const tint = useArtTint(item);
-  const tweetPics = a.link?.kind === 'tweet' ? (a.link.photos ?? []) : [];
-  const copy = () => { setNote('Copying…'); copyArtifacts([item]).then(setNote, () => setNote('Couldn’t copy')).finally(() => setTimeout(() => setNote(''), 1800)); };
+  const tweetPics = a.link?.kind === 'tweet' ? (a.link.photos ?? []).filter(p => !p.video) : [];
+  const webPic = a.link?.kind === 'image' ? (a.link.image || a.url || '') : '';
+  const copy = () => { setNote('Copying…'); (webPic && !a.imgs.length ? copyWebImage(webPic).then(r => (r === 'shared' ? 'Shared' : 'Copied')) : copyArtifacts([item])).then(setNote, () => setNote('Couldn’t copy')).finally(() => setTimeout(() => setNote(''), 1800)); };
   const ratio = (w: number, h: number) => String(Math.max(.5, Math.min(2, w / h || 1)));
   // sideways swipe: only when clearly horizontal, so scrolling and text selection stay untouched
   const sw = useRef<{ x: number; y: number; t: number } | null>(null), [dx, setDxS] = useState(0), dxR = useRef(0);
@@ -148,15 +149,17 @@ export const ArtifactPage = ({ item, onClose, onOpenPhoto, onOptions, pos, onGo,
         {pos && onGo && <button className="press" aria-label="Next artifact" disabled={pos.n >= pos.of} onClick={() => onGo(1)} style={{ fontSize: 16, padding: '0 8px', opacity: pos.n >= pos.of ? .25 : .7 }}>›</button>}
       </div>
       <div key={`body-${item.id}`} className="scroll" {...touch} style={{ position: 'relative', flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 18px 16px', userSelect: 'text', WebkitUserSelect: 'text', touchAction: 'pan-y pinch-zoom', transform: dx ? `translateX(${dx}px)` : undefined, transition: dx ? 'none' : 'transform .25s', animation: 'enter .3s both' }}>
-        {a.link && <div className="pinned" style={{ padding: 14 }}><LinkCard link={a.link} note={a.text} open /></div>}
-        {tweetPics.length > 0 && <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>{tweetPics.map((p, k) => <img key={k} src={p.url} alt="" style={{ width: '100%', borderRadius: 10, display: 'block' }} />)}</div>}
+        {/* a picture link is just the picture (zoomable), not a card; skip it when the photo was also saved here */}
+        {webPic && !a.imgs.length && <WebPic src={webPic} onOpen={() => onOpenWeb([webPic], 0)} />}
+        {a.link && !webPic && <div className="pinned" style={{ padding: 14 }}><LinkCard link={a.link} note={a.text} open /></div>}
+        {tweetPics.length > 0 && <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>{tweetPics.map((p, k) => <WebPic key={k} src={p.url} onOpen={() => onOpenWeb(tweetPics.map(x => x.url), k)} />)}</div>}
         {a.imgs.length > 0 && (
           <div style={{ display: 'grid', gap: 8 }}>
             {a.imgs.map((im, k) => <button key={im.id} className="press" aria-label="Zoom photo" onClick={() => onOpenPhoto(k)} style={{ aspectRatio: ratio(im.w, im.h), width: '100%', borderRadius: 12, overflow: 'hidden', position: 'relative', display: 'block', boxShadow: '0 10px 30px rgba(43,50,71,.14)' }}><Pic r={im} full style={{ position: 'absolute', inset: 0 }} /></button>)}
             <div className="caps" style={{ textAlign: 'center', fontSize: 9.5, opacity: .6 }}>Tap a photo to zoom</div>
           </div>
         )}
-        {!a.link && a.text && <div style={{ marginTop: a.imgs.length ? 14 : 0, display: 'flex', flexDirection: 'column' }}><Prose text={a.text} /></div>}
+        {(!a.link || webPic) && a.text && <div style={{ marginTop: a.imgs.length || webPic ? 14 : 0, display: 'flex', flexDirection: 'column' }}><Prose text={a.text} /></div>}
         {!a.link && !a.text && !a.imgs.length && <div className="it" style={{ color: INK2, fontSize: 14, textAlign: 'center', padding: 24 }}>Empty artifact.</div>}
       </div>
       {toast && <div role="status" className="it" style={{ position: 'relative', textAlign: 'center', fontSize: 13, color: INK2, padding: '2px 0 4px' }}>{toast}</div>}
@@ -168,6 +171,12 @@ export const ArtifactPage = ({ item, onClose, onOpenPhoto, onOptions, pos, onGo,
     </Sheet>
   );
 };
+
+const WebPic = ({ src, onOpen }: { src: string; onOpen: () => void }) => (
+  <button className="press" aria-label="Zoom picture" onClick={onOpen} style={{ display: 'block', width: '100%', borderRadius: 12, overflow: 'hidden', boxShadow: '0 10px 30px rgba(43,50,71,.14)', background: 'rgba(43,50,71,.06)' }}>
+    <img src={src} alt="" referrerPolicy="no-referrer" draggable={false} style={{ display: 'block', width: '100%', height: 'auto' }} />
+  </button>
+);
 
 /** Filing an Inbox artifact in one tap: the capsules you used last come first; "New" names one on the spot. */
 export const FileRow = ({ caps, onFile, onNew, onTrash }: { caps: { id: string; name: string }[]; onFile: (id: string) => void; onNew: (name: string) => void; onTrash: () => void }) => {

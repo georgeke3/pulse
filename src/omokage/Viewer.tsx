@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { haptic } from './haptics';
-import { copyImages, useImg, type ImgRef } from './images';
+import { copyImages, copyWebImage, useImg, type ImgRef } from './images';
 import { ago } from './skins';
 
-export interface Shot { ref: ImgRef; text: string; day: string }
+/** A photo to show: a saved one (ref), or a picture on the web (src). */
+export interface Shot { ref: ImgRef; text: string; day: string; src?: string }
 
 const MAX = 5;
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 const Slide = ({ s, live, zoomRef }: { s: Shot; live: boolean; zoomRef: React.RefObject<HTMLDivElement | null> }) => {
-  const thumb = useImg(s.ref.id, 'thumb'), full = useImg(live ? s.ref.id : undefined, 'full');
-  const src = full ?? thumb;
+  const thumb = useImg(s.src ? undefined : s.ref.id, 'thumb'), full0 = useImg(live && !s.src ? s.ref.id : undefined, 'full');
+  const full = s.src ?? full0, src = full ?? thumb;
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
       <div ref={live ? zoomRef : undefined} style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', willChange: 'transform', transformOrigin: '50% 50%' }}>
-        {src && <img src={src} alt="" draggable={false} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'default', filter: full ? 'none' : 'blur(2px)' }} />}
+        {src && <img src={src} alt="" draggable={false} referrerPolicy="no-referrer" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'default', filter: full ? 'none' : 'blur(2px)' }} />}
       </div>
     </div>
   );
@@ -129,7 +130,7 @@ export const Viewer = ({ shots, start, onClose }: { shots: Shot[]; start: number
         {(cur.text || cur.day) && <div style={{ color: 'rgba(255,255,255,.9)', fontFamily: 'Lora, serif', fontStyle: 'italic', fontSize: 15, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{cur.text || `saved ${ago(cur.day)}`}</div>}
         <div style={{ display: 'flex', justifyContent: 'space-between', pointerEvents: 'auto' }}>
           <button className="chip press" onClick={onClose} style={{ height: 54, flex: '0 0 30%', fontSize: 15, background: 'rgba(255,255,255,.14)', color: '#fff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.3)' }}>Close</button>
-          <button className="chip press" onClick={() => { setNote('Copying…'); copyImages([cur.ref.id]).then(r => setNote(r === 'copied' ? 'Copied' : 'Shared'), () => setNote('Couldn’t copy')).finally(() => setTimeout(() => setNote(''), 1800)); }} style={{ height: 54, flex: '0 0 30%', fontSize: 15, background: '#fff', color: '#0E1118' }}>{note || 'Copy'}</button>
+          <button className="chip press" onClick={() => { setNote('Copying…'); (cur.src ? copyWebImage(cur.src) : copyImages([cur.ref.id])).then(r => setNote(r === 'copied' ? 'Copied' : 'Shared'), () => setNote('Couldn’t copy')).finally(() => setTimeout(() => setNote(''), 1800)); }} style={{ height: 54, flex: '0 0 30%', fontSize: 15, background: '#fff', color: '#0E1118' }}>{note || 'Copy'}</button>
         </div>
       </div>
     </div>,

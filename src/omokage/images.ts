@@ -160,3 +160,12 @@ export const copyClip = async (ids: string[], text: string): Promise<'copied' | 
   if (navigator.canShare?.({ files })) { await navigator.share({ files, text }); return 'shared'; }
   throw err ?? new Error('copy not supported');
 };
+
+/** Copies a picture from the web (when its server allows it), else hands the link to the share sheet. */
+export const copyWebImage = async (url: string): Promise<'copied' | 'shared'> => {
+  const CI = (window as unknown as { ClipboardItem?: typeof ClipboardItem }).ClipboardItem;
+  const png = fetch(url, { mode: 'cors', referrerPolicy: 'no-referrer' }).then(r => { if (!r.ok) throw new Error('fetch failed'); return r.blob(); }).then(b => (b.type === 'image/png' ? b : toPng(b)));
+  try { if (CI && navigator.clipboard?.write) { await navigator.clipboard.write([new CI({ 'image/png': png })]); return 'copied'; } } catch { /* fall through */ }
+  if (navigator.share) { await navigator.share({ url }); return 'shared'; }
+  await navigator.clipboard.writeText(url); return 'copied';
+};

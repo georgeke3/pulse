@@ -362,7 +362,7 @@ export const Future = () => {
       const inInbox = parentOf(page) === INBOX;
       const recent = recentCaps(), caps = mine.filter(isCapsule).map(c => ({ id: c.id, name: c.title || 'Untitled' }))
         .sort((x, y) => { const a = recent.indexOf(x.id), b = recent.indexOf(y.id); return (a < 0 ? 99 : a) - (b < 0 ? 99 : b) || x.name.localeCompare(y.name); });
-      return <ArtifactPage item={page} onClose={() => setPageId(null)} onOpenPhoto={k => openPic([page], page, k)} onOptions={() => setSheetId(page.id)} toast={toast}
+      return <ArtifactPage item={page} onClose={() => setPageId(null)} onOpenPhoto={k => openPic([page], page, k)} onOpenWeb={(urls, k) => setView({ shots: urls.map(u => ({ ref: { id: 'web:' + u, w: 0, h: 0 }, src: u, text: page.body.replace(URL_RE, '').trim(), day: page.day })), start: k })} onOptions={() => setSheetId(page.id)} toast={toast}
         pos={n >= 0 && sibs.length > 1 ? { n: n + 1, of: sibs.length } : undefined} onGo={go}
         extra={inInbox && <FileRow key={`file-${page.id}`} caps={caps}
           onFile={to => { moveTo([page.id], to); setToast(`Filed into ${nameOf(to, byId)}`); haptic(10); after(); }}
