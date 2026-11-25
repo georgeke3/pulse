@@ -11,7 +11,7 @@ import { PinEdit } from './PinEdit';
 import { useUnfurl } from './link';
 import { INBOX, ROOT, TRASH as TRASH_ID, descendants, isCapsule, nameOf, ordered, parentOf, pathTo, sortKey, useCapsuleMigration } from './capsules';
 import { SIZES, TileBody, classify, gistOf, sizeOf, type Env, type Size } from './tiles';
-import { ArtifactPage, ArtifactSheet, MoveSheet, copyArtifacts } from './CapsuleSheets';
+import { ArtifactPage, ArtifactSheet, FileRow, MoveSheet, copyArtifacts } from './CapsuleSheets';
 import { haptic } from './haptics';
 
 export const TRASH = TRASH_ID;
@@ -19,6 +19,9 @@ const KEEP_DAYS = 30;
 const FADE = 'linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 28px), transparent 100%)';
 
 const HK = 'omokage_resurface_seen';
+const RK = 'omk_recent_caps';
+const recentCaps = (): string[] => { try { return JSON.parse(localStorage.getItem(RK) || '[]'); } catch { return []; } };
+const noteCap = (id: string) => { try { localStorage.setItem(RK, JSON.stringify([id, ...recentCaps().filter(x => x !== id)].slice(0, 12))); } catch { /* full */ } };
 const URL_RE = /(https?:\/\/[^\s]+)/i;
 
 const Decor = () => (
@@ -95,7 +98,7 @@ const Grid = ({ shots, onOpen }: { shots: Shot[]; onOpen: (k: number) => void })
 };
 
 
-const GAP = 8;
+const GAP = 10;
 /** Pinch steps: growing or shrinking a tile one snap size at a time; the stronger axis of the pinch picks wide vs tall. */
 const GROW: Record<Size, (x: boolean) => Size> = { s: x => (x ? 'w' : 'sq'), w: () => 'l', sq: x => (x ? 'l' : 't'), t: () => 'l', l: () => 'h', h: () => 'h' };
 const SHRINK: Record<Size, (x: boolean) => Size> = { h: () => 'l', l: x => (x ? 'sq' : 'w'), t: () => 'sq', sq: () => 's', w: () => 's', s: () => 's' };
@@ -107,9 +110,9 @@ if (typeof document !== 'undefined') document.addEventListener('touchmove', e =>
  * Tap opens (a real click, so a scroll never opens anything). Hold picks a tile up: let go to select it, or drag to move it;
  * the others slide out of the way. While holding (or in select mode), pinch a tile with two fingers to step its size.
  */
-const CapsuleGrid = ({ list, env, sel, onTap, onLong, onReorder, onResize, lead, tail }: {
+const CapsuleGrid = ({ list, env, sel, onTap, onLong, onReorder, onResize, onDrop, lead, tail }: {
   list: Item[]; env: Env; sel: Set<string> | null; onTap: (id: string) => void; onLong: (id: string) => void;
-  onReorder: (ids: string[]) => void; onResize: (id: string, s: Size) => void; lead?: React.ReactNode; tail?: React.ReactNode;
+  onReorder: (ids: string[]) => void; onResize: (id: string, s: Size) => void; onDrop: (id: string, into: string) => void; lead?: React.ReactNode; tail?: React.ReactNode;
 }) => {
   const ref = useRef<HTMLDivElement>(null), [cell, setCell] = useState(80);
   useLayoutEffect(() => {
@@ -119,6 +122,8 @@ const CapsuleGrid = ({ list, env, sel, onTap, onLong, onReorder, onResize, lead,
   }, []);
   const [preview, setPreview] = useState<string[] | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [into, setInto] = useState<string | null>(null); const intoR = useRef<string | null>(null);
+  const aim = (t: string | null) => { if (intoR.current === t) return; intoR.current = t; setInto(t); if (t) haptic(10); };
   const els = useRef(new Map<string, HTMLDivElement>());
   const g = useRef<{ id: string; pid: number; x0: number; y0: number; x: number; y: number; ox: number; oy: number; sc: number; timer: number; live: boolean; moved: boolean; last: number } | null>(null);
   const pinch = useRef<{ id: string; dx: number; dy: number; d: number } | null>(null);
@@ -152,7 +157,7 @@ const CapsuleGrid = ({ list, env, sel, onTap, onLong, onReorder, onResize, lead,
     const d = g.current, el = d && els.current.get(d.id); if (!d || !d.live || !el) return;
     const sc = scroller()?.scrollTop ?? 0;
     el.style.transition = 'none';
-    el.style.transform = `translate(${d.x - d.x0 - (el.offsetLeft - d.ox)}px, ${d.y - d.y0 - (el.offsetTop - d.oy) + (sc - d.sc)}px) scale(1.04)`;
+    el.style.transform = `translate(${d.x - d.x0 - (el.offsetLeft - d.ox)}px, ${d.y - d.y0 - (el.offsetTop - d.oy) + (sc - d.sc)}px) scale(${intoR.current ? .62 : 1.04})`;
   };
   const autoScroll = useRef(0);
   const tickScroll = () => {
@@ -163,8 +168,18 @@ const CapsuleGrid = ({ list, env, sel, onTap, onLong, onReorder, onResize, lead,
   };
   /** Which tile is under the finger: the held one takes its place. */
   const hover = () => {
-    const d = g.current; if (!d || Date.now() - d.last < 160) return;
-    const hit = document.elementsFromPoint(d.x, d.y).map(e => (e as HTMLElement).closest?.('[data-pin]') as HTMLElement | null).find(e => e && e.dataset.pin !== d.id);
+    const d = g.current; if (!d) return;
+    const under = document.elementsFromPoint(d.x, d.y);
+    // over the middle of a capsule (or the Inbox): drop it in, instead of swapping places
+    const cap = under.map(e => (e as HTMLElement).closest?.('[data-drop]') as HTMLElement | null).find(e => e && e.dataset.drop !== d.id && e.dataset.pin !== d.id);
+    if (cap) {
+      const r = cap.getBoundingClientRect(), mx = r.width * .22, my = r.height * .22;
+      const mid = cap.dataset.pin ? d.x > r.left + mx && d.x < r.right - mx && d.y > r.top + my && d.y < r.bottom - my : true;
+      if (mid) { aim(cap.dataset.drop!); place(); return; }
+    }
+    if (intoR.current) { aim(null); place(); }
+    if (Date.now() - d.last < 160) return;
+    const hit = under.map(e => (e as HTMLElement).closest?.('[data-pin]') as HTMLElement | null).find(e => e && e.dataset.pin !== d.id);
     const over = hit?.dataset.pin; if (!over) return;
     const order = preview ?? list.map(i => i.id), from = order.indexOf(d.id), to = order.indexOf(over);
     if (from < 0 || to < 0 || from === to) return;
@@ -179,8 +194,11 @@ const CapsuleGrid = ({ list, env, sel, onTap, onLong, onReorder, onResize, lead,
     const el = els.current.get(d.id);
     if (d.live) {
       suppressClick.current = Date.now();
+      const target = intoR.current; aim(null);
       if (el) { el.style.transition = 'transform .28s cubic-bezier(.2,.8,.2,1)'; el.style.transform = ''; }
-      if (preview && preview.join() !== list.map(i => i.id).join()) onReorder(preview);
+      if (target) onDrop(d.id, target);
+      else if (preview && preview.join() !== list.map(i => i.id).join()) onReorder(preview);
+      else if (!d.moved) onLong(d.id);   // held and let go without moving: select it
       setPreview(null); setDragId(null);
     }
   };
@@ -194,7 +212,7 @@ const CapsuleGrid = ({ list, env, sel, onTap, onLong, onReorder, onResize, lead,
       const timer = window.setTimeout(() => {
         const d = g.current; if (!d || d.id !== id) return;
         d.live = true; blockScroll = true; suppressClick.current = Date.now();
-        haptic(12); onLong(id); setDragId(id);
+        haptic(12); setDragId(id);
         try { el.setPointerCapture(pid); } catch { /* already released */ }
         place(); autoScroll.current = requestAnimationFrame(tickScroll);
       }, 380);
@@ -204,6 +222,7 @@ const CapsuleGrid = ({ list, env, sel, onTap, onLong, onReorder, onResize, lead,
       const d = g.current; if (!d || d.pid !== e.pointerId) return;
       d.x = e.clientX; d.y = e.clientY;
       if (!d.live) { if (Math.hypot(d.x - d.x0, d.y - d.y0) > 8) { clearTimeout(d.timer); g.current = null; } return; }
+      if (!d.moved && Math.hypot(d.x - d.x0, d.y - d.y0) < 6) return;
       d.moved = true; place(); hover();
     },
     onPointerUp: end,
@@ -221,7 +240,6 @@ const CapsuleGrid = ({ list, env, sel, onTap, onLong, onReorder, onResize, lead,
       if (!id || !(sel || g.current?.live)) return;
       e.preventDefault();
       if (g.current) { clearTimeout(g.current.timer); const live = g.current.live; if (live) end(); else g.current = null; }
-      if (!sel) onLong(id);
       pinch.current = { id, dx: Math.abs(a.clientX - b.clientX), dy: Math.abs(a.clientY - b.clientY), d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) };
       blockScroll = true;
     };
@@ -248,7 +266,7 @@ const CapsuleGrid = ({ list, env, sel, onTap, onLong, onReorder, onResize, lead,
       {shown.map((i, k) => {
         const a = classify(i), s: Size = sizeOf(a, env), [c, r] = SIZES[s], on = !!sel?.has(i.id), held = dragId === i.id;
         return (
-          <div key={i.id} data-pin={i.id} data-kind={a.kind} data-size={s} className={`ctile${on ? ' sel' : ''}${held ? ' held' : ''}`} role="button" aria-label={gistOf(i)} aria-pressed={sel ? on : undefined}
+          <div key={i.id} data-pin={i.id} data-drop={a.kind === 'capsule' ? i.id : undefined} data-kind={a.kind} data-size={s} className={`ctile${on ? ' sel' : ''}${held ? ' held' : ''}${into === i.id ? ' drop' : ''}${held && into ? ' into' : ''}`} role="button" aria-label={gistOf(i)} aria-pressed={sel ? on : undefined}
             style={{ gridColumn: `span ${c}`, gridRow: `span ${r}`, animation: preview || dragId ? undefined : `enter .4s ${Math.min(k, 10) * 30}ms both` }} {...handlers(i.id)}>
             <TileBody a={a} size={s} />
             {sel && <span className="ccheck" aria-hidden="true">{on ? '✓' : ''}</span>}
@@ -311,6 +329,7 @@ export const Future = () => {
 
   /** Move things into a capsule; they arrive at the top, keeping their order. */
   const moveTo = (ids: string[], to: string) => {
+    if (to !== ROOT && to !== INBOX) noteCap(to);
     const top = Math.min(0, ...kids(to).map(sortKey)), list = ordered(ids.map(id => byId.get(id)!).filter(Boolean));
     list.forEach((i, k) => update(i.id, { board: to, meta: { ...(i.meta ?? {}), ord: top - list.length + k } }));
   };
@@ -335,7 +354,21 @@ export const Future = () => {
   const open = sheetId ? byId.get(sheetId) : undefined, page = pageId ? byId.get(pageId) : undefined;
   const overlays = <>
     {view && <Viewer shots={view.shots} start={view.start} onClose={() => setView(null)} />}
-    {page && <ArtifactPage item={page} onClose={() => setPageId(null)} onOpenPhoto={k => openPic([page], page, k)} onOptions={() => setSheetId(page.id)} />}
+    {page && (() => {
+      // the artifacts beside this one, in the order the capsule shows them
+      const sibs = ordered(kids(parentOf(page))).filter(i => !isCapsule(i)), n = sibs.findIndex(i => i.id === page.id);
+      const go = (step: 1 | -1) => { const nx = sibs[n + step]; if (nx) { haptic(6); setPageId(nx.id, 'replace'); } };
+      const after = () => { const nx = sibs[n + 1] ?? sibs[n - 1]; setPageId(nx && nx.id !== page.id ? nx.id : null, 'replace'); };
+      const inInbox = parentOf(page) === INBOX;
+      const recent = recentCaps(), caps = mine.filter(isCapsule).map(c => ({ id: c.id, name: c.title || 'Untitled' }))
+        .sort((x, y) => { const a = recent.indexOf(x.id), b = recent.indexOf(y.id); return (a < 0 ? 99 : a) - (b < 0 ? 99 : b) || x.name.localeCompare(y.name); });
+      return <ArtifactPage item={page} onClose={() => setPageId(null)} onOpenPhoto={k => openPic([page], page, k)} onOptions={() => setSheetId(page.id)} toast={toast}
+        pos={n >= 0 && sibs.length > 1 ? { n: n + 1, of: sibs.length } : undefined} onGo={go}
+        extra={inInbox && <FileRow key={`file-${page.id}`} caps={caps}
+          onFile={to => { moveTo([page.id], to); setToast(`Filed into ${nameOf(to, byId)}`); haptic(10); after(); }}
+          onNew={name => { const id = add({ kind: 'future', body: '', title: name, board: ROOT, meta: { capsule: true, ord: Math.min(0, ...kids(ROOT).map(sortKey)) - 1 } }); navLabels.set(id, name); update(page.id, { board: id }); noteCap(id); setToast(`Made “${name}”`); haptic(10); after(); }}
+          onTrash={() => { toTrash(page); after(); }} />} />;
+    })()}
     {open && !editing && !moving && <ArtifactSheet item={open} onClose={() => setSheetId(null)}
       onOpenPhoto={k => openPic([open], open, k)} onEdit={() => setEditing(open)} onMove={() => setMoving([open.id])}
       onTrash={() => { toTrash(open); setSheetId(null); setPageId(null); }} env={{ kids }} onSize={s => setSize(open, s)} onFlag={() => flag(open)} />}
@@ -413,7 +446,7 @@ export const Future = () => {
   const selIds = sel ? [...sel] : [];
 
   const inboxTile = here === ROOT && (
-    <button className="ctile press" onClick={() => !sel && setBoard(INBOX)} style={{ gridColumn: 'span 4', gridRow: 'span 1', background: INK, color: '#fff', display: 'flex', alignItems: 'center', gap: 12, padding: '0 14px', textAlign: 'left', opacity: sel ? .5 : 1 }}>
+    <button className="ctile press" data-drop={INBOX} onClick={() => !sel && setBoard(INBOX)} style={{ gridColumn: 'span 4', gridRow: 'span 1', background: INK, color: '#fff', display: 'flex', alignItems: 'center', gap: 12, padding: '0 14px', textAlign: 'left', opacity: sel ? .5 : 1 }}>
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 13h4l1.5 2.5h5L16 13h4" /><path d="M5.5 5.5h13L20 13v5.5H4V13z" /></svg>
       <span style={{ flex: 1, minWidth: 0 }}><span className="serif" style={{ display: 'block', fontSize: 17 }}>Inbox</span><span style={{ fontSize: 11, opacity: .7 }}>{inbox.length ? `${inbox.length} waiting for a home` : 'all sorted'}</span></span>
       <span style={{ display: 'flex', gap: 4 }}>{ordered(inbox, true).filter(i => imgsOf(i).length).slice(0, 3).map(i => <Mini key={i.id} id={imgsOf(i)[0].id} s={40} />)}</span>
@@ -447,12 +480,13 @@ export const Future = () => {
               : <button className="serif press" onClick={() => here !== INBOX && setNaming('rename')} style={{ fontSize: 26, lineHeight: 1.15, textAlign: 'left', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{nameOf(here, byId)}</button>}
         </div>
         {here === ROOT && photoItems.length > 0 && !sel && <button className="chip press" style={{ height: 32 }} onClick={() => setAllPhotos(true)}>Photos · {photoItems.reduce((n, i) => n + imgsOf(i).length, 0)}</button>}
+        {here === INBOX && !sel && list.some(i => !isCapsule(i)) && <button className="chip on press" style={{ height: 32, padding: '0 14px' }} onClick={() => setPageId(list.find(i => !isCapsule(i))!.id)}>Sort</button>}
         {list.length > 0 && <button className="press caps" style={{ padding: '6px 0' }} onClick={() => setSel(sel ? null : new Set())}>{sel ? 'done' : 'select'}</button>}
       </div>
 
       <div className="scroll grow" style={{ position: 'relative', margin: '0 -24px -12px', padding: '14px 24px 104px', WebkitMaskImage: FADE, maskImage: FADE }}>
-        <CapsuleGrid list={list} env={{ kids }} sel={sel} onTap={tap} onLong={long} onReorder={reorder} onResize={(id, sz) => { const i = byId.get(id); if (i) setSize(i, sz); }} lead={inboxTile} tail={newTile} />
-        {list.length === 0 && here !== ROOT && <div className="it mute" style={{ textAlign: 'center', marginTop: 40, fontSize: 15 }}>{here === INBOX ? 'The inbox is clear.' : 'An empty capsule. Add the first thing below, or move things in.'}<div style={{ margin: '18px auto 0', width: 120 }}><DrgFit n="future" w={120} h={91} /></div></div>}
+        <CapsuleGrid list={list} env={{ kids }} sel={sel} onTap={tap} onLong={long} onReorder={reorder} onResize={(id, sz) => { const i = byId.get(id); if (i) setSize(i, sz); }} onDrop={(id, to) => { moveTo([id], to); setToast(`Moved into ${nameOf(to, byId)}`); }} lead={inboxTile} tail={newTile} />
+        {list.length === 0 && here !== ROOT && <div className="it mute" style={{ textAlign: 'center', marginTop: 40, fontSize: 15 }}>{here === INBOX ? 'The inbox is clear.' : 'An empty capsule. Add the first artifact below, or drag one in.'}<div style={{ margin: '18px auto 0', width: 120 }}><DrgFit n="future" w={120} h={91} /></div></div>}
         {here === ROOT && trash.length > 0 && <button className="press" onClick={() => setBoard(TRASH)} style={{ display: 'block', margin: '18px auto 0', fontSize: 12.5, color: INK2 }}>Trash · {trash.length}</button>}
         {here !== ROOT && here !== INBOX && !sel && <button className="press" onClick={() => { if (sure !== 'cap') { setSure('cap'); return; } const c = byId.get(here); if (c) { toTrash(c); setBoard(null); } }} style={{ display: 'block', margin: '28px auto 0', fontSize: 12, color: sure === 'cap' ? CRIMSON : INK2 }}>{sure === 'cap' ? `Tap again: move “${nameOf(here, byId)}” and everything in it to the trash` : 'Delete this capsule'}</button>}
 

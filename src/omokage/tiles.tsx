@@ -6,7 +6,7 @@
 //   3. A tile that looks wrong shows its "kind · size" in its sheet ("Flag this look" saves meta.flag). Find that kind
 //      below and change the branch for that size. Nothing else needs touching.
 // Sizes are spans on a 4-column grid of square cells (see SIZES); a renderer always fills its whole tile.
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useImg, type ImgRef } from './images';
 import { imgsOf, useItems, type Item } from './items';
 import { linkOf, noteOf, urlOf, type LinkMeta } from './link';
@@ -52,6 +52,55 @@ const clamp = (n: number): CSSProperties => ({ display: '-webkit-box', WebkitLin
 const fill: CSSProperties = { position: 'absolute', inset: 0 };
 const col = (gap = 0, extra?: CSSProperties): CSSProperties => ({ display: 'flex', flexDirection: 'column', gap, minWidth: 0, minHeight: 0, ...extra });
 const PAPER = '#FBF8F2', SOFT = 'rgba(43,50,71,.06)';
+/** Paper washed with the tile's own colour (--tint, set from its picture; plain paper when there is none). */
+const WASH = 'linear-gradient(rgba(var(--tint),.17), rgba(var(--tint),.17)), #FBF8F2';
+
+/* ---------- colour taken from a picture ---------- */
+const TK = 'omk_tints';
+const tints: Map<string, string | null> = (() => { try { return new Map(Object.entries(JSON.parse(localStorage.getItem(TK) || '{}'))); } catch { return new Map(); } })();
+const waiting = new Map<string, Promise<string | null>>();
+const saveTints = () => { try { localStorage.setItem(TK, JSON.stringify(Object.fromEntries([...tints].slice(-500)))); } catch { /* full */ } };
+/** The picture's main colour as "r,g,b": an average that favours saturated mid-tones, so a red jacket wins over grey sky. */
+const sample = (src: string, cors: boolean) => new Promise<string | null>(res => {
+  const im = new Image(); if (cors) im.crossOrigin = 'anonymous'; im.referrerPolicy = 'no-referrer';
+  im.onload = () => {
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = 14; const x = c.getContext('2d')!; x.drawImage(im, 0, 0, 14, 14);
+      const d = x.getImageData(0, 0, 14, 14).data; let r = 0, g = 0, b = 0, w = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        const R = d[i], G = d[i + 1], B = d[i + 2], mx = Math.max(R, G, B), mn = Math.min(R, G, B), sat = mx ? (mx - mn) / mx : 0, l = (mx + mn) / 510;
+        const wt = Math.max(0, .12 + sat * (1 - Math.abs(l - .5) * 1.7)); r += R * wt; g += G * wt; b += B * wt; w += wt;
+      }
+      res(w ? `${Math.round(r / w)},${Math.round(g / w)},${Math.round(b / w)}` : null);
+    } catch { res(null); }
+  };
+  im.onerror = () => res(null); im.src = src;
+});
+const useTint = (key: string | undefined, src: string | null | undefined, cors: boolean) => {
+  const [t, setT] = useState<string | null>(() => (key ? tints.get(key) ?? null : null));
+  useEffect(() => {
+    if (!key) { setT(null); return; }
+    if (tints.has(key)) { setT(tints.get(key) ?? null); return; }
+    if (!src) return;
+    let on = true;
+    const p = waiting.get(key) ?? sample(src, cors).then(v => { tints.set(key, v); waiting.delete(key); saveTints(); return v; });
+    waiting.set(key, p); void p.then(v => { if (on) setT(v); });
+    return () => { on = false; };
+  }, [key, src, cors]);
+  return t;
+};
+/** An artifact's colour: from its first photo, else its link or tweet picture. null while unknown or when it has none. */
+export const useArtTint = (item: Item | undefined): string | null => {
+  const a = item ? classify(item) : null, r = a?.imgs[0], local = useImg(r?.id, 'thumb');
+  const web = !r && a ? (a.link?.kind === 'tweet' ? a.link.photos?.[0]?.url : a.link?.image || (a.kind === 'web-image' ? a.url : undefined)) : undefined;
+  return useTint(r ? r.id : web || undefined, r ? local : web, !r);
+};
+/** CSS variables for a tint: --tint is the colour, --shade a deep version of it for scrims. */
+export const tintVars = (t: string | null): CSSProperties => {
+  if (!t) return {};
+  const [r, g, b] = t.split(',').map(Number), k = .28;
+  return { ['--tint' as string]: t, ['--shade' as string]: `${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)}` };
+};
 
 /** An image that covers its box: a local photo (by ref) or a web image (by url). */
 export const Pic = ({ r, src, fit = 'cover', style, full }: { r?: ImgRef; src?: string; fit?: 'cover' | 'contain'; style?: CSSProperties; full?: boolean }) => {
@@ -70,7 +119,7 @@ const Site = ({ a, size = 9.5, light }: { a: Art; size?: number; light?: boolean
     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.link?.site || a.host}</span>
   </span>
 );
-const Pad = ({ children, p = 12, style }: { children: ReactNode; p?: number; style?: CSSProperties }) => <div style={{ ...fill, padding: p, ...col(0), ...style }}>{children}</div>;
+const Pad = ({ children, p = 13, style }: { children: ReactNode; p?: number; style?: CSSProperties }) => <div style={{ ...fill, padding: p, ...col(0), ...style }}>{children}</div>;
 /** Text that shows as many whole lines as fit (never a half-cut line), up to `lines`. It shrinks within a flex column. */
 const Fit = ({ lines, lh, className, style, children, shrink = 1 }: { lines: number; lh: number; className?: string; style: CSSProperties; children: ReactNode; shrink?: number }) => {
   const ref = useRef<HTMLDivElement>(null), [n, setN] = useState(lines);
@@ -93,7 +142,7 @@ const Body = ({ children, size = 12, lines, style }: { children: ReactNode; size
   <Fit lines={lines} lh={1.42} shrink={6} style={{ fontSize: size, color: INK2, ...style }}>{children}</Fit>;
 /** A soft scrim so text can sit on a photo. */
 const Scrim = ({ children, p = 12 }: { children: ReactNode; p?: number }) => (
-  <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: `${p * 2.4}px ${p}px ${p}px`, background: 'linear-gradient(to top, rgba(20,22,32,.72), rgba(20,22,32,0))', color: '#fff' }}>{children}</div>
+  <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: `${p * 2.4}px ${p}px ${p}px`, background: 'linear-gradient(to top, rgba(var(--shade),.78), rgba(var(--shade),0))', color: '#fff' }}>{children}</div>
 );
 const when = (s?: string) => { if (!s) return ''; const d = new Date(s); return isNaN(+d) ? '' : d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }); };
 
@@ -142,11 +191,11 @@ const tweetV: V = (a, size) => {
   if (a.kind === 'tweet-media' && photo) {
     const P = <Pic src={photo.url} style={{ width: '100%', height: '100%' }} />;
     if (size === 's') return <div style={fill}>{P}<Scrim p={9}><div className="it" style={{ fontSize: 12, lineHeight: 1.25, ...clamp(2) }}>{text}</div></Scrim></div>;
-    if (size === 'w') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: '34%', flex: 'none' }}>{P}</div><Pad p={10} style={{ position: 'relative', flex: 1, justifyContent: 'center', gap: 4 }}><Title italic size={13.5} lines={2}>{text}</Title><span style={{ fontSize: 10, color: INK2 }}>@{au.handle}</span></Pad></div>;
-    if (size === 'l') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: '50%', flex: 'none' }}>{P}</div><Pad style={{ position: 'relative', flex: 1, gap: 8 }}><Who /><Title italic size={14.5} lines={5}>{text}</Title></Pad></div>;
-    if (size === 'sq') return <div style={{ ...fill, ...col() }}><div style={{ height: '56%', flex: 'none' }}>{P}</div><div style={{ padding: '8px 10px', flex: 1, ...col(4) }}><Title italic size={12.5} lines={2}>{text}</Title><span style={{ fontSize: 10, color: INK2 }}>@{au.handle}</span></div></div>;
-    if (size === 't') return <div style={{ ...fill, ...col() }}><div style={{ padding: '11px 11px 8px', ...col(7), flex: 'none' }}><Who /><Title italic size={13.5} lines={5}>{text}</Title></div><div style={{ minHeight: 0 }}>{P}</div></div>;
-    return <div style={{ ...fill, ...col() }}><div style={{ height: '58%', flex: 'none' }}>{P}</div><div style={{ padding: 14, flex: 1, ...col(8) }}><Who /><Title italic size={17} lines={5}>{text}</Title></div></div>;
+    if (size === 'w') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: '34%', flex: 'none' }}>{P}</div><Pad p={10} style={{ position: 'relative', flex: 1, justifyContent: 'center', gap: 4, background: WASH }}><Title italic size={13.5} lines={2}>{text}</Title><span style={{ fontSize: 10, color: INK2 }}>@{au.handle}</span></Pad></div>;
+    if (size === 'l') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: '50%', flex: 'none' }}>{P}</div><Pad style={{ position: 'relative', flex: 1, gap: 8, background: WASH }}><Who /><Title italic size={14.5} lines={5}>{text}</Title></Pad></div>;
+    if (size === 'sq') return <div style={{ ...fill, ...col() }}><div style={{ height: '56%', flex: 'none' }}>{P}</div><div style={{ padding: '8px 10px', flex: 1, ...col(4), background: WASH }}><Title italic size={12.5} lines={2}>{text}</Title><span style={{ fontSize: 10, color: INK2 }}>@{au.handle}</span></div></div>;
+    if (size === 't') return <div style={{ ...fill, ...col(), background: WASH }}><div style={{ padding: '11px 11px 8px', ...col(7), flex: 'none' }}><Who /><Title italic size={13.5} lines={5}>{text}</Title></div><div style={{ minHeight: 0 }}>{P}</div></div>;
+    return <div style={{ ...fill, ...col() }}><div style={{ height: '58%', flex: 'none' }}>{P}</div><div style={{ padding: 14, flex: 1, ...col(8), background: WASH }}><Who /><Title italic size={17} lines={5}>{text}</Title></div></div>;
   }
   if (size === 's') return <Pad p={10} style={{ gap: 5 }}><Who s={16} /><Title italic size={12.5} lines={2}>{text}</Title></Pad>;
   if (size === 'w') return <Pad p={12} style={{ justifyContent: 'center', gap: 5 }}><Title italic size={15} lines={2}>“{text}”</Title><span style={{ fontSize: 10.5, color: INK2 }}>{au.name} · @{au.handle}</span></Pad>;
@@ -157,12 +206,12 @@ const tweetV: V = (a, size) => {
 
 const articleV: V = (a, size) => {
   const t = a.link!, P = <Pic src={t.image} style={{ width: '100%', height: '100%' }} />;
-  if (size === 's') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: 80, flex: 'none' }}>{P}</div><Pad p={9} style={{ position: 'relative', flex: 1, gap: 3 }}><Site a={a} size={8.5} /><Title size={12.5} lines={3}>{t.title}</Title></Pad></div>;
-  if (size === 'w') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: 120, flex: 'none' }}>{P}</div><Pad p={10} style={{ position: 'relative', flex: 1, gap: 4, justifyContent: 'center' }}><Site a={a} size={8.5} /><Title size={14} lines={2}>{t.title}</Title></Pad></div>;
-  if (size === 'sq') return <div style={{ ...fill, ...col() }}><div style={{ height: '52%', flex: 'none' }}>{P}</div><div style={{ padding: '8px 10px', flex: 1, ...col(4) }}><Site a={a} size={8.5} /><Title size={13.5} lines={3}>{t.title}</Title></div></div>;
-  if (size === 't') return <div style={{ ...fill, ...col() }}><div style={{ height: '44%', flex: 'none' }}>{P}</div><div style={{ padding: '10px 11px', flex: 1, ...col(5) }}><Site a={a} size={8.5} /><Title size={15} lines={3}>{t.title}</Title>{t.desc && <Body size={11.5} lines={5}>{t.desc}</Body>}</div></div>;
-  if (size === 'l') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: '46%', flex: 'none' }}>{P}</div><Pad style={{ position: 'relative', flex: 1, gap: 6 }}><Site a={a} /><Title size={16.5} lines={3}>{t.title}</Title>{t.desc && <Body lines={3}>{t.desc}</Body>}</Pad></div>;
-  return <div style={{ ...fill, ...col() }}><div style={{ height: '56%', flex: 'none' }}>{P}</div><div style={{ padding: 16, flex: 1, ...col(7) }}><Site a={a} /><Title size={21} lines={3}>{t.title}</Title>{t.desc && <Body size={13} lines={4}>{t.desc}</Body>}</div></div>;
+  if (size === 's') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: 80, flex: 'none' }}>{P}</div><Pad p={9} style={{ position: 'relative', flex: 1, gap: 3, background: WASH }}><Site a={a} size={8.5} /><Title size={12.5} lines={3}>{t.title}</Title></Pad></div>;
+  if (size === 'w') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: 120, flex: 'none' }}>{P}</div><Pad p={10} style={{ position: 'relative', flex: 1, gap: 4, justifyContent: 'center', background: WASH }}><Site a={a} size={8.5} /><Title size={14} lines={2}>{t.title}</Title></Pad></div>;
+  if (size === 'sq') return <div style={{ ...fill, ...col() }}><div style={{ height: '52%', flex: 'none' }}>{P}</div><div style={{ padding: '8px 10px', flex: 1, ...col(4), background: WASH }}><Site a={a} size={8.5} /><Title size={13.5} lines={3}>{t.title}</Title></div></div>;
+  if (size === 't') return <div style={{ ...fill, ...col() }}><div style={{ height: '44%', flex: 'none' }}>{P}</div><div style={{ padding: '10px 11px', flex: 1, ...col(5), background: WASH }}><Site a={a} size={8.5} /><Title size={15} lines={3}>{t.title}</Title>{t.desc && <Body size={11.5} lines={5}>{t.desc}</Body>}</div></div>;
+  if (size === 'l') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: '46%', flex: 'none' }}>{P}</div><Pad style={{ position: 'relative', flex: 1, gap: 6, background: WASH }}><Site a={a} /><Title size={16.5} lines={3}>{t.title}</Title>{t.desc && <Body lines={3}>{t.desc}</Body>}</Pad></div>;
+  return <div style={{ ...fill, ...col() }}><div style={{ height: '56%', flex: 'none' }}>{P}</div><div style={{ padding: 16, flex: 1, ...col(7), background: WASH }}><Site a={a} /><Title size={21} lines={3}>{t.title}</Title>{t.desc && <Body size={13} lines={4}>{t.desc}</Body>}</div></div>;
 };
 
 /** A link with no picture: a typographic card on paper. Wikipedia gets its own serif mark. */
@@ -180,7 +229,7 @@ const pageV: V = (a, size) => {
 
 const productV: V = (a, size) => {
   const t = a.link!, P = <Pic src={t.image} fit="contain" style={{ width: '100%', height: '100%' }} />;
-  const price = t.price && <span style={{ alignSelf: 'flex-start', fontSize: 11.5, fontWeight: 600, color: INK, background: '#F3EBDD', borderRadius: 99, padding: '3px 9px' }}>{t.currency && t.currency !== 'USD' && t.currency !== 'CAD' ? t.currency + ' ' : '$'}{t.price}</span>;
+  const price = t.price && <span style={{ alignSelf: 'flex-start', fontSize: 11.5, fontWeight: 600, color: INK, background: 'linear-gradient(rgba(var(--tint),.22), rgba(var(--tint),.22)), #F3EBDD', borderRadius: 99, padding: '3px 9px' }}>{t.currency && t.currency !== 'USD' && t.currency !== 'CAD' ? t.currency + ' ' : '$'}{t.price}</span>;
   if (size === 's' || size === 'w') return <div style={{ ...fill, display: 'flex', background: '#fff' }}><div style={{ width: size === 's' ? 74 : 96, flex: 'none' }}>{P}</div><Pad p={9} style={{ position: 'relative', flex: 1, gap: 4, justifyContent: 'center' }}><Title size={12.5} lines={size === 's' ? 2 : 2}>{t.title}</Title>{price || <Site a={a} size={8.5} />}</Pad></div>;
   if (size === 'l') return <div style={{ ...fill, display: 'flex', background: '#fff' }}><div style={{ width: '46%', flex: 'none' }}>{P}</div><Pad style={{ position: 'relative', flex: 1, gap: 6 }}><Site a={a} /><Title size={16} lines={3}>{t.title}</Title>{price}{t.desc && <Body lines={2}>{t.desc}</Body>}</Pad></div>;
   const ih = size === 'h' ? '64%' : size === 't' ? '58%' : '62%';
@@ -198,10 +247,10 @@ const photosV: V = (a, size) => {
 const photoNoteV: V = (a, size) => {
   const n = a.imgs.length, imgBox = n > 1 ? <Mosaic cells={a.imgs.slice(0, 4).map(r => <Pic key={r.id} r={r} style={{ width: '100%', height: '100%' }} />)} layout={layoutFor(Math.min(n, 4), size === 'l' ? 'sq' : size)} more={n - 4} /> : <Pic r={a.imgs[0]} style={{ width: '100%', height: '100%' }} />;
   const text = a.text || (a.link?.title ?? a.host);
-  if (size === 's' || size === 'w') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: size === 's' ? 74 : 96, flex: 'none', position: 'relative' }}>{imgBox}</div><Pad p={10} style={{ position: 'relative', flex: 1, justifyContent: 'center' }}><Title size={12.5} lines={3}>{text}</Title></Pad></div>;
-  if (size === 'l') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: '52%', flex: 'none', position: 'relative' }}>{imgBox}</div><Pad style={{ position: 'relative', flex: 1, justifyContent: 'center', background: PAPER }}><Title size={14.5} lines={6}>{text}</Title></Pad></div>;
+  if (size === 's' || size === 'w') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: size === 's' ? 74 : 96, flex: 'none', position: 'relative' }}>{imgBox}</div><Pad p={10} style={{ position: 'relative', flex: 1, justifyContent: 'center', background: WASH }}><Title size={12.5} lines={3}>{text}</Title></Pad></div>;
+  if (size === 'l') return <div style={{ ...fill, display: 'flex' }}><div style={{ width: '52%', flex: 'none', position: 'relative' }}>{imgBox}</div><Pad style={{ position: 'relative', flex: 1, justifyContent: 'center', background: WASH }}><Title size={14.5} lines={6}>{text}</Title></Pad></div>;
   const ih = size === 'h' ? '62%' : size === 't' ? '52%' : '58%';
-  return <div style={{ ...fill, ...col() }}><div style={{ height: ih, flex: 'none', position: 'relative' }}>{imgBox}</div><div style={{ padding: '9px 11px', flex: 1, minHeight: 0, background: PAPER, ...col() }}><Title size={size === 'h' ? 17 : 13} lines={size === 'h' ? 5 : size === 't' ? 7 : 3}>{text}</Title></div></div>;
+  return <div style={{ ...fill, ...col() }}><div style={{ height: ih, flex: 'none', position: 'relative' }}>{imgBox}</div><div style={{ padding: '9px 11px', flex: 1, minHeight: 0, background: WASH, ...col() }}><Title size={size === 'h' ? 17 : 13} lines={size === 'h' ? 5 : size === 't' ? 7 : 3}>{text}</Title></div></div>;
 };
 
 const questionV: V = (a, size) => {
@@ -250,18 +299,21 @@ const CapsuleTile = ({ a, size }: { a: Art; size: Size }) => {
   const kids = ordered(items.filter(i => i.kind === 'future' && parentOf(i) === a.item.id));
   const visual = kids.filter(visualKid);
   const peeks = [...visual, ...kids.filter(k => !visual.includes(k))].slice(0, 4);
-  const name = a.item.title || 'Untitled', count = `${kids.length} ${kids.length === 1 ? 'thing' : 'things'}`;
+  const name = a.item.title || 'Untitled', count = `${kids.length} ${kids.length === 1 ? 'artifact' : 'artifacts'}`;
+  const t1 = useArtTint(visual[0]), t2 = useArtTint(visual[1] ?? visual[0]);
+  // its cover mood: paper warmed by the colours of what's inside
+  const MOOD = t1 ? `linear-gradient(155deg, rgba(${t1},.26), rgba(${t2 ?? t1},.12) 70%), #F6EEE0` : '#F6EEE0';
   const nest = kids.filter(isCapsule).length;
   const meta = <span style={{ fontSize: 10.5, color: INK2 }}>{count}{nest ? ` · ${nest} capsule${nest === 1 ? '' : 's'}` : ''}</span>;
   const mosaic = (n: number, lay: string) => <Mosaic cells={peeks.slice(0, n).map(k => <Peek key={k.id} i={k} />)} layout={peeks.length ? layoutFor(Math.min(n, peeks.length), lay as Size) : '1'} />;
   const tab = <span aria-hidden="true" style={{ position: 'absolute', left: 12, top: 0, width: 26, height: 4, borderRadius: '0 0 3px 3px', background: '#C4463A', opacity: .75 }} />;
-  if (size === 's') return <Pad p={11} style={{ justifyContent: 'center', gap: 2, background: '#F6EEE0' }}>{tab}<Title size={14.5} lines={1}>{name}</Title>{meta}</Pad>;
-  if (size === 'w') return <div style={{ ...fill, display: 'flex', background: '#F6EEE0' }}>{tab}<Pad p={12} style={{ position: 'relative', flex: 1, justifyContent: 'center', gap: 2 }}><Title size={16} lines={1}>{name}</Title>{meta}</Pad>
+  if (size === 's') return <Pad p={11} style={{ justifyContent: 'center', gap: 2, background: MOOD }}>{tab}<Title size={14.5} lines={1}>{name}</Title>{meta}</Pad>;
+  if (size === 'w') return <div style={{ ...fill, display: 'flex', background: MOOD }}>{tab}<Pad p={12} style={{ position: 'relative', flex: 1, justifyContent: 'center', gap: 2 }}><Title size={16} lines={1}>{name}</Title>{meta}</Pad>
     <div style={{ display: 'flex', gap: 3, padding: 8, flex: 'none' }}>{peeks.slice(0, 3).map(k => <span key={k.id} style={{ width: 62, height: 62, borderRadius: 6, overflow: 'hidden', position: 'relative' }}><Peek i={k} /></span>)}</div></div>;
-  if (size === 'l') return <div style={{ ...fill, display: 'flex', background: '#F6EEE0' }}><div style={{ width: '50%', position: 'relative', flex: 'none' }}>{peeks.length ? mosaic(4, 'sq') : null}</div>
+  if (size === 'l') return <div style={{ ...fill, display: 'flex', background: MOOD }}><div style={{ width: '50%', position: 'relative', flex: 'none' }}>{peeks.length ? mosaic(4, 'sq') : null}</div>
     <Pad style={{ position: 'relative', flex: 1, gap: 4 }}><Title size={20} lines={2}>{name}</Title>{meta}<div style={{ marginTop: 6, ...col(3) }}>{kids.filter(k => !/^\d+ photos?$/.test(gistOf(k))).slice(0, 3).map(k => <span key={k.id} style={{ fontSize: 11, color: INK2, ...clamp(1) }}>· {gistOf(k)}</span>)}</div></Pad></div>;
   const ih = size === 'h' ? '64%' : size === 't' ? '66%' : '64%';
-  return <div style={{ ...fill, ...col(), background: '#F6EEE0' }}><div style={{ height: ih, position: 'relative', flex: 'none' }}>{peeks.length ? mosaic(size === 't' ? 3 : 4, size === 'h' ? 'h' : size) : <span className="serif" style={{ ...fill, display: 'grid', placeItems: 'center', fontSize: 30, color: 'rgba(43,50,71,.18)' }}>{name[0]}</span>}</div>
+  return <div style={{ ...fill, ...col(), background: MOOD }}><div style={{ height: ih, position: 'relative', flex: 'none' }}>{peeks.length ? mosaic(size === 't' ? 3 : 4, size === 'h' ? 'h' : size) : <span className="serif" style={{ ...fill, display: 'grid', placeItems: 'center', fontSize: 30, color: 'rgba(43,50,71,.18)' }}>{name[0]}</span>}</div>
     <div style={{ padding: size === 'h' ? '12px 16px' : '8px 11px', flex: 1, ...col(2) }}><Title size={size === 'h' ? 24 : 15} lines={1}>{name}</Title>{meta}{size === 'h' && kids.filter(k => !/^\d+ photos?$/.test(gistOf(k))).slice(0, 2).map(k => <span key={k.id} style={{ fontSize: 11.5, color: INK2, marginTop: 2, ...clamp(1) }}>· {gistOf(k)}</span>)}</div></div>;
 };
 /** One short line naming an item. */
@@ -291,4 +343,8 @@ export const KINDS: Record<Kind, { label: string; auto: (a: Art, env?: Env) => S
 const isSize = (v: unknown): v is Size => typeof v === 'string' && v in SIZES;
 /** The size a tile shows at: the one you picked, else the kind's default. */
 export const sizeOf = (a: Art, env?: Env): Size => (isSize(a.item.meta?.size) ? a.item.meta!.size as Size : KINDS[a.kind].auto(a, env));
-export const TileBody = ({ a, size }: { a: Art; size: Size }) => <>{KINDS[a.kind].view(a, size)}</>;
+/** A tile's insides, with its colour set as --tint / --shade for the renderers to wash text panels and scrims with. */
+export const TileBody = ({ a, size }: { a: Art; size: Size }) => {
+  const t = useArtTint(a.kind === 'capsule' ? undefined : a.item);
+  return <div style={{ ...fill, ...tintVars(t) }}>{KINDS[a.kind].view(a, size)}</div>;
+};
