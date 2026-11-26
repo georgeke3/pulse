@@ -23,7 +23,7 @@ export default async function handler(req: any, res: any) {
   const prompt = typeof req.body === 'string' ? JSON.parse(req.body || '{}').prompt : req.body?.prompt;
   if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'Missing prompt.' });
 
-  const notes: string[] = [];
+  const notes: string[] = []; let why = '';
   for (let round = 0; round < 2; round++) {
     for (const model of MODELS) {
       try {
@@ -36,6 +36,7 @@ export default async function handler(req: any, res: any) {
         if (!r.ok) {
           notes.push(`${model}: ${r.status}`);
           if ([400, 401, 403].includes(r.status)) { console.error('gemini rejected', JSON.stringify(notes), (await r.text().catch(() => '')).slice(0, 300)); return res.status(502).json({ error: `Gemini rejected the request (${r.status}).`, notes }); }
+          if (r.status === 429 && !why) why = (await r.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
           continue; // 404 / 429 / 5xx: try the next model
         }
         const j: any = await r.json();
@@ -49,6 +50,12 @@ export default async function handler(req: any, res: any) {
     }
     if (round === 0) await sleep(1500);
   }
-  console.error('gemini failed', JSON.stringify(notes));
-  return res.status(503).json({ error: 'Gemini is overloaded right now. Try again in a minute.', notes });
+  console.error('gemini failed', JSON.stringify(notes), why);
+  // say what actually happened: "overloaded" hid quota limits and timeouts
+  const all = (re: RegExp) => notes.length > 0 && notes.every(n => re.test(n));
+  const error = all(/: 429$/) ? 'Gemini’s usage limit for this key is used up (429), not an outage. It resets on its own.'
+    : all(/Timeout|Abort/) ? 'Gemini was too slow to answer (timed out).'
+    : notes.some(n => /: 429$/.test(n)) ? 'Gemini’s usage limit was hit on some models (429), and the rest failed.'
+    : 'Gemini didn’t answer.';
+  return res.status(503).json({ error, notes, why });
 }

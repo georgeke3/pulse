@@ -50,7 +50,8 @@ export async function generateText(prompt: string, localKey?: string): Promise<s
       });
       if (r.ok) return (await r.json()).text as string;
       const j = await r.json().catch(() => ({}));
-      serverError = j?.error || `Server error ${r.status}`;
+      serverError = (j?.error || `Server error ${r.status}`) + (Array.isArray(j?.notes) && j.notes.length ? ` [${j.notes.join(', ')}]` : '');
+      if (j?.why) console.warn('gemini 429 detail', j.why);
     } catch {
       serverError = 'Could not reach the server.';
     }
